@@ -1172,6 +1172,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   <!-- Category tabs -->
   <div class="cat-tabs" id="catTabsContainer">
     <button class="cat-tab active" onclick="selectCat('liga_alta',this)">CATEGORÍA LIBRE VARONIL</button>
+    <button class="cat-tab" onclick="selectCat('cat_libre_femenil',this)">CATEGORÍA LIBRE FEMENIL</button>
     <button class="cat-tab" onclick="selectCat('cat_infantil',this)">CATEGORÍA INFANTIL</button>
     <button class="cat-tab" onclick="selectCat('cat_juvenil_a',this)">CATEGORÍA JUVENIL A</button>
     <button class="cat-tab" onclick="selectCat('cat_juvenil_b',this)">CATEGORÍA JUVENIL B</button>
@@ -1257,8 +1258,10 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   <div class="sh" style="margin-top:18px">
     <div class="st">🥅 Máximos Goleadores</div>
     <div class="sl"><span style="font-size:9px;color:var(--muted);font-weight:600;margin-left:8px">Top 10</span></div>
+    <button id="btnToggleGoleadoresPublic" class="btn btn-out btn-sm admin-only" onclick="toggleGoleadoresPublic()" title="Mostrar/ocultar al público" style="display:none;">👁️</button>
     <button class="btn btn-out btn-sm" onclick="compartirGoleadores()" title="Compartir goleadores">📤</button>
   </div>
+  <div id="goleadoresPublicBanner" style="display:none;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2);border-radius:10px;padding:8px 12px;font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px;">🔒 Tabla de goleadores oculta al público</div>
   <div class="ranking-container" id="goleadoresCaptura"><div id="goleadoresList"><div class="empty"><span class="empty-icon">🥅</span>Sin goles registrados</div></div></div>
 
 </div>
@@ -1661,6 +1664,201 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   </div>
 
   </div><!-- /reglContentLigaAlta -->
+
+  <!-- Contenido exclusivo CATEGORÍA LIBRE FEMENIL -->
+  <div id="reglContentFemenil" style="display:none;">
+
+  <!-- FORMATO DE COMPETENCIA -->
+  <div class="sh"><div class="st">🏟️ Formato de Competencia</div><div class="sl"></div></div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏆</div>
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text);">Fase de Liga — Todos Contra Todos</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px;">4 Equipos · 2 Vueltas · 6 Jornadas Totales</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);font-weight:600;line-height:1.65;margin-bottom:12px;">Los <strong>4 equipos</strong> del torneo se enfrentarán entre sí <strong>2 veces cada uno</strong> (ida y vuelta), completando un total de <strong>6 jornadas</strong>. Al término, el <strong>1er lugar</strong> se enfrentará al <strong>2do lugar</strong> en la Gran Final.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#16a34a;line-height:1;">3</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#16a34a;margin-top:2px;">Victoria</div>
+      </div>
+      <div style="background:rgba(100,116,139,.08);border:1px solid rgba(100,116,139,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#64748b;line-height:1;">1</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-top:2px;">Empate</div>
+      </div>
+      <div style="background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#dc2626;line-height:1;">0</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#dc2626;margin-top:2px;">Derrota</div>
+      </div>
+    </div>
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:11px;color:var(--text2);font-weight:600;line-height:1.6;">
+      <strong style="color:#7c3aed">Desempate:</strong> En caso de igualdad en puntos, se aplicará en orden: diferencia de goles y mayor número de goles anotados.
+    </div>
+  </div>
+
+  <!-- GRAN FINAL -->
+  <div class="card" style="margin-bottom:10px;padding:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#ca8a04,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🥊</div>
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text);">Gran Final</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px;">Al término de las 6 Jornadas</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);font-weight:600;line-height:1.65;margin-bottom:12px;">Al concluir las <strong>6 jornadas</strong> de la fase regular, el <strong>1er lugar</strong> y el <strong>2do lugar</strong> de la tabla disputarán un partido único como la <strong>Gran Final</strong> del torneo.</p>
+
+    <!-- NOTA DESTACADA -->
+    <div style="display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,rgba(202,138,4,.12),rgba(255,255,255,0));border:1.5px solid rgba(202,138,4,.4);border-radius:10px;padding:10px 13px;margin-bottom:12px;">
+      <span style="font-size:20px;flex-shrink:0;">🥇</span>
+      <div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#ca8a04;text-transform:uppercase;margin-bottom:2px;">1° vs 2° — Gran Final</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.5;">El primer y segundo lugar de la tabla se enfrentan en un <strong>partido único</strong> para definir al campeón del torneo.</div>
+      </div>
+    </div>
+
+    <!-- DIAGRAMA VISUAL -->
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 13px;margin-bottom:10px;">
+      <div style="font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">📊 Diagrama del Torneo</div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;font-size:10px;font-weight:700;">
+        <!-- Lado izquierdo -->
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:8px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#7c3aed;margin-bottom:2px;">LIGA · 6 JORNADAS</div>
+            <div style="color:var(--text2);font-size:9px;">4 equipos · todos vs todos · 2 vueltas</div>
+          </div>
+          <div style="display:flex;justify-content:center;"><div style="width:1px;height:10px;background:var(--border2);"></div></div>
+          <div style="background:rgba(202,138,4,.08);border:1px solid rgba(202,138,4,.3);border-radius:8px;padding:6px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#ca8a04;margin-bottom:2px;">CLASIFICADOS</div>
+            <div style="color:var(--text2);"><span style="color:#ca8a04;font-weight:900;">1°</span> <span style="color:var(--muted)">y</span> <span style="color:#94a3b8;font-weight:900;">2°</span></div>
+          </div>
+        </div>
+        <!-- Centro -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 4px;">
+          <div style="width:1px;flex:1;background:var(--border2);"></div>
+          <div style="background:linear-gradient(135deg,#ca8a04,#f59e0b);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 4px 10px rgba(202,138,4,.3);">🏆</div>
+          <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#ca8a04;text-transform:uppercase;white-space:nowrap;">Gran Final</div>
+          <div style="width:1px;flex:1;background:var(--border2);"></div>
+        </div>
+        <!-- Lado derecho -->
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:8px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#7c3aed;margin-bottom:2px;">PARTIDO FINAL</div>
+            <div style="color:var(--text2);"><span style="color:#ca8a04;font-weight:900;">1°</span> <span style="color:var(--muted)">vs</span> <span style="color:#94a3b8;font-weight:900;">2°</span></div>
+          </div>
+          <div style="display:flex;justify-content:center;"><div style="width:1px;height:10px;background:var(--border2);"></div></div>
+          <div style="background:rgba(202,138,4,.08);border:1px solid rgba(202,138,4,.3);border-radius:8px;padding:6px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#ca8a04;margin-bottom:2px;">CAMPEÓN</div>
+            <div style="color:var(--text2);font-size:9px;">👑 Ganador de la Final</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:11px;color:var(--text2);font-weight:600;line-height:1.6;">
+      <strong style="color:#7c3aed">Penales:</strong> En caso de empate al término del tiempo reglamentario, el campeón se definirá mediante tanda de penales.
+    </div>
+  </div>
+
+  <!-- PARTIDOS -->
+  <div class="sh" style="margin-top:6px;"><div class="st">⚽ Reglamento de Partidos</div><div class="sl"></div></div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px;display:flex;flex-direction:column;gap:11px;">
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⏱️</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Duración del partido</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Dos tiempos de <strong>20 minutos</strong> cada uno.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🕐</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Tolerancia y default</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Tolerancia máxima de <strong>15 minutos</strong>. Si el equipo no se presenta, perderá por default con marcador oficial de <strong>3-0</strong>. Dos defaults = expulsión sin reembolso.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⚽</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Balón</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Cada equipo debe llevar balón en condiciones adecuadas. De no presentarlo al inicio del segundo tiempo, se pitará un <strong>penal en contra</strong>.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">👕</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Uniformes — OBLIGATORIO</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Medias largas y <strong>taque-tenis obligatorios</strong>. Todas las jugadoras deben portar playeras del mismo color. En caso de colisión de colores, el equipo <strong>visitante</strong> realiza el cambio.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🔄</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Cambios</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Los equipos podrán realizar <strong>cambios ilimitados</strong> durante el partido.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🚫</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Conducta</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Cualquier jugadora que incurra en actos de <strong>violencia o participe en una pelea</strong> será expulsada definitivamente del torneo.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🦺</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Arbitraje</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">El costo de arbitraje es de <strong>$250 por partido</strong>, pagadero al término del encuentro en efectivo.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⚠️</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Jugadora en dos equipos</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Ninguna jugadora podrá participar en más de un equipo. El incumplimiento conlleva la <strong>pérdida del partido</strong> para el equipo infractor.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">📢</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Protestas</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Se aceptarán protestas. De comprobarse alineación indebida, el equipo donde jugó la protestada <strong>perderá el partido</strong> correspondiente.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREMIACIÓN -->
+  <div class="sh" style="margin-top:6px;"><div class="st">🏅 Premiación</div><div class="sl"></div></div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px;">
+    <!-- Campeón -->
+    <div style="position:relative;overflow:hidden;border-radius:18px;padding:16px;background:linear-gradient(135deg,rgba(202,138,4,.15),rgba(245,158,11,.08) 60%,rgba(255,255,255,0));border:1.5px solid rgba(202,138,4,.4);box-shadow:0 8px 22px rgba(202,138,4,.12);">
+      <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:52px;opacity:.12;pointer-events:none;">🏆</div>
+      <div style="font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#ca8a04;margin-bottom:4px;">Ganador de la Gran Final</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;color:#92400e;margin-bottom:8px;line-height:1;">Campeón Femenil Libre</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(202,138,4,.12);border:1px solid rgba(202,138,4,.28);border-radius:999px;padding:5px 12px;width:fit-content;">
+          <span style="font-size:14px;">🏆</span><span style="font-size:11px;font-weight:800;color:#92400e;">Trofeo</span>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(202,138,4,.12);border:1px solid rgba(202,138,4,.28);border-radius:999px;padding:5px 12px;width:fit-content;">
+          <span style="font-size:14px;">🥩</span><span style="font-size:11px;font-weight:800;color:#92400e;">Carne asada</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESPONSABILIDAD -->
+  <div class="sh" style="margin-top:6px;"><div class="st">⚠️ Responsabilidad</div><div class="sl"></div></div>
+  <div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.28);border-radius:16px;padding:16px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px;">
+    <span style="font-size:22px;flex-shrink:0;margin-top:1px;">⚠️</span>
+    <p style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.65;">Todas las participantes juegan <strong>bajo su propio riesgo</strong>, deslindando a la organización de cualquier responsabilidad por lesiones o accidentes ocurridos durante el torneo.</p>
+  </div>
+
+  </div><!-- /reglContentFemenil -->
 
 </div>
 <!-- FIN REGLAMENTO -->
@@ -2925,13 +3123,14 @@ delete TORNEO_NAMES.musala;
 TORNEO_LOGOS.villa = LOS_ALAMITOS_LOGO;
 TORNEO_LOGOS.musala = LOS_ALAMITOS_LOGO;
 CAT_NAMES.liga_alta = 'CATEGORÍA LIBRE VARONIL';
+CAT_NAMES.cat_libre_femenil = 'CATEGORÍA LIBRE FEMENIL';
 CAT_NAMES.cat_infantil = 'CATEGORÍA INFANTIL';
 CAT_NAMES.cat_juvenil_a = 'CATEGORÍA JUVENIL A';
 CAT_NAMES.cat_juvenil_b = 'CATEGORÍA JUVENIL B';
 delete CAT_NAMES.liga_media;
 delete CAT_NAMES.liga_baja_a;
 delete CAT_NAMES.liga_baja_b;
-catOrderKeys = ['liga_alta','cat_infantil','cat_juvenil_a','cat_juvenil_b'];
+catOrderKeys = ['liga_alta','cat_libre_femenil','cat_infantil','cat_juvenil_a','cat_juvenil_b'];
 const splashMainLogoOnLoad = document.querySelector('#splash > div img');
 if(splashMainLogoOnLoad) splashMainLogoOnLoad.src = SPLASH_BIG_LOGO;
 const hdrBrandLogoOnLoad = document.querySelector('.hdr-shield img');
@@ -3102,7 +3301,7 @@ function updateAdminUI(adminFlag, ownerFlag, captainFlag, capEquipoKey){
   // Admin-only elements
   document.querySelectorAll('.admin-only').forEach(x=>{ adminFlag?x.classList.add('show'):x.classList.remove('show'); });
   // Update porteros & copa visibility toggle buttons
-  setTimeout(()=>{ updatePorterosPublicUI(); updateCuadroCopaUI(); }, 0);
+  setTimeout(()=>{ updatePorterosPublicUI(); updateCuadroCopaUI(); updateGoleadoresPublicUI(); }, 0);
   const addPartido = document.getElementById('adminAddPartido');
   const addEquipo  = document.getElementById('adminAddEquipo');
   const aTemp      = document.getElementById('adminAddTemporada');
@@ -3523,21 +3722,30 @@ function selectCat(cat, btn){
   renderEquiposPage();
   updatePorterosPublicUI();
   updateCuadroCopaUI();
+  updateGoleadoresPublicUI();
   if(isAdmin) scheduleMarketingAutoSync('categoria');
   updateReglamentoVisibility();
 }
 
 function updateReglamentoVisibility(){
   const content = document.getElementById('reglContentLigaAlta');
+  const contentFemenil = document.getElementById('reglContentFemenil');
   const placeholder = document.getElementById('reglPlaceholder');
   const heroTitle = document.getElementById('reglHeroTitle');
   if(!content || !placeholder) return;
   if(currentCat === 'liga_alta'){
     content.style.display = '';
+    if(contentFemenil) contentFemenil.style.display = 'none';
     placeholder.style.display = 'none';
     if(heroTitle) heroTitle.innerHTML = 'Reglamento<br>\& Premios';
+  } else if(currentCat === 'cat_libre_femenil'){
+    content.style.display = 'none';
+    if(contentFemenil) contentFemenil.style.display = '';
+    placeholder.style.display = 'none';
+    if(heroTitle) heroTitle.innerHTML = 'Reglamento<br>& Premios';
   } else {
     content.style.display = 'none';
+    if(contentFemenil) contentFemenil.style.display = 'none';
     placeholder.style.display = '';
     if(heroTitle){
       const catName = (typeof CAT_NAMES !== 'undefined' ? CAT_NAMES[currentCat] : '') || currentCat;
@@ -4573,6 +4781,7 @@ function renderGoleadores(){
   const sorted=getTopScorersData(10);
   if(!sorted.length){
     el.innerHTML='<div class="empty"><span class="empty-icon">🥅</span>Sin goles registrados</div>';
+    updateGoleadoresPublicUI();
     renderPorteros();
     return;
   }
@@ -4588,7 +4797,42 @@ function renderGoleadores(){
       </div>
     </div>`;
   }).join('');
+  updateGoleadoresPublicUI();
   renderPorteros();
+}
+
+// ══════════════════════════════════════
+//  GOLEADORES VISIBILITY TOGGLE (admin)
+// ══════════════════════════════════════
+function getGoleadoresPublicKey(){ return 'ld_goleadores_public_'+currentTorneo+'_'+currentCat; }
+function isGoleadoresPublic(){
+  const val = localStorage.getItem(getGoleadoresPublicKey());
+  return val === null ? true : val === '1'; // default: visible
+}
+function toggleGoleadoresPublic(){
+  if(!isAdmin) return;
+  const nowPublic = !isGoleadoresPublic();
+  localStorage.setItem(getGoleadoresPublicKey(), nowPublic ? '1' : '0');
+  updateGoleadoresPublicUI();
+  renderGoleadores();
+  showToast(nowPublic ? '👁️ Goleadores visibles al público' : '🔒 Goleadores ocultos al público', nowPublic ? 'tg' : 'ta');
+}
+function updateGoleadoresPublicUI(){
+  const btn = document.getElementById('btnToggleGoleadoresPublic');
+  const banner = document.getElementById('goleadoresPublicBanner');
+  const captura = document.getElementById('goleadoresCaptura');
+  const pub = isGoleadoresPublic();
+  if(btn){
+    btn.style.display = isAdmin ? '' : 'none';
+    btn.textContent = pub ? '👁️' : '🙈';
+    btn.title = pub ? 'Ocultar al público' : 'Mostrar al público';
+    btn.style.borderColor = pub ? '' : 'var(--red)';
+    btn.style.color = pub ? '' : 'var(--red)';
+  }
+  if(banner) banner.style.display = (!pub && isAdmin) ? '' : 'none';
+  if(captura) captura.style.opacity = (!pub && !isAdmin) ? '0' : '1';
+  if(captura) captura.style.pointerEvents = (!pub && !isAdmin) ? 'none' : '';
+  if(captura) captura.style.display = (!pub && !isAdmin) ? 'none' : '';
 }
 
 // ══════════════════════════════════════
@@ -10822,10 +11066,11 @@ function rebuildCatTabs(){
 function loadCustomCats(){
   Object.keys(CAT_NAMES).forEach(k=>delete CAT_NAMES[k]);
   CAT_NAMES.liga_alta = 'CATEGORÍA LIBRE VARONIL';
+  CAT_NAMES.cat_libre_femenil = 'CATEGORÍA LIBRE FEMENIL';
   CAT_NAMES.cat_infantil = 'CATEGORÍA INFANTIL';
   CAT_NAMES.cat_juvenil_a = 'CATEGORÍA JUVENIL A';
   CAT_NAMES.cat_juvenil_b = 'CATEGORÍA JUVENIL B';
-  catOrderKeys = ['liga_alta','cat_infantil','cat_juvenil_a','cat_juvenil_b'];
+  catOrderKeys = ['liga_alta','cat_libre_femenil','cat_infantil','cat_juvenil_a','cat_juvenil_b'];
 }
 
 function saveCatOrder(){
