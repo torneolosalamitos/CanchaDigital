@@ -18,7 +18,7 @@ body{background:var(--bg);color:var(--text);font-family:'Montserrat',sans-serif;
 
 /* ═══ SPLASH ═══ */
 #splash{position:fixed;inset:0;z-index:3000;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 22px;overflow:hidden;}
-#splash::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(26,58,138,.04) 0%,transparent 70%);pointer-events:none;}
+#splash::after{content:'';position:absolute;inset:0;background:transparent;pointer-events:none;}
 
 #splash.hidden{display:none;}
 .sp-logo-wrap{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
@@ -1116,21 +1116,21 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
 
   <!-- Tournament cards -->
   <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px">
-    <div onclick="selectTorneo('villa')" style="background:#f4f7ff;border:1.5px solid rgba(26,58,138,.15);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 12px rgba(26,58,138,.07)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.22)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(46,168,60,.15)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+    <div onclick="selectTorneo('villa')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
       <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="" alt="TORNEO LOMBARDO TOLEDANO" style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12));"/></div>
       <div style="flex:1">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO LOMBARDO TOLEDANO</div>
-        <div style="font-size:10px;color:rgba(26,58,138,.4);font-weight:600;margin-top:3px;letter-spacing:1px">LIBRE VARONIL Y FEMENIL</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO LOMBARDO TOLEDANO</div>
+        <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">LIBRE VARONIL Y FEMENIL</div>
       </div>
-      <div style="font-size:18px;color:rgba(46,168,60,.8);font-weight:700">›</div>
+      <div style="font-size:18px;color:rgba(46,168,60,.8);font-weight:700">&#8250;</div>
     </div>
-    <div onclick="selectTorneo('nuevos_valores')" style="background:#f4f7ff;border:1.5px solid rgba(26,58,138,.15);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 12px rgba(26,58,138,.07)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.22)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(46,168,60,.15)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+    <div onclick="selectTorneo('nuevos_valores')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
       <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="" alt="TORNEO NUEVOS VALORES" style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12));"/></div>
       <div style="flex:1">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO NUEVOS VALORES</div>
-        <div style="font-size:10px;color:rgba(26,58,138,.4);font-weight:600;margin-top:3px;letter-spacing:1px">INFANTIL, OSOS Y JUVENIL</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO NUEVOS VALORES</div>
+        <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">INFANTIL, OSOS Y JUVENIL</div>
       </div>
-      <div style="font-size:22px;color:rgba(46,168,60,.6)">›</div>
+      <div style="font-size:22px;color:rgba(46,168,60,.6);font-weight:700">&#8250;</div>
     </div>
   </div>
 
@@ -1206,6 +1206,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
     <!-- Controles -->
     <div class="hdr-right">
       <span id="adminBadge" style="display:none;background:var(--acc);color:#fff;font-size:9px;font-weight:800;letter-spacing:1px;padding:3px 8px;border-radius:4px;">ADMIN</span>
+      <button id="homeBtn" class="ico-btn" onclick="cambiarTorneo()" title="Elegir torneo">&#127968;</button>
       <button id="loginBtn" class="ico-btn" onclick="openLoginModal()" title="Admin">🔐</button>
       <button id="usersBtn" class="ico-btn owner-only" onclick="openModal('modalUsuarios');renderUsuariosPanel()" style="display:none" title="Gestión usuarios">👥</button>
       <span id="userChip" class="user-chip"><span class="user-dot"></span><span id="userChipName" class="user-name">Conectado</span></span>
