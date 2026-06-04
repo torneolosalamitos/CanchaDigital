@@ -15,6 +15,7 @@
 <script src="js/firebase-sync.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/navigation.js"></script>
+<script src="js/categories-rules.js"></script>
 <style>
 /* ═══ THEMES ═══ */
 [data-theme="light"]{--bg:#f4f6fb;--bg2:#fff;--card:#fff;--card2:#edf1fc;--border:#d0daee;--border2:#aec0de;--text:#0d1627;--text2:#2a3f6b;--muted:#6b84aa;--hdr:#ffffff;--acc:#2554d4;--acc2:#1a3a8a;--acc3:#e8eeff;--sh:rgba(26,58,138,.14);--ico-bg:rgba(26,58,138,.09);--ico-border:rgba(26,58,138,.25);--ico-color:#1a3a8a;--ico-bg-h:rgba(26,58,138,.16);--ico-border-h:rgba(26,58,138,.5);--ico-color-h:#0a1e3d;}
@@ -3376,33 +3377,6 @@ function resetProductos(){
     DEFAULT_PRODUCTS.forEach(p=>db.ref('productos').push(p));
     showToast('✅ Productos actualizados a la lista oficial','tg');
   });
-}
-
-function updateReglamentoVisibility(){
-  const content = document.getElementById('reglContentLigaAlta');
-  const contentFemenil = document.getElementById('reglContentFemenil');
-  const placeholder = document.getElementById('reglPlaceholder');
-  const heroTitle = document.getElementById('reglHeroTitle');
-  if(!content || !placeholder) return;
-  if(currentCat === 'liga_alta'){
-    content.style.display = '';
-    if(contentFemenil) contentFemenil.style.display = 'none';
-    placeholder.style.display = 'none';
-    if(heroTitle) heroTitle.innerHTML = 'Reglamento<br>\& Premios';
-  } else if(currentCat === 'cat_libre_femenil'){
-    content.style.display = 'none';
-    if(contentFemenil) contentFemenil.style.display = '';
-    placeholder.style.display = 'none';
-    if(heroTitle) heroTitle.innerHTML = 'Reglamento<br>& Premios';
-  } else {
-    content.style.display = 'none';
-    if(contentFemenil) contentFemenil.style.display = 'none';
-    placeholder.style.display = '';
-    if(heroTitle){
-      const catName = (typeof CAT_NAMES !== 'undefined' ? CAT_NAMES[currentCat] : '') || currentCat;
-      heroTitle.textContent = catName;
-    }
-  }
 }
 
 const isPageActive = p => document.getElementById('page-'+p)?.classList.contains('active');
@@ -10780,38 +10754,6 @@ function eliminarCategoria(key){
   renderGcList();
   rebuildCatTabs();
   showToast('Categoría eliminada','tg');
-}
-
-function rebuildCatTabs(){
-  const container = document.getElementById('catTabsContainer');
-  if(!container) return;
-  const orderedKeys = catOrderKeys.filter(k=>CAT_NAMES[k]);
-  Object.keys(CAT_NAMES).forEach(k=>{ if(!orderedKeys.includes(k)) orderedKeys.push(k); });
-  const addBtnHtml = isAdmin ? `<button id="catAddBtn" onclick="openAddCatInline()" style="background:none;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,.5);padding:0 12px;cursor:pointer;font-size:18px;flex-shrink:0;line-height:36px" title="Agregar categoría">＋</button>` : '';
-  container.innerHTML = orderedKeys.map(k=>
-    `<button class="cat-tab${currentCat===k?' active':''}" onclick="selectCat('${k}',this)">${CAT_NAMES[k]}</button>`
-  ).join('') + addBtnHtml;
-}
-
-function openAddCatInline(){
-  const nombre = prompt('Nombre de la nueva categoría:');
-  if(!nombre||!nombre.trim()) return;
-  const id = nombre.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
-  if(!id){ showToast('Nombre inválido','ta'); return; }
-  if(CAT_NAMES[id]){ showToast('Esa categoría ya existe','ta'); return; }
-  CAT_NAMES[id] = nombre.trim();
-  catOrderKeys.push(id);
-  saveCatOrder();
-  currentCat = id;
-  rebuildCatTabs();
-  showToast('Categoría "'+nombre.trim()+'" creada','tg');
-}
-
-function openGestionCats(){
-  const label = document.getElementById('gcTorneoLabel');
-  if(label) label.textContent = TORNEO_NAMES[currentTorneo]||currentTorneo;
-  renderGcList();
-  openModal('modalGestionCats');
 }
 
 // ══════════════════════════════════════════════
