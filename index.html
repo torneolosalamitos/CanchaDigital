@@ -1106,7 +1106,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
 <body>
 
 <!-- ═══ LOADING ═══ -->
-<div id="loadingScreen" class="show">
+<div id="loadingScreen">
   <div class="ld-ball">⚽</div>
   <div class="ld-txt" id="ldTxt">CanchaDigital</div>
   <div class="ld-sub">Panel profesional de torneos</div>
@@ -1131,7 +1131,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   <!-- Tournament cards -->
   <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px">
     <div onclick="selectTorneo('villa')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
-      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="" alt="TORNEO LOMBARDO TOLEDANO" style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12));"/></div>
+      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-lombardo-toledano.png" alt="TORNEO LOMBARDO TOLEDANO" style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12));"/></div>
       <div style="flex:1">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO LOMBARDO TOLEDANO</div>
         <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">LIBRE VARONIL Y FEMENIL</div>
@@ -1139,7 +1139,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
       <div style="font-size:18px;color:rgba(46,168,60,.8);font-weight:700">&#8250;</div>
     </div>
     <div onclick="selectTorneo('nuevos_valores')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
-      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="" alt="TORNEO NUEVOS VALORES" style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12));"/></div>
+      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-nuevos-valores.png" alt="TORNEO NUEVOS VALORES" style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12));"/></div>
       <div style="flex:1">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO NUEVOS VALORES</div>
         <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">INFANTIL, OSOS Y JUVENIL</div>
@@ -3164,19 +3164,19 @@ let bootFallbackTimer = null;
 let marketingPostsCache = {};
 const marketingAutoSyncState = { timer:null, signatures:{} };
 const C = { equipos:{}, partidos:{}, productos:{}, ventas:{}, arbitros:{}, inscripciones:{}, trabajadores:{}, gastosTrab:{}, gastosTienda:{}, turnos:{}, usuarios:{}, solicitudes:{}, mercadotecnia:{} };
-const TORNEO_NAMES = { villa:'TORNEO LOMBARDO TOLEDANO', nuevos_valores:'TORNEO NUEVOS VALORES' };
-const TORNEO_LOGOS = { villa:LOMBARDO_TOLEDANO_LOGO, nuevos_valores:NUEVOS_VALORES_LOGO };
 const CD_LOGO = '/CanchaDigital/img/logo-cancha-shield.png';
-const CAT_NAMES = { liga_alta:'Liga Alta', liga_media:'Liga Media', liga_baja_a:'Liga Baja A', liga_baja_b:'Liga Baja B' };
-let catOrderKeys = ['liga_alta','liga_media','liga_baja_a','liga_baja_b'];
-const CANCHAS = ['Los Alamitos'];
-const ORGANIZER_NAME = 'Jesus "Navo"';
-const ORGANIZER_PHONE = '667 452 5663';
 const CD_LOGO_SHIELD = '/CanchaDigital/img/logo-cancha-shield.png';
 const SPLASH_BIG_LOGO = '/CanchaDigital/img/logo-cancha-splash.png';
 const LOS_ALAMITOS_LOGO = '/CanchaDigital/img/logo-alamitos.png';
 const LOMBARDO_TOLEDANO_LOGO = 'img/logo-lombardo-toledano.png';
 const NUEVOS_VALORES_LOGO = 'img/logo-nuevos-valores.png';
+const TORNEO_NAMES = { villa:'TORNEO LOMBARDO TOLEDANO', nuevos_valores:'TORNEO NUEVOS VALORES' };
+const TORNEO_LOGOS = { villa:LOMBARDO_TOLEDANO_LOGO, nuevos_valores:NUEVOS_VALORES_LOGO };
+const CAT_NAMES = { liga_alta:'Liga Alta', liga_media:'Liga Media', liga_baja_a:'Liga Baja A', liga_baja_b:'Liga Baja B' };
+let catOrderKeys = ['liga_alta','liga_media','liga_baja_a','liga_baja_b'];
+const CANCHAS = ['Los Alamitos'];
+const ORGANIZER_NAME = 'Jesus "Navo"';
+const ORGANIZER_PHONE = '667 452 5663';
 const TORNEO_CONFIG = {
   villa: {
     name: 'TORNEO LOMBARDO TOLEDANO',
