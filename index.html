@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="js/tournament-config.js"></script>
+<script src="js/firebase-boot.js"></script>
 <style>
 /* ═══ THEMES ═══ */
 [data-theme="light"]{--bg:#f4f6fb;--bg2:#fff;--card:#fff;--card2:#edf1fc;--border:#d0daee;--border2:#aec0de;--text:#0d1627;--text2:#2a3f6b;--muted:#6b84aa;--hdr:#ffffff;--acc:#2554d4;--acc2:#1a3a8a;--acc3:#e8eeff;--sh:rgba(26,58,138,.14);--ico-bg:rgba(26,58,138,.09);--ico-border:rgba(26,58,138,.25);--ico-color:#1a3a8a;--ico-bg-h:rgba(26,58,138,.16);--ico-border-h:rgba(26,58,138,.5);--ico-color-h:#0a1e3d;}
@@ -3115,19 +3116,6 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
 
 <script>
 // ══════════════════════════════════════
-//  FIREBASE CONFIG
-// ══════════════════════════════════════
-const FB_CFG = {
-  apiKey:"AIzaSyAUyYu6E3oCJdeTNV9GbykmIaiT_ZBXro8",
-  authDomain:"torneo-villa-080204.firebaseapp.com",
-  databaseURL:"https://torneo-villa-080204-default-rtdb.firebaseio.com",
-  projectId:"torneo-villa-080204",
-  storageBucket:"torneo-villa-080204.firebasestorage.app",
-  messagingSenderId:"635061865343",
-  appId:"1:635061865343:web:4016afa91c4da96179684a"
-};
-
-// ══════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════
 let db = null, auth = null, currentUser = null, isAdmin = false;
@@ -3161,7 +3149,6 @@ let tiendaEnabled = true;
 let visualShareState = null;
 const visualShareOptions = { showTablaStats: false };
 let visualShareBusy = false;
-let bootFallbackTimer = null;
 let marketingPostsCache = {};
 const marketingAutoSyncState = { timer:null, signatures:{} };
 const C = { equipos:{}, partidos:{}, productos:{}, ventas:{}, arbitros:{}, inscripciones:{}, trabajadores:{}, gastosTrab:{}, gastosTienda:{}, turnos:{}, usuarios:{}, solicitudes:{}, mercadotecnia:{} };
@@ -3193,12 +3180,6 @@ function showToast(msg, type='tg'){
   const t=document.getElementById('toast'); if(!t)return;
   t.textContent=msg; t.className=`toast ${type} show`;
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2800);
-}
-function dismissInitialLoading(){
-  const loader = document.getElementById('loadingScreen');
-  const splash = document.getElementById('splash');
-  if(loader) loader.classList.remove('show');
-  if(splash) splash.classList.remove('hidden');
 }
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.modal-overlay').forEach(m=>{
@@ -3235,33 +3216,7 @@ const DEFAULT_PRODUCTS = [
   {emoji:'🧦',nombre:'Medias',precio:50,stock:10},
 ];
 
-// ══════════════════════════════════════
-//  BOOT
-// ══════════════════════════════════════
-(function boot(){
-  applyTheme();
-  clearTimeout(bootFallbackTimer);
-  bootFallbackTimer = setTimeout(()=>{
-    dismissInitialLoading();
-    console.warn('Firebase auth tardó demasiado; se mostró el selector de torneos por seguridad.');
-  }, 4000);
-  try {
-    if(!firebase.apps.length) firebase.initializeApp(FB_CFG);
-    db = firebase.database();
-    auth = firebase.auth();
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
-    auth.onAuthStateChanged(onAuthChange);
-  } catch(e) {
-    console.error(e);
-    clearTimeout(bootFallbackTimer);
-    dismissInitialLoading();
-    showToast('Error Firebase','tr');
-  }
-})();
-
 function onAuthChange(user){
-  clearTimeout(bootFallbackTimer);
-  dismissInitialLoading();
   currentUser = user;
   const OWNER_EMAILS = ['Edanchra@gmail.com', 'admincanchadigital@gmail.com'];
   const isOwner = !!(user && OWNER_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase()));
@@ -3367,6 +3322,14 @@ function updateAdminUI(adminFlag, ownerFlag, captainFlag, capEquipoKey){
   if(splashBrandImg) splashBrandImg.src = SPLASH_BIG_LOGO;
   hydrateSplashTournamentCards();
 }
+
+startFirebaseBoot({
+  applyTheme,
+  onAuthChange,
+  showToast,
+  setDb(value){ db = value; },
+  setAuth(value){ auth = value; }
+});
 
 // ══════════════════════════════════════════════
 //  JOIN REQUEST — viewer sends request to a team
