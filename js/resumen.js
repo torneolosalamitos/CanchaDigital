@@ -1,5 +1,4 @@
 let resumenPeriodo = 'dia';
-let incomeChartInstance = null;
 
 function setResumenPeriodo(periodo, btn) {
   resumenPeriodo = periodo;
