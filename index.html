@@ -3160,6 +3160,7 @@ let tiendaEnabled = true;
 let visualShareState = null;
 const visualShareOptions = { showTablaStats: false };
 let visualShareBusy = false;
+let bootFallbackTimer = null;
 let marketingPostsCache = {};
 const marketingAutoSyncState = { timer:null, signatures:{} };
 const C = { equipos:{}, partidos:{}, productos:{}, ventas:{}, arbitros:{}, inscripciones:{}, trabajadores:{}, gastosTrab:{}, gastosTienda:{}, turnos:{}, usuarios:{}, solicitudes:{}, mercadotecnia:{} };
@@ -3276,6 +3277,12 @@ function showToast(msg, type='tg'){
   t.textContent=msg; t.className=`toast ${type} show`;
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2800);
 }
+function dismissInitialLoading(){
+  const loader = document.getElementById('loadingScreen');
+  const splash = document.getElementById('splash');
+  if(loader) loader.classList.remove('show');
+  if(splash) splash.classList.remove('hidden');
+}
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.modal-overlay').forEach(m=>{
     m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
@@ -3316,6 +3323,11 @@ const DEFAULT_PRODUCTS = [
 // ══════════════════════════════════════
 (function boot(){
   applyTheme();
+  clearTimeout(bootFallbackTimer);
+  bootFallbackTimer = setTimeout(()=>{
+    dismissInitialLoading();
+    console.warn('Firebase auth tardó demasiado; se mostró el selector de torneos por seguridad.');
+  }, 4000);
   try {
     if(!firebase.apps.length) firebase.initializeApp(FB_CFG);
     db = firebase.database();
@@ -3324,14 +3336,15 @@ const DEFAULT_PRODUCTS = [
     auth.onAuthStateChanged(onAuthChange);
   } catch(e) {
     console.error(e);
-    document.getElementById('loadingScreen').classList.remove('show');
-    document.getElementById('splash').classList.remove('hidden');
+    clearTimeout(bootFallbackTimer);
+    dismissInitialLoading();
     showToast('Error Firebase','tr');
   }
 })();
 
 function onAuthChange(user){
-  document.getElementById('loadingScreen').classList.remove('show');
+  clearTimeout(bootFallbackTimer);
+  dismissInitialLoading();
   currentUser = user;
   const OWNER_EMAILS = ['Edanchra@gmail.com', 'admincanchadigital@gmail.com'];
   const isOwner = !!(user && OWNER_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase()));
@@ -11404,3 +11417,6 @@ function rechazarSolicitud(solId){
 </script>
 </body>
 </html>
+
+
+
