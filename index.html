@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="js/tournament-config.js"></script>
 <style>
 /* ═══ THEMES ═══ */
 [data-theme="light"]{--bg:#f4f6fb;--bg2:#fff;--card:#fff;--card2:#edf1fc;--border:#d0daee;--border2:#aec0de;--text:#0d1627;--text2:#2a3f6b;--muted:#6b84aa;--hdr:#ffffff;--acc:#2554d4;--acc2:#1a3a8a;--acc3:#e8eeff;--sh:rgba(26,58,138,.14);--ico-bg:rgba(26,58,138,.09);--ico-border:rgba(26,58,138,.25);--ico-color:#1a3a8a;--ico-bg-h:rgba(26,58,138,.16);--ico-border-h:rgba(26,58,138,.5);--ico-color-h:#0a1e3d;}
@@ -3164,95 +3165,11 @@ let bootFallbackTimer = null;
 let marketingPostsCache = {};
 const marketingAutoSyncState = { timer:null, signatures:{} };
 const C = { equipos:{}, partidos:{}, productos:{}, ventas:{}, arbitros:{}, inscripciones:{}, trabajadores:{}, gastosTrab:{}, gastosTienda:{}, turnos:{}, usuarios:{}, solicitudes:{}, mercadotecnia:{} };
-const CD_LOGO = '/CanchaDigital/img/logo-cancha-shield.png';
-const CD_LOGO_SHIELD = '/CanchaDigital/img/logo-cancha-shield.png';
-const SPLASH_BIG_LOGO = '/CanchaDigital/img/logo-cancha-splash.png';
-const LOS_ALAMITOS_LOGO = '/CanchaDigital/img/logo-alamitos.png';
-const LOMBARDO_TOLEDANO_LOGO = 'img/logo-lombardo-toledano.png';
-const NUEVOS_VALORES_LOGO = 'img/logo-nuevos-valores.png';
-const TORNEO_NAMES = { villa:'TORNEO LOMBARDO TOLEDANO', nuevos_valores:'TORNEO NUEVOS VALORES' };
-const TORNEO_LOGOS = { villa:LOMBARDO_TOLEDANO_LOGO, nuevos_valores:NUEVOS_VALORES_LOGO };
 const CAT_NAMES = { liga_alta:'Liga Alta', liga_media:'Liga Media', liga_baja_a:'Liga Baja A', liga_baja_b:'Liga Baja B' };
-let catOrderKeys = ['liga_alta','liga_media','liga_baja_a','liga_baja_b'];
+let catOrderKeys = applyTournamentCatalogToCategoryMap(CAT_NAMES);
 const CANCHAS = ['Los Alamitos'];
 const ORGANIZER_NAME = 'Jesus "Navo"';
 const ORGANIZER_PHONE = '667 452 5663';
-const TORNEO_CONFIG = {
-  villa: {
-    name: 'TORNEO LOMBARDO TOLEDANO',
-    logo: LOMBARDO_TOLEDANO_LOGO,
-    splashSubtitle: 'LIBRE VARONIL Y FEMENIL',
-    footerTag: 'Lombardo Toledano',
-    primaryHashtag: '#TorneoLombardoToledano',
-    categories: [
-      { key:'liga_alta', label:'CATEGORIA LIBRE VARONIL' },
-      { key:'cat_libre_femenil', label:'CATEGORIA LIBRE FEMENIL' }
-    ]
-  },
-  nuevos_valores: {
-    name: 'TORNEO NUEVOS VALORES',
-    logo: NUEVOS_VALORES_LOGO,
-    splashSubtitle: 'INFANTIL, OSOS Y JUVENIL',
-    footerTag: 'Nuevos Valores',
-    primaryHashtag: '#TorneoNuevosValores',
-    categories: [
-      { key:'cat_infantil', label:'CATEGORIA INFANTIL' },
-      { key:'cat_osos', label:'CATEGORIA OSOS' },
-      { key:'cat_juvenil', label:'CATEGORIA JUVENIL' }
-    ]
-  }
-};
-const TOURNAMENT_OPTION_ORDER = ['villa','nuevos_valores'];
-const TOURNAMENT_SYSTEM_CAT_KEYS = new Set(['liga_alta','liga_media','liga_baja_a','liga_baja_b','cat_libre_femenil','cat_infantil','cat_juvenil_a','cat_juvenil_b','cat_juvenil','cat_osos']);
-function getTournamentConfig(t=currentTorneo){ return TORNEO_CONFIG[t] || TORNEO_CONFIG.villa; }
-function getTournamentFooterTag(t=currentTorneo){ return getTournamentConfig(t).footerTag; }
-function getTournamentPrimaryHashtag(t=currentTorneo){ return getTournamentConfig(t).primaryHashtag; }
-function getTournamentHashtagLine(extraTags=[]){ return [getTournamentPrimaryHashtag(), ...extraTags].filter(Boolean).join(' '); }
-function hydrateSplashTournamentCards(){
-  const cards = Array.from(document.querySelectorAll('#splash [onclick^="selectTorneo"]'));
-  TOURNAMENT_OPTION_ORDER.forEach((key, idx)=>{
-    const card = cards[idx];
-    if(!card) return;
-    const cfg = getTournamentConfig(key);
-    card.style.display = 'flex';
-    card.setAttribute('onclick', `selectTorneo('${key}')`);
-    const logoEl = card.querySelector('img');
-    if(logoEl){
-      logoEl.src = cfg.logo;
-      logoEl.alt = cfg.name;
-    }
-    const copyWrap = logoEl?.closest('div')?.nextElementSibling;
-    if(copyWrap){
-      const titleEl = copyWrap.children[0];
-      const subEl = copyWrap.children[1];
-      if(titleEl) titleEl.textContent = cfg.name;
-      if(subEl) subEl.textContent = cfg.splashSubtitle;
-    }
-  });
-  cards.slice(TOURNAMENT_OPTION_ORDER.length).forEach(card=>card.remove());
-}
-TORNEO_NAMES.villa = TORNEO_CONFIG.villa.name;
-TORNEO_NAMES.nuevos_valores = TORNEO_CONFIG.nuevos_valores.name;
-delete TORNEO_NAMES.musala;
-TORNEO_LOGOS.villa = TORNEO_CONFIG.villa.logo;
-TORNEO_LOGOS.nuevos_valores = TORNEO_CONFIG.nuevos_valores.logo;
-delete TORNEO_LOGOS.musala;
-CAT_NAMES.liga_alta = 'CATEGORÍA LIBRE VARONIL';
-CAT_NAMES.cat_libre_femenil = 'CATEGORÍA LIBRE FEMENIL';
-CAT_NAMES.cat_infantil = 'CATEGORÍA INFANTIL';
-CAT_NAMES.cat_juvenil_a = 'CATEGORÍA JUVENIL A';
-CAT_NAMES.cat_juvenil_b = 'CATEGORÍA JUVENIL B';
-delete CAT_NAMES.liga_media;
-delete CAT_NAMES.liga_baja_a;
-delete CAT_NAMES.liga_baja_b;
-CAT_NAMES.liga_alta = 'CATEGORIA LIBRE VARONIL';
-CAT_NAMES.cat_libre_femenil = 'CATEGORIA LIBRE FEMENIL';
-CAT_NAMES.cat_infantil = 'CATEGORIA INFANTIL';
-CAT_NAMES.cat_osos = 'CATEGORIA OSOS';
-CAT_NAMES.cat_juvenil = 'CATEGORIA JUVENIL';
-delete CAT_NAMES.cat_juvenil_a;
-delete CAT_NAMES.cat_juvenil_b;
-catOrderKeys = ['liga_alta','cat_libre_femenil','cat_infantil','cat_osos','cat_juvenil'];
 const splashMainLogoOnLoad = document.querySelector('#splash > div img');
 if(splashMainLogoOnLoad) splashMainLogoOnLoad.src = SPLASH_BIG_LOGO;
 const hdrBrandLogoOnLoad = document.querySelector('.hdr-shield img');
