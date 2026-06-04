@@ -12,6 +12,7 @@
 <script src="js/tournament-config.js"></script>
 <script src="js/firebase-boot.js"></script>
 <script src="js/app-state.js"></script>
+<script src="js/firebase-sync.js"></script>
 <style>
 /* ═══ THEMES ═══ */
 [data-theme="light"]{--bg:#f4f6fb;--bg2:#fff;--card:#fff;--card2:#edf1fc;--border:#d0daee;--border2:#aec0de;--text:#0d1627;--text2:#2a3f6b;--muted:#6b84aa;--hdr:#ffffff;--acc:#2554d4;--acc2:#1a3a8a;--acc3:#e8eeff;--sh:rgba(26,58,138,.14);--ico-bg:rgba(26,58,138,.09);--ico-border:rgba(26,58,138,.25);--ico-color:#1a3a8a;--ico-bg-h:rgba(26,58,138,.16);--ico-border-h:rgba(26,58,138,.5);--ico-color-h:#0a1e3d;}
@@ -3349,104 +3350,6 @@ function renderViewerProfile(){
     <button class="btn btn-g btn-full" onclick="openJoinRequest()" style="margin-bottom:10px">⚽ Solicitar unirse a un equipo</button>
     <div style="font-size:10px;color:var(--muted);text-align:center;font-weight:600">Solo puedes solicitar unirte a un equipo a la vez</div>`}
     <button class="btn btn-out btn-sm btn-full" onclick="signOut()" style="margin-top:10px">🚪 Cerrar sesión</button>`;
-}
-
-function setupListeners(){
-  db.ref('equipos').on('value', s=>{
-    Object.keys(C.equipos).forEach(k=>delete C.equipos[k]);
-    if(s.exists()) Object.assign(C.equipos, s.val());
-    renderEquiposPage();
-    if(isPageActive('tabla')) renderTabla();
-    if(isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();
-  });
-  db.ref('partidos').on('value', s=>{
-    Object.keys(C.partidos).forEach(k=>delete C.partidos[k]);
-    if(s.exists()) Object.assign(C.partidos, s.val());
-    renderPartidos();
-    renderTabla();
-    if(isAdmin && isPageActive('arbitros')) renderArbitros();
-    if(isAdmin && isPageActive('resumen')) renderResumen();
-    if(isAdmin && isPageActive('calendario')){ renderCalProximos(); populateReagendaSel(); }
-    if(isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();
-    if(isAdmin) scheduleMarketingAutoSync('partidos');
-    if(activePartidoKey && document.getElementById('modalPartidoDetail').classList.contains('open'))
-      renderPartidoDetail();
-  });
-  db.ref('productos').on('value', s=>{
-    Object.keys(C.productos).forEach(k=>delete C.productos[k]);
-    if(s.exists()) Object.assign(C.productos, s.val());
-    else seedProducts();
-    if(isAdmin && isPageActive('tienda')) renderTienda();
-  });
-  db.ref('ventas').on('value', s=>{
-    Object.keys(C.ventas).forEach(k=>delete C.ventas[k]);
-    if(s.exists()) Object.assign(C.ventas, s.val());
-    if(isAdmin && isPageActive('tienda')) renderHistorialVentas(); renderTiendaStats();
-    if(isAdmin && isPageActive('resumen')) renderResumen();
-  });
-  db.ref('gastosTienda').on('value', s=>{
-    Object.keys(C.gastosTienda).forEach(k=>delete C.gastosTienda[k]);
-    if(s.exists()) Object.assign(C.gastosTienda, s.val());
-    if(isAdmin && isPageActive('tienda')) renderGastosTienda();
-    if(isAdmin && isPageActive('resumen')) renderResumen();
-  });
-  db.ref('usuarios').on('value', s=>{
-    Object.keys(C.usuarios).forEach(k=>delete C.usuarios[k]);
-    if(s.exists()) Object.assign(C.usuarios, s.val());
-    // Refresh users panel if open
-    const modal = document.getElementById('modalUsuarios');
-    if(modal && modal.classList.contains('open')) renderUsuariosPanel();
-  });
-  db.ref('turnos').on('value', s=>{
-    Object.keys(C.turnos).forEach(k=>delete C.turnos[k]);
-    if(s.exists()) Object.assign(C.turnos, s.val());
-    if(isAdmin && isPageActive('tienda')) renderTurnoUI();
-  });
-  db.ref('arbitros').on('value', s=>{
-    Object.keys(C.arbitros).forEach(k=>delete C.arbitros[k]);
-    if(s.exists()) Object.assign(C.arbitros, s.val());
-    if(isAdmin && isPageActive('arbitros')) renderArbitros();
-  });
-  db.ref('inscripciones').on('value', s=>{
-    Object.keys(C.inscripciones).forEach(k=>delete C.inscripciones[k]);
-    if(s.exists()) Object.assign(C.inscripciones, s.val());
-    if(isAdmin && isPageActive('inscripciones')) renderInscripciones();
-    if(isAdmin && isPageActive('resumen')) renderResumen();
-  });
-  // Restricciones para calendario IA
-  C.restricciones = {};
-  db.ref('restricciones').on('value', s=>{
-    Object.keys(C.restricciones).forEach(k=>delete C.restricciones[k]);
-    if(s.exists()) Object.assign(C.restricciones, s.val());
-    if(isAdmin && isPageActive('calendario')) renderRestricciones();
-  });
-  // Trabajadores
-  db.ref('trabajadores').on('value', s=>{
-    Object.keys(C.trabajadores).forEach(k=>delete C.trabajadores[k]);
-    if(s.exists()) Object.assign(C.trabajadores, s.val());
-    if(isAdmin && isPageActive('arbitros')) renderTrabajadores();
-  });
-  db.ref('gastosTrab').on('value', s=>{
-    Object.keys(C.gastosTrab).forEach(k=>delete C.gastosTrab[k]);
-    if(s.exists()) Object.assign(C.gastosTrab, s.val());
-    if(isAdmin && isPageActive('arbitros')) renderTrabajadores();
-  });
-  // Solicitudes de jugadores
-  C.solicitudes = {};
-  db.ref('solicitudes').on('value', s=>{
-    Object.keys(C.solicitudes).forEach(k=>delete C.solicitudes[k]);
-    if(s.exists()) Object.assign(C.solicitudes, s.val());
-    // Refresh viewer profile if visible
-    const vp = document.getElementById('viewerProfileOverlay');
-    if(vp && vp.style.display!=='none') renderViewerProfile();
-    // Refresh captain team page
-    if(isCaptain && captainEquipoKey) renderEquiposPage();
-  });
-  db.ref('mercadotecnia').on('value', s=>{
-    Object.keys(C.mercadotecnia).forEach(k=>delete C.mercadotecnia[k]);
-    if(s.exists()) Object.assign(C.mercadotecnia, s.val());
-    if(isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();
-  });
 }
 
 function seedProducts(){
