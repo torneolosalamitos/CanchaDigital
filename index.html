@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="js/ui-core.js"></script>
 <script src="js/tournament-config.js"></script>
 <script src="js/firebase-boot.js"></script>
 <style>
@@ -3162,30 +3163,6 @@ if(splashMainLogoOnLoad) splashMainLogoOnLoad.src = SPLASH_BIG_LOGO;
 const hdrBrandLogoOnLoad = document.querySelector('.hdr-shield img');
 if(hdrBrandLogoOnLoad) hdrBrandLogoOnLoad.src = CD_LOGO_SHIELD;
 hydrateSplashTournamentCards();
-
-// ══════════════════════════════════════
-//  MODAL & TOAST (defined early so boot can use them)
-// ══════════════════════════════════════
-function openModal(id){
-  const el=document.getElementById(id); if(!el)return;
-  el.classList.add('open');
-  if(id==='modalEquipoRestr') populateErEquipo('');
-  if(id==='modalGastoTienda' && !document.getElementById('gt_key').value) resetGastoTiendaForm();
-}
-function closeModal(id){
-  const el=document.getElementById(id); if(el) el.classList.remove('open');
-}
-let toastT;
-function showToast(msg, type='tg'){
-  const t=document.getElementById('toast'); if(!t)return;
-  t.textContent=msg; t.className=`toast ${type} show`;
-  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2800);
-}
-document.addEventListener('DOMContentLoaded',()=>{
-  document.querySelectorAll('.modal-overlay').forEach(m=>{
-    m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
-  });
-});
 
 // Default products
 const DEFAULT_PRODUCTS = [
@@ -9638,15 +9615,6 @@ Facebook: ${JSON.stringify(redes.facebook)}
     if(btn){ btn.disabled = false; btn.textContent = '🤖 Refinar ideas con IA'; }
   }
 }
-
-function toggleTheme(){
-  applyTheme();
-}
-function applyTheme(){
-  localStorage.removeItem('ld_theme');
-  document.getElementById('html').setAttribute('data-theme','light');
-}
-
 
 // ══════════════════════════════════════
 //  CALENDARIO IA MODULE
