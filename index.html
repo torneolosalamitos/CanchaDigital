@@ -3690,11 +3690,10 @@ function uploadImg(inputId, prevId, lblId, maxPx){
   }; inp.click();
 }
 
-//  CALENDARIO IA MODULE
+//  CALENDARIO IA
 // ══════════════════════════════════════
 let calPreviewData = [];
 let cpReasonSelected = '';
-let activeProgKey = null;
 let calDayFilter = null;
 
 // Show calendario page — handled by showPage() above
@@ -3816,7 +3815,6 @@ function deleteProgPartido(key){
 
 // CANCELAR PARTIDO PROGRAMADO
 function openCancelarProg(key){
-  activeProgKey=key;
   const p=C.partidos[key]; if(!p)return;
   document.getElementById('cp_key').value=key;
   cpReasonSelected='';
@@ -4177,8 +4175,6 @@ function populateErEquipo(preselect){
   sel.innerHTML='<option value="">— Seleccionar equipo —</option>'+
     eqs.map(e=>`<option value="${e._key}" ${e._key===preselect?'selected':''}>${e.nombre}</option>`).join('');
 }
-
-// [deduped: populateErEquipo defined above]
 
 // ══════════════════════════════════════
 //  REINICIAR ESTADÍSTICAS
