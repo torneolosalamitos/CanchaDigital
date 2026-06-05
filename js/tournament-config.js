@@ -1,7 +1,6 @@
 const CD_LOGO = '/CanchaDigital/img/logo-cancha-shield.png';
 const CD_LOGO_SHIELD = '/CanchaDigital/img/logo-cancha-shield.png';
 const SPLASH_BIG_LOGO = '/CanchaDigital/img/logo-cancha-splash.png';
-const LOS_ALAMITOS_LOGO = '/CanchaDigital/img/logo-alamitos.png';
 const LOMBARDO_TOLEDANO_LOGO = 'img/logo-lombardo-toledano.png';
 const NUEVOS_VALORES_LOGO = 'img/logo-nuevos-valores.png';
 
