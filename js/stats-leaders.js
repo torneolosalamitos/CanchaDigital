@@ -72,15 +72,6 @@ function isPorterosPublic() {
   return val === null ? true : val === '1';
 }
 
-function togglePorterosPublic() {
-  if (!isAdmin) return;
-  const nowPublic = !isPorterosPublic();
-  localStorage.setItem(getPorterosPublicKey(), nowPublic ? '1' : '0');
-  updatePorterosPublicUI();
-  renderPorteros();
-  showToast(nowPublic ? '👁️ Porteros visibles al público' : '🔒 Porteros ocultos al público', nowPublic ? 'tg' : 'ta');
-}
-
 function updatePorterosPublicUI() {
   const btn = document.getElementById('btnTogglePorterosPublic');
   const banner = document.getElementById('porterosPublicBanner');
