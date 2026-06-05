@@ -14,10 +14,6 @@ function setupListeners() {
     renderTabla();
     if (isAdmin && isPageActive('arbitros')) renderArbitros();
     if (isAdmin && isPageActive('resumen')) renderResumen();
-    if (isAdmin && isPageActive('calendario')) {
-      renderCalProximos();
-      populateReagendaSel();
-    }
     if (isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();
     if (isAdmin) scheduleMarketingAutoSync('partidos');
     if (activePartidoKey && document.getElementById('modalPartidoDetail').classList.contains('open')) {
@@ -71,13 +67,6 @@ function setupListeners() {
     if (snapshot.exists()) Object.assign(C.inscripciones, snapshot.val());
     if (isAdmin && isPageActive('inscripciones')) renderInscripciones();
     if (isAdmin && isPageActive('resumen')) renderResumen();
-  });
-
-  C.restricciones = {};
-  db.ref('restricciones').on('value', (snapshot) => {
-    Object.keys(C.restricciones).forEach((key) => delete C.restricciones[key]);
-    if (snapshot.exists()) Object.assign(C.restricciones, snapshot.val());
-    if (isAdmin && isPageActive('calendario')) renderRestricciones();
   });
 
   db.ref('trabajadores').on('value', (snapshot) => {
