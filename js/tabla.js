@@ -86,45 +86,6 @@ function getWeekRangeISO(referenceISO=todayISO()){
   };
 }
 
-function getCupRoundName(matchCount){
-  if(matchCount <= 1) return 'Final';
-  if(matchCount === 2) return 'Semifinales';
-  if(matchCount === 4) return 'Cuartos de final';
-  if(matchCount === 8) return 'Octavos de final';
-  if(matchCount === 16) return 'Dieciseisavos';
-  return `Ronda de ${matchCount * 2}`;
-}
-
-function getCupRoundShortName(matchCount){
-  if(matchCount <= 1) return 'F';
-  if(matchCount === 2) return 'SF';
-  if(matchCount === 4) return 'CF';
-  if(matchCount === 8) return 'OF';
-  if(matchCount === 16) return 'D16';
-  return `R${matchCount*2}`;
-}
-
-function getNextPowerOfTwo(num){
-  let size = 2;
-  while(size < Math.max(2, num||0)) size *= 2;
-  return size;
-}
-
-function generateCupSeedOrder(size){
-  // Parea: 1 vs último, 2 vs penúltimo, etc. — cruce directo por posición en tabla
-  const order = [];
-  for(let i = 1; i <= size/2; i++){
-    order.push(i);        // seed top
-    order.push(size+1-i); // seed bottom (espejo)
-  }
-  if(size === 8){
-    // Intercambiar juego 2vs7 (índices 2,3) con juego 3vs6 (índices 4,5)
-    [order[2], order[4]] = [order[4], order[2]];
-    [order[3], order[5]] = [order[5], order[3]];
-  }
-  return order;
-}
-
 function createCupSlot(team, seed=null, fallbackLabel='Por definirse', opts={}){
   const isBye = !!opts.isBye;
   const teamSeed = team?.seed || seed || null;
@@ -619,18 +580,8 @@ function buildCopaBracketVisual(cupData, adminMode=false){
   </div><!-- /cb-bracket -->`;
 }
 
-/* legacy alias */
-function renderCupSlot(slot){ return renderBracketSlot(slot, false); }
-
 // ── VUELTA STATE ──────────────────────────────────────────
 let currentVuelta = 'general'; // 'general' | 'v1' | 'v2'
-
-function selectVuelta(vuelta, btn){
-  currentVuelta = vuelta;
-  document.querySelectorAll('#vueltaTabs .cat-tab').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-  renderTabla();
-}
 
 function getTablaForVuelta(){
   if(currentVuelta === 'v1') return buildTablaVuelta(1);
@@ -1070,8 +1021,8 @@ function compartirCopa(){
 
   const bracketInlineHtml = buildShareBracketInline(cupData);
   const copaHeroLine = cupData?.isFemenilFormat
-    ? `${escapeHtml(cat)} &nbsp;ï¿½&nbsp; 4 equipos &nbsp;ï¿½&nbsp; Semis 1ï¿½ vs 4ï¿½ y 2ï¿½ vs 3ï¿½ &nbsp;ï¿½&nbsp; Gran Final`
-    : `${escapeHtml(cat)} &nbsp;ï¿½&nbsp; Top 6 &nbsp;ï¿½&nbsp; Cuartos ï¿½ SF ï¿½ Final`;
+    ? `${escapeHtml(cat)} &nbsp;&middot;&nbsp; 4 equipos &nbsp;&middot;&nbsp; Semis 1° vs 4° y 2° vs 3° &nbsp;&middot;&nbsp; Gran Final`
+    : `${escapeHtml(cat)} &nbsp;&middot;&nbsp; Top 6 &nbsp;&middot;&nbsp; Cuartos &nbsp;&middot;&nbsp; SF &nbsp;&middot;&nbsp; Final`;
 
   captureDiv.innerHTML = `
     <div style="background:radial-gradient(ellipse 70% 45% at 85% 5%,rgba(37,84,212,.08),transparent),radial-gradient(ellipse 50% 40% at 10% 92%,rgba(46,168,60,.07),transparent),linear-gradient(180deg,#ffffff 0%,#f7fbff 45%,#f0f6fc 100%);padding:58px 64px 52px;position:relative;overflow:hidden;">
@@ -1219,26 +1170,9 @@ function abrirCompartirImagenCopa(blobUrl, canvas, cat, torneo, cupData){
   }
 }
 
-function compartirFinalissima(){
-  compartirCopa();
-}
-
 function compartirGoleadores(){
   if(!getTopScorersData(10).length){showToast('Sin goles registrados','ta');return;}
   openStatsShare('goleadores');
-}
-
-function compartirPorteros(){
-  if(!isPorterosPublic() && !isAdmin){showToast('Esta sección no está disponible','ta');return;}
-  if(!getTopGoalkeepersData(10).length){showToast('Sin porteros con estadísticas disponibles','ta');return;}
-  openStatsShare('porteros');
-}
-
-function abrirCompartirModal(titulo, texto){
-  compartirTextoActual=texto;
-  document.getElementById('compartirTitle').textContent=`📤 ${titulo}`;
-  document.getElementById('compartirPreview').textContent=texto;
-  openModal('modalCompartir');
 }
 
 function compartirWhatsApp(){
@@ -1329,43 +1263,6 @@ function buildShareListRows(items){
       </div>
     </div>
   `).join('');
-}
-
-function buildShareRankingRows(items){
-  return items.map((item)=>{
-    const pos = item.pos;
-    let badgeStyle, crownHtml = '';
-    if(pos === 1){
-      badgeStyle = "width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#ca8a04);color:#fff;box-shadow:0 4px 14px rgba(202,138,4,.45);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;font-weight:900;flex-shrink:0;position:relative;";
-      crownHtml = '<span style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:13px;line-height:1;">&#x1F451;</span>';
-    } else if(pos === 2){
-      badgeStyle = "width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#e2e8f0,#94a3b8);color:#fff;box-shadow:0 4px 10px rgba(148,163,184,.4);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;font-weight:900;flex-shrink:0;position:relative;";
-    } else if(pos === 3){
-      badgeStyle = "width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#fed7aa,#b45309);color:#fff;box-shadow:0 4px 10px rgba(180,83,9,.35);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;font-weight:900;flex-shrink:0;position:relative;";
-    } else {
-      badgeStyle = "width:42px;height:42px;border-radius:50%;background:#f1f5f9;border:1.5px solid #dbe4ee;color:#64748b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:18px;font-weight:900;flex-shrink:0;position:relative;";
-    }
-    return `
-    <div class="share-post-item">
-      <div style="${badgeStyle}">${crownHtml}${pos}</div>
-      <div class="share-post-item-copy">
-        <div class="share-post-item-title">${escapeHtml(item.title || '')}</div>
-        ${(item.desc || '').trim() ? `<div class="share-post-item-desc">${escapeHtml(item.desc || '')}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function buildShareTeamVisual(team, pos, note){
-  const logo = team?.logo
-    ? `<img src="${team.logo}" alt="${escapeHtml(team?.nombre || 'Equipo')}"/>`
-    : `<div class="share-finalissima-logo">⚽</div>`;
-  return `<div class="share-finalissima-side ${pos===1?'top':'second'}">
-    ${logo}
-    <div class="share-finalissima-rank">${pos===1?'1ER LUGAR':'2DO LUGAR'}</div>
-    <div class="share-finalissima-team">${escapeHtml(team?.nombre || 'Por definirse')}</div>
-    <div class="share-finalissima-note">${escapeHtml(note || '')}</div>
-  </div>`;
 }
 
 function getStatsSharePayloadBase(tipo, dataOverride=null){
@@ -1826,109 +1723,11 @@ function setVisualShareTablaStats(enabled){
   }
 }
 
-async function waitForNodeImages(node){
-  const images = Array.from(node.querySelectorAll('img')).filter(img=>img.src && !img.complete);
-  if(!images.length) return;
-  await Promise.all(images.map(img=>new Promise(resolve=>{
-    img.onload = () => resolve();
-    img.onerror = () => resolve();
-  })));
-}
-
-function renderVisualShareModal(){
-  const payload = visualShareState;
-  if(!payload || !payload.html) return;
-  compartirTextoActual = payload.caption || '';
-  const titleEl = document.getElementById('visualShareTitle');
-  const previewEl = document.getElementById('visualSharePreview');
-  const captionEl = document.getElementById('visualShareCaption');
-  const captionWrap = document.getElementById('visualShareCaptionWrap');
-  const actionsWrap = document.getElementById('visualShareActions');
-  const btnPng = document.getElementById('visualShareBtnPng');
-  const btnPdf = document.getElementById('visualShareBtnPdf');
-  const btnShare = document.getElementById('visualShareBtnShare');
-  const btnCopy = document.getElementById('visualShareBtnCopy');
-  const adminControls = document.getElementById('visualShareAdminControls');
-  const statsToggle = document.getElementById('visualShareShowStats');
-  if(titleEl) titleEl.textContent = isAdmin ? `📤 ${payload.title || 'Compartir Visual'}` : '🖼️ Guardar imagen';
-  if(previewEl) previewEl.innerHTML = payload.html;
-  if(captionEl) captionEl.value = payload.caption || '';
-  if(captionWrap) captionWrap.style.display = isAdmin ? '' : 'none';
-  if(adminControls) adminControls.style.display = isAdmin && payload.kind==='tabla' ? '' : 'none';
-  if(statsToggle) statsToggle.checked = !!visualShareOptions.showTablaStats;
-  if(btnPng) btnPng.textContent = isAdmin ? '🖼️ Descargar PNG' : '🖼️ Guardar imagen';
-  if(btnPdf) btnPdf.style.display = isAdmin ? '' : 'none';
-  if(btnShare) btnShare.style.display = isAdmin ? '' : 'none';
-  if(btnCopy) btnCopy.style.display = isAdmin ? '' : 'none';
-  if(actionsWrap) actionsWrap.style.gridTemplateColumns = isAdmin ? '1fr 1fr' : '1fr';
-  // Scale preview to fit container
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    const scaleEl = document.getElementById('visualShareScaleEl');
-    const wrapEl = document.getElementById('visualShareScaleWrap');
-    const root = previewEl?.firstElementChild;
-    if(scaleEl && wrapEl && root){
-      const srcW = root.classList.contains('share-card-wide') ? 1440 : 1080;
-      const wrapW = wrapEl.clientWidth || wrapEl.offsetWidth || 320;
-      const scale = Math.min(1, wrapW / srcW);
-      const srcH = root.scrollHeight || root.offsetHeight || 900;
-      scaleEl.style.transform = `scale(${scale})`;
-      scaleEl.style.transformOrigin = 'top left';
-      scaleEl.style.width = `${srcW}px`;
-      scaleEl.style.display = 'block';
-      wrapEl.style.height = `${Math.round(srcH * scale)}px`;
-    }
-  }));
-}
-
 function openVisualShare(payload){
   if(!payload || !payload.html) return;
   visualShareState = payload;
   renderVisualShareModal();
   openModal('modalVisualShare');
-}
-
-async function buildVisualShareRenderNode(){
-  const source = document.querySelector('#visualSharePreview > *');
-  if(!source) throw new Error('No hay visual listo para exportar');
-  const host = document.createElement('div');
-  host.style.position = 'fixed';
-  host.style.left = '-20000px';
-  host.style.top = '0';
-  host.style.width = `${Math.ceil(source.scrollWidth)}px`;
-  host.style.pointerEvents = 'none';
-  host.style.background = '#ffffff';
-  host.style.zIndex = '-1';
-  const clone = source.cloneNode(true);
-  clone.style.transform = 'none';
-  clone.style.width = `${Math.ceil(source.scrollWidth)}px`;
-  host.appendChild(clone);
-  document.body.appendChild(host);
-  if(document.fonts?.ready) await document.fonts.ready;
-  await waitForNodeImages(clone);
-  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-  return { host, clone };
-}
-
-async function getVisualShareCanvas(){
-  if(typeof html2canvas !== 'function') throw new Error('html2canvas no está disponible');
-  const { host, clone } = await buildVisualShareRenderNode();
-  try{
-    return await html2canvas(clone,{
-      backgroundColor:'#ffffff',
-      scale:2,
-      useCORS:true,
-      allowTaint:true,
-      logging:false,
-      width:Math.ceil(clone.scrollWidth),
-      height:Math.ceil(clone.scrollHeight),
-      windowWidth:Math.ceil(clone.scrollWidth),
-      windowHeight:Math.ceil(clone.scrollHeight),
-      scrollX:0,
-      scrollY:0
-    });
-  }finally{
-    host.remove();
-  }
 }
 
 function canvasToBlob(canvas, type='image/png', quality=1){
@@ -1952,227 +1751,14 @@ function downloadBlob(blob, filename){
   setTimeout(()=>URL.revokeObjectURL(url), 1200);
 }
 
-async function downloadVisualShare(mode='png'){
-  if(!visualShareState) return;
-  if(!isAdmin && mode!=='png') return;
-  try{
-    const canvas = await getVisualShareCanvas();
-    const filename = visualShareState.filename || `${slugifyBasic(TORNEO_NAMES[currentTorneo] || 'torneo')}_${todayISO()}`;
-    if(mode === 'pdf'){
-      const jsPDFCtor = window.jspdf?.jsPDF;
-      if(!jsPDFCtor) throw new Error('jsPDF no está disponible');
-      const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
-      const pdf = new jsPDFCtor({ orientation, unit:'px', format:[canvas.width, canvas.height] });
-      pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,canvas.width,canvas.height);
-      pdf.save(`${filename}.pdf`);
-      showToast('📄 PDF generado correctamente','tg');
-      return;
-    }
-    const blob = await canvasToBlob(canvas);
-    downloadBlob(blob, `${filename}.png`);
-    showToast('🖼️ PNG descargado correctamente','tg');
-  }catch(err){
-    console.error(err);
-    showToast('No se pudo generar el archivo visual','tr');
-  }
-}
-
-async function shareVisualAsset(){
-  if(!visualShareState) return;
-  if(!isAdmin) return;
-  try{
-    const canvas = await getVisualShareCanvas();
-    const blob = await canvasToBlob(canvas);
-    const filename = `${visualShareState.filename || `${slugifyBasic(TORNEO_NAMES[currentTorneo] || 'torneo')}_${todayISO()}`}.png`;
-    const file = new File([blob], filename, { type:'image/png' });
-    if(navigator.share && (!navigator.canShare || navigator.canShare({ files:[file] }))){
-      await navigator.share({
-        title: visualShareState.title || (TORNEO_NAMES[currentTorneo] || 'Torneo'),
-        text: visualShareState.caption || '',
-        files: [file]
-      });
-      showToast('📲 Visual listo para compartir','tg');
-      return;
-    }
-    downloadBlob(blob, filename);
-    await copyPlainText(visualShareState.caption || '', '📋 Texto listo para pegar');
-    showToast('Tu navegador descargó la imagen para compartirla manualmente','ta');
-  }catch(err){
-    console.error(err);
-    showToast('No se pudo compartir el visual','tr');
-  }
-}
-
 function copyVisualShareCaption(){
   if(!visualShareState) return;
   if(!isAdmin) return;
   return copyPlainText(document.getElementById('visualShareCaption')?.value || visualShareState.caption || '', '📋 Caption copiado');
 }
 
-function copiarTextoCompartir(){
-  return copyPlainText(compartirTextoActual, '📋 Copiado al portapapeles');
-}
-
 function getVisualShareStatsEnabled(){
   return !!(isAdmin && visualShareOptions.showTablaStats);
-}
-
-function buildShareTeamVisual(team, pos, note){
-  const logo = team?.logo
-    ? `<img src="${team.logo}" alt="${escapeHtml(team?.nombre || 'Equipo')}"/>`
-    : `<div class="share-finalissima-logo">⚽</div>`;
-  const rankLabel = pos===1 ? 'Campeón de liga' : '2do lugar de liga';
-  return `<div class="share-finalissima-side ${pos===1?'top':'second'}">
-    ${logo}
-    <div class="share-finalissima-rank">${rankLabel}</div>
-    <div class="share-finalissima-team">${escapeHtml(team?.nombre || 'Por definirse')}</div>
-    <div class="share-finalissima-note">${escapeHtml(note || '')}</div>
-  </div>`;
-}
-
-function getStatsSharePayloadBase(tipo, dataOverride=null){
-  const torneo = TORNEO_NAMES[currentTorneo] || 'TORNEO LOMBARDO TOLEDANO';
-  const categoria = getShareCategoryLabel();
-  const fecha = fmtDate(todayISO());
-  const organizerLine = `${ORGANIZER_NAME} · ${ORGANIZER_PHONE}`;
-  const baseFile = `${slugifyBasic(tipo)}_${slugifyBasic(categoria)}_${todayISO()}`;
-  const showTableStats = getVisualShareStatsEnabled();
-
-  if(tipo === 'tabla'){
-    const data = Array.isArray(dataOverride) && dataOverride.length ? dataOverride : buildTablaData();
-    if(!data.length) return null;
-    const partidos = filteredParts().filter(p=>p.status==='terminado');
-    const totalGoles = partidos.reduce((sum,p)=>sum+(p.gL||0)+(p.gV||0),0);
-    const top = data[0];
-    const segundo = data[1] || null;
-    const rows = data.slice(0,10).map((t,i)=>{
-      const pos = i + 1;
-      const dg = (t.gf||0) - (t.gc||0);
-      const rowCls = pos===1 ? 'top1' : pos===2 ? 'top2' : pos===3 ? 'top3' : '';
-      const logo = t.logo
-        ? `<img src="${t.logo}" alt="${escapeHtml(t.nombre)}"/>`
-        : `<div style="width:34px;height:34px;border-radius:10px;background:#f8fafc;border:1px solid #dbe4ee;display:flex;align-items:center;justify-content:center;font-size:18px;color:#0f172a">⚽</div>`;
-      const teamSub = pos===1 ? 'Líder actual' : pos===2 ? 'Persecución directa' : 'Tabla general';
-      return `<div class="share-board-row ${rowCls}" style="grid-template-columns:72px minmax(0,1.8fr) 72px 72px 72px 72px 88px 92px;">
-        <div class="share-pos">${pos}</div>
-        <div class="share-team-wrap">${logo}<div><div class="share-team-name">${escapeHtml(t.nombre)}</div><div class="share-team-sub">${teamSub}</div></div></div>
-        <div>${t.pj||0}</div>
-        <div>${t.g||0}</div>
-        <div>${t.e||0}</div>
-        <div>${t.pe||0}</div>
-        <div>${dg>0?'+':''}${dg}</div>
-        <div class="share-points">${t.pts||0}</div>
-      </div>`;
-    }).join('');
-    const bodyHtml = `
-      <div class="share-board">
-        <div class="share-board-head" style="grid-template-columns:72px minmax(0,1.8fr) 72px 72px 72px 72px 88px 92px;">
-          <div>#</div><div>Equipo</div><div>PJ</div><div>G</div><div>E</div><div>P</div><div>DG</div><div style="text-align:center;">Pts</div>
-        </div>
-        ${rows}
-      </div>
-      ${showTableStats?`<div class="share-stat-grid">
-        <div class="share-stat-box"><div class="share-stat-val">${data.length}</div><div class="share-stat-lbl">Equipos</div></div>
-        <div class="share-stat-box"><div class="share-stat-val">${partidos.length}</div><div class="share-stat-lbl">Partidos cerrados</div></div>
-        <div class="share-stat-box"><div class="share-stat-val">${totalGoles}</div><div class="share-stat-lbl">Goles anotados</div></div>
-      </div>`:''}
-    `;
-    const caption = [
-      `${torneo} | ${categoria}`,
-      `${ORGANIZER_NAME} · ${ORGANIZER_PHONE}`,
-      `Tabla general actualizada al ${fecha}.`,
-      `1. ${top.nombre} - ${top.pts||0} pts`,
-      segundo ? `2. ${segundo.nombre} - ${segundo.pts||0} pts` : '',
-      `La copa se siembra con esta tabla en tiempo real.`,
-      getTournamentHashtagLine(['#TablaGeneral','#CopaDelTorneo'])
-    ].filter(Boolean).join('\n');
-    return {
-      kind:'tabla',
-      title:'Tabla de Posiciones',
-      caption,
-      filename: baseFile,
-      html: buildVisualShareCard({
-        kicker: torneo,
-        title: 'TABLA DE POSICIONES',
-        subtitle: `${categoria} · ${organizerLine}`,
-        dateLabel: `Actualizado · ${fecha}`,
-        bodyHtml,
-        footerNote: 'Visual oficial de la tabla general listo para compartir y guardar.',
-        footerTag: getTournamentFooterTag()
-      })
-    };
-  }
-
-  if(tipo === 'goleadores'){
-    const data = Array.isArray(dataOverride) && dataOverride.length ? dataOverride : getTopScorersData(10);
-    if(!data.length) return null;
-    const bodyHtml = `
-      <div class="share-post-list">${buildShareRankingRows(data.map((g,i)=>({
-        pos: i+1,
-        title: `${g.jugador} · ${g.goles} gol${g.goles===1?'':'es'}`,
-        desc: g.equipo || 'Sin equipo'
-      })))}</div>
-    `;
-    const caption = [
-      `${torneo} | ${categoria}`,
-      `${ORGANIZER_NAME} · ${ORGANIZER_PHONE}`,
-      `Top 10 de goleadores al ${fecha}:`,
-      ...data.map((g,i)=>`${i+1}. ${g.jugador} (${g.equipo}) - ${g.goles}`),
-      getTournamentHashtagLine(['#Top10Goleadores','#Futbol'])
-    ].join('\n');
-    return {
-      kind:'goleadores',
-      title:'Top 10 Goleadores',
-      caption,
-      filename: baseFile,
-      html: buildVisualShareCard({
-        kicker: torneo,
-        title: 'TOP 10 GOLEADORES',
-        subtitle: `${categoria} · Tabla individual`,
-        dateLabel: `Actualizado · ${fecha}`,
-        bodyHtml,
-        footerNote: 'Ranking oficial para historias, carruseles y difusión del torneo.',
-        footerTag: getTournamentFooterTag()
-      })
-    };
-  }
-
-  if(tipo === 'porteros'){
-    const data = Array.isArray(dataOverride) && dataOverride.length ? dataOverride : getTopGoalkeepersData(10);
-    if(!data.length) return null;
-    const viewerMode = !isAdmin;
-    const bodyHtml = `
-      <div class="share-post-list">${buildShareRankingRows(data.map((g,i)=>({
-        pos: i+1,
-        title: viewerMode ? `${g.portero}` : `${g.portero} · ${g.porteriasImbatidas} PI`,
-        desc: viewerMode ? '' : `${g.equipo} · ${g.promedioGC.toFixed(2)} GC/PJ · ${g.golesRecibidos} GC`
-      })))}</div>
-    `;
-    const caption = [
-      `${torneo} | ${categoria}`,
-      `${ORGANIZER_NAME} · ${ORGANIZER_PHONE}`,
-      viewerMode ? `Porteros registrados al ${fecha}:` : `Top 10 de mejores porteros al ${fecha}:`,
-      ...data.map((g,i)=>viewerMode ? `${i+1}. ${g.portero}` : `${i+1}. ${g.portero} (${g.equipo}) - ${g.porteriasImbatidas} PI | ${g.promedioGC.toFixed(2)} GC/PJ`),
-      getTournamentHashtagLine(['#Top10Porteros','#CopaDelTorneo'])
-    ].join('\n');
-    return {
-      kind:'porteros',
-      title:'Top 10 Porteros',
-      caption,
-      filename: baseFile,
-      html: buildVisualShareCard({
-        kicker: torneo,
-        title: 'TOP 10 PORTEROS',
-        subtitle: `${categoria} · Portería imbatida y solidez defensiva`,
-        dateLabel: `Actualizado · ${fecha}`,
-        bodyHtml,
-        footerNote: 'Ranking oficial de guardametas listo para redes y PDF.',
-        footerTag: getTournamentFooterTag()
-      })
-    };
-  }
-
-  return null;
 }
 
 function getStatsSharePayload(tipo, dataOverride=null){
@@ -2504,199 +2090,6 @@ function buildMarketingSharePayload(post){
       footerTag: 'Community Manager IA'
     })
   };
-}
-
-function buildMarketingAutoPostsLegacy(){
-  const torneo = TORNEO_NAMES[currentTorneo] || 'TORNEO LOMBARDO TOLEDANO';
-  const categoria = getShareCategoryLabel();
-  const tabla = buildTablaData();
-  const scorers = getTopScorersData(10);
-  const keepers = getTopGoalkeepersData(10);
-  const sortedParts = getMarketingSortedParts();
-  const finished = sortedParts.filter(p=>p.status==='terminado');
-  const todayFinished = finished.filter(p=>p.fecha===todayISO()).slice(0,4);
-  const todayAgenda = sortedParts.filter(p=>p.fecha===todayISO() && p.status!=='terminado').slice().reverse().slice(0,5);
-  const activity = getMarketingActivity();
-  const posts = [];
-
-  if(todayFinished.length){
-    const title = 'Resultados de hoy';
-    posts.push({
-      id:'resultados-hoy',
-      title,
-      desc:`${todayFinished.length} partido(s) cerrados hoy con marcador final y goleadores listos para publicar.`,
-      format:'Carrusel premium',
-      platforms:'Instagram · Facebook · WhatsApp',
-      priority:'Alta',
-      visualTitle:'Resultados\nde hoy',
-      visualSubtitle:`${categoria} · Marcadores finales del día`,
-      visualItems:todayFinished.map(p=>({ title:getMatchScoreLine(p), desc:summarizeMatchScorers(p) })),
-      visualStats:[
-        { val:todayFinished.length, lbl:'Partidos' },
-        { val:todayFinished.reduce((sum,p)=>sum+(p.gL||0)+(p.gV||0),0), lbl:'Goles del día' },
-        { val:'100%', lbl:'Listo para subir' }
-      ],
-      hashtags:'#TorneoLosAlamitos #ResultadosDelDia #Futbol',
-      footerNote:'Plantilla automática para contar la jornada con identidad del torneo.',
-      caption:[
-        `${torneo} | Resultados de hoy`,
-        `${categoria}`,
-        ...todayFinished.map(p=>`${getMatchScoreLine(p)}\n${summarizeMatchScorers(p)}`),
-        '#TorneoLosAlamitos #ResultadosDelDia #Futbol'
-      ].join('\n\n')
-    });
-  }
-
-  if(todayAgenda.length){
-    posts.push({
-      id:'agenda-hoy',
-      title:'Agenda de hoy',
-      desc:`Programa de hoy con horarios, cancha y partidos por jugar para mover historias y recordatorios.`,
-      format:'Story + feed',
-      platforms:'Instagram Stories · WhatsApp',
-      priority:'Alta',
-      visualTitle:'Agenda\nde hoy',
-      visualSubtitle:`${categoria} · Jornada en Los Alamitos`,
-      visualItems:todayAgenda.map(p=>({
-        title:`${p.horaIni||'--:--'} · ${p.localNombre||p.local||'Local'} vs ${p.visitaNombre||p.visita||'Visita'}`,
-        desc:`Cancha ${p.cancha||'Los Alamitos'} · Estado: ${p.status==='jugando'?'En juego':'Pendiente'}`
-      })),
-      visualStats:[
-        { val:todayAgenda.length, lbl:'Partidos' },
-        { val:'Los Alamitos', lbl:'Sede única' },
-        { val:categoria, lbl:'Categoría' }
-      ],
-      hashtags:'#TorneoLosAlamitos #AgendaDelDia #VamosAlCampo',
-      footerNote:'Agenda oficial para subir antes de la jornada y activar asistencia.',
-      caption:[
-        `${torneo} | Agenda de hoy`,
-        `${categoria}`,
-        ...todayAgenda.map(p=>`${p.horaIni||'--:--'} · ${p.localNombre||p.local||'Local'} vs ${p.visitaNombre||p.visita||'Visita'} · ${p.cancha||'Los Alamitos'}`),
-        '#TorneoLosAlamitos #AgendaDelDia #VamosAlCampo'
-      ].join('\n')
-    });
-  }
-
-  if(finished.length){
-    const latest = finished.slice(0,3);
-    posts.push({
-      id:'ultimos-partidos',
-      title:'Últimos partidos',
-      desc:'Resumen express de los partidos más recientes para mantener la conversación activa entre jornadas.',
-      format:'Carrusel / reel corto',
-      platforms:'Instagram · TikTok · Facebook',
-      priority:'Media',
-      visualTitle:'Últimos\npartidos',
-      visualSubtitle:`${categoria} · Lo más reciente del torneo`,
-      visualItems:latest.map(p=>({ title:getMatchScoreLine(p), desc:summarizeMatchScorers(p) })),
-      visualStats:[
-        { val:latest.length, lbl:'Partidos' },
-        { val:latest.reduce((sum,p)=>sum+(p.gL||0)+(p.gV||0),0), lbl:'Goles' },
-        { val:'Boom', lbl:'Enganche' }
-      ],
-      hashtags:'#TorneoLosAlamitos #UltimosPartidos #FutbolLocal',
-      footerNote:'Resumen rápido para mantener vivas las redes entre una publicación y otra.',
-      caption:[
-        `${torneo} | Últimos partidos`,
-        `${categoria}`,
-        ...latest.map(p=>`${getMatchScoreLine(p)}\n${summarizeMatchScorers(p)}`),
-        '#TorneoLosAlamitos #UltimosPartidos #FutbolLocal'
-      ].join('\n\n')
-    });
-  }
-
-  const tablaPayload = getStatsSharePayload('tabla', tabla);
-  if(tablaPayload){
-    posts.push({
-      id:'tabla-general',
-      title:'Tabla general + Finalissima',
-      desc:'Post institucional para reforzar el liderato y recordar que el 1er y 2do lugar se juegan la Finalissima.',
-      format:'Carrusel premium',
-      platforms:'Instagram · Facebook',
-      priority:'Alta',
-      visualTitle:'Tabla general',
-      visualSubtitle:'Clasificación actual y foco en la Finalissima',
-      hashtags:'#TorneoLosAlamitos #Finalissima #TablaGeneral',
-      footerNote:'Pieza clave para reforzar la narrativa competitiva del torneo.',
-      caption:tablaPayload.caption,
-      sharePayload:tablaPayload
-    });
-  }
-
-  const scorersPayload = getStatsSharePayload('goleadores', scorers);
-  if(scorersPayload){
-    posts.push({
-      id:'top-goleadores',
-      title:'Top 10 goleadores',
-      desc:'Contenido ideal para conversación, etiquetas y rivalidad sana entre jugadores.',
-      format:'Carrusel + historia',
-      platforms:'Instagram · Facebook · WhatsApp',
-      priority:'Media',
-      visualTitle:'Top 10 goleadores',
-      visualSubtitle:'Quién está rompiendo la red',
-      hashtags:'#TorneoLosAlamitos #Top10Goleadores #Futbol',
-      footerNote:'Post de alto engagement para comentarios, menciones y shares.',
-      caption:scorersPayload.caption,
-      sharePayload:scorersPayload
-    });
-  }
-
-  const keepersPayload = getStatsSharePayload('porteros', keepers);
-  if(keepersPayload){
-    posts.push({
-      id:'top-porteros',
-      title:'Top 10 porteros',
-      desc:'Contenido distintivo del torneo para destacar seguridad defensiva y porterías imbatidas.',
-      format:'Carrusel premium',
-      platforms:'Instagram · Facebook',
-      priority:'Media',
-      visualTitle:'Top 10 porteros',
-      visualSubtitle:'Seguridad bajo los tres palos',
-      hashtags:'#TorneoLosAlamitos #Top10Porteros #Finalissima',
-      footerNote:'Post diferencial para profesionalizar la comunicación del torneo.',
-      caption:keepersPayload.caption,
-      sharePayload:keepersPayload
-    });
-  }
-
-  if(!posts.length){
-    posts.push({
-      id:'post-placeholder',
-      title:'Calienta redes del torneo',
-      desc:'Aún no hay suficientes partidos cerrados; usa esta pieza para anunciar la próxima actividad del torneo.',
-      format:'Post informativo',
-      platforms:'Instagram · Facebook',
-      priority:'Media',
-      visualTitle:'Torneo\nLos Alamitos',
-      visualSubtitle:'Próximamente más resultados, tabla y rankings',
-      visualItems:[
-        { title:'Sede única', desc:'Los Alamitos' },
-        { title:'Categoría activa', desc:categoria },
-        { title:'Objetivo', desc:'Mantener activas y consistentes las redes del torneo' }
-      ],
-      visualStats:[
-        { val:'IA', lbl:'Soporte' },
-        { val:'100%', lbl:'Autenticidad' },
-        { val:'Listo', lbl:'Diseño' }
-      ],
-      hashtags:'#TorneoLosAlamitos #Proximamente #Futbol',
-      footerNote:'Plantilla base para no detener el ritmo editorial.',
-      caption:[
-        `${torneo} | ${categoria}`,
-        'Se viene una nueva jornada en Los Alamitos.',
-        'Mantente al pendiente de resultados, tabla general, goleadores y mejores porteros.',
-        '#TorneoLosAlamitos #Proximamente #Futbol'
-      ].join('\n')
-    });
-  }
-
-  return posts.map((post, index)=>{
-    const saved = activity[post.id] || {};
-    return {
-      ...post,
-      status:saved.status || (index<2 ? 'programado' : 'borrador')
-    };
-  });
 }
 
 function buildMarketingAutoPosts(){
