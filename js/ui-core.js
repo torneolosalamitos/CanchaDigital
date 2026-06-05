@@ -28,10 +28,6 @@ function applyTheme() {
   document.getElementById('html').setAttribute('data-theme', 'light');
 }
 
-function toggleTheme() {
-  applyTheme();
-}
-
 function bindModalOverlayDismissers() {
   document.querySelectorAll('.modal-overlay').forEach((modal) => {
     modal.addEventListener('click', (event) => {
