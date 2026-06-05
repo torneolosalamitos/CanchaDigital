@@ -41,7 +41,6 @@ function showPage(pageKey, btn) {
   if (targetPage === 'resumen') renderResumen();
   if (targetPage === 'tabla') renderTabla();
   if (targetPage === 'equipos') renderEquiposPage();
-  if (targetPage === 'calendario') initCalendario();
   if (targetPage === 'historial') renderHistorial();
   if (targetPage === 'mercadotecnia') renderMercadotecnia();
   if (targetPage === 'partidos') {
