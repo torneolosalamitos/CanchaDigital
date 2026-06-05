@@ -2087,7 +2087,7 @@ function buildMarketingSharePayload(post){
       dateLabel: `Listo para publicar · ${fmtDate(todayISO())}`,
       bodyHtml,
       footerNote: post.footerNote || 'Publicación automática lista para redes, difusión y archivo.',
-      footerTag: 'Community Manager IA'
+      footerTag: 'Community Manager'
     })
   };
 }
@@ -2415,7 +2415,7 @@ function buildMarketingAutoPosts(){
         { title:'Siguiente paso', desc:'Registrar partidos para disparar posts automaticos' }
       ],
       visualStats:[
-        { val:'IA', lbl:'Motor' },
+        { val:'Plan', lbl:'Motor' },
         { val:'Auto', lbl:'Posts' },
         { val:'Listo', lbl:'Panel' }
       ],
@@ -2600,7 +2600,7 @@ function renderMercadotecnia(){
 
   const ideasEl = document.getElementById('mercaIdeasOutput');
   if(ideasEl){
-    const ideas = data.ideasIA || buildMarketingIdeasFallback();
+    const ideas = data.ideasMarketing || data.ideasIA || buildMarketingIdeasFallback();
     ideasEl.innerHTML = `<pre>${escapeHtml(ideas)}</pre>`;
   }
 
@@ -2676,57 +2676,23 @@ function copyMarketingCaption(id){
   return copyPlainText(post.caption || '', '📋 Caption copiado');
 }
 
-async function generarIdeasMercaIA(){
-  const btn = document.getElementById('mercaIaBtn');
-  if(btn){ btn.disabled = true; btn.textContent = '🧠 Analizando...'; }
+async function generarIdeasMerca(){
+  const btn = document.getElementById('mercaIdeasBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Actualizando...'; }
   try{
-    const redes = readMarketingNetworksForm();
-    const tabla = buildTablaData().slice(0,5).map((t,i)=>`${i+1}. ${t.nombre} - ${t.pts} pts`).join('\n') || 'Sin tabla aún';
-    const scorers = getTopScorersData(5).map((g,i)=>`${i+1}. ${g.jugador} (${g.equipo}) - ${g.goles}`).join('\n') || 'Sin goleadores aún';
-    const keepers = getTopGoalkeepersData(5).map((g,i)=>`${i+1}. ${g.portero} (${g.equipo}) - ${g.porteriasImbatidas} PI / ${g.promedioGC.toFixed(2)} GC/PJ`).join('\n') || 'Sin porteros aún';
-    const latest = getMarketingSortedParts().filter(p=>p.status==='terminado').slice(0,4).map(p=>`${getMatchScoreLine(p)} | ${summarizeMatchScorers(p)}`).join('\n') || 'Sin partidos terminados aún';
-    const prompt = `Actúa como un community manager senior para un torneo de fútbol local llamado "${TORNEO_NAMES[currentTorneo] || 'TORNEO LOMBARDO TOLEDANO'}".
-Responde en español, con tono auténtico, competitivo y nada genérico.
-Quiero una respuesta breve pero útil con:
-1. Seis ideas de post
-2. Tres ideas de reels o videos
-3. Dos ideas de publicidad pagada
-4. Un mini calendario de 7 días
-5. Recomendaciones de tono visual y copy
-
-Contexto actual:
-Categoría: ${getShareCategoryLabel()}
-Tabla:
-${tabla}
-
-Top goleadores:
-${scorers}
-
-Top porteros:
-${keepers}
-
-Últimos partidos:
-${latest}
-
-Redes conectadas:
-Instagram: ${JSON.stringify(redes.instagram)}
-TikTok: ${JSON.stringify(redes.tiktok)}
-Facebook: ${JSON.stringify(redes.facebook)}
-`;
-    const ideas = await callClaude(prompt, 1400);
+    const ideas = buildMarketingIdeasFallback();
     await db.ref(`mercadotecnia/${getMarketingKey()}`).update({
-      ideasIA:ideas,
+      ideasMarketing:ideas,
       ideasUpdatedAt:Date.now()
     });
-    showToast('Ideas de Mercadotecnia actualizadas con IA','tg');
+    const ideasEl = document.getElementById('mercaIdeasOutput');
+    if(ideasEl) ideasEl.innerHTML = `<pre>${escapeHtml(ideas)}</pre>`;
+    showToast('Ideas de Mercadotecnia actualizadas','tg');
   }catch(err){
     console.error(err);
-    const fallback = buildMarketingIdeasFallback();
-    const ideasEl = document.getElementById('mercaIdeasOutput');
-    if(ideasEl) ideasEl.innerHTML = `<pre>${escapeHtml(fallback)}</pre>`;
-    showToast('No se pudo consultar la IA. Dejé ideas locales listas para usar','ta');
+    showToast('No se pudieron actualizar las ideas','tr');
   }finally{
-    if(btn){ btn.disabled = false; btn.textContent = '🤖 Refinar ideas con IA'; }
+    if(btn){ btn.disabled = false; btn.textContent = '💡 Actualizar ideas'; }
   }
 }
 
