@@ -4,7 +4,6 @@ function openModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.add('open');
-  if (id === 'modalEquipoRestr' && typeof populateErEquipo === 'function') populateErEquipo('');
   if (id === 'modalGastoTienda' && !document.getElementById('gt_key')?.value && typeof resetGastoTiendaForm === 'function') {
     resetGastoTiendaForm();
   }
