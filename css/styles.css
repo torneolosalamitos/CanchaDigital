@@ -1087,23 +1087,78 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
 @media (max-width:720px){
   .marketing-grid,.marketing-network-grid,.share-highlight-grid,.share-stat-grid{grid-template-columns:1fr;}
 }
-/* Mobile-only logo placement */
+/* Mobile tournament header polish */
 @media (max-width:640px){
   .header{
     position:relative;
     top:auto;
+    padding:10px 10px 0;
+    background:linear-gradient(180deg,#ffffff 0%,#f4f7fc 100%);
   }
   .hdr-top{
     grid-template-columns:minmax(0,1fr) auto;
     grid-template-areas:
       "brand logos"
-      "actions actions";
+      "brand actions";
     align-items:start;
-    gap:8px 10px;
+    gap:8px 12px;
+    min-height:0;
+    padding:16px 14px 14px;
+    overflow:hidden;
+    border-radius:26px;
+    border:1.5px solid rgba(174,192,222,.95);
+    background:
+      linear-gradient(135deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.94) 58%,rgba(242,247,255,.96) 100%);
+    box-shadow:0 14px 28px rgba(37,84,212,.11);
+  }
+  .hdr-top::before{
+    height:5px;
+    border-radius:26px 26px 0 0;
+    background:linear-gradient(90deg,#1a3a8a 0%,#2554d4 28%,#2ea83c 72%,#f59e0b 100%);
+  }
+  .hdr-top::after{
+    left:18px;
+    right:18px;
+    bottom:0;
+    height:1px;
+    background:linear-gradient(90deg,transparent,rgba(26,58,138,.22),transparent);
+    opacity:1;
   }
   .hdr-brand{
     grid-area:brand;
     min-width:0;
+    align-self:stretch;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-start;
+    padding:0 0 0 9px;
+    position:relative;
+  }
+  .hdr-brand::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:2px;
+    bottom:3px;
+    width:3px;
+    border-radius:999px;
+    background:linear-gradient(180deg,#2554d4,#2ea83c);
+  }
+  .hdr-name{
+    max-width:calc(100vw - 134px);
+    font-size:30px;
+    letter-spacing:1px;
+    line-height:.9;
+    color:#07162c;
+    text-wrap:balance;
+  }
+  .hdr-cat{
+    max-width:calc(100vw - 134px);
+    margin-top:8px;
+    font-size:10px;
+    letter-spacing:1.05px;
+    line-height:1.35;
+    color:#647da6;
   }
   .hdr-logos{
     grid-area:logos;
@@ -1111,64 +1166,83 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
     align-self:start;
     display:flex;
     align-items:center;
-    gap:4px;
-    padding:0;
-    background:transparent;
-    border:0;
-    box-shadow:none;
+    gap:5px;
+    padding:4px;
+    border-radius:16px;
+    background:rgba(255,255,255,.82);
+    border:1px solid rgba(174,192,222,.7);
+    box-shadow:0 8px 18px rgba(37,84,212,.08);
   }
   .hdr-shield,
   .hdr-torneo-logo{
-    width:38px;
-    height:38px;
+    width:36px;
+    height:36px;
     display:flex;
     align-items:center;
     justify-content:center;
     flex-shrink:0;
-    border-radius:12px;
+    border-radius:11px;
     background:#fff;
+    box-shadow:inset 0 0 0 1px rgba(174,192,222,.45);
   }
   .hdr-shield img{
-    height:28px !important;
+    height:26px !important;
     width:auto !important;
-    max-width:34px !important;
+    max-width:31px !important;
     object-fit:contain !important;
   }
   .hdr-torneo-logo img{
-    height:32px !important;
+    height:30px !important;
     width:auto !important;
-    max-width:42px !important;
+    max-width:37px !important;
     object-fit:contain !important;
   }
   .hdr-right{
     grid-area:actions;
     justify-self:end;
     justify-content:flex-end;
-    width:100%;
+    width:auto;
+    gap:6px;
+    margin-top:0;
   }
-  .hdr-name,
-  .hdr-cat{
-    max-width:calc(100vw - 118px);
+  .ico-btn{
+    min-width:42px;
+    width:42px;
+    height:42px;
+    border-radius:15px;
+    padding:0;
+    background:linear-gradient(180deg,#ffffff,#f3f7ff);
+    border-color:rgba(174,192,222,.95);
+    box-shadow:0 8px 16px rgba(37,84,212,.08);
   }
 }
 
 @media (max-width:380px){
   .hdr-shield,
   .hdr-torneo-logo{
-    width:34px;
-    height:34px;
+    width:33px;
+    height:33px;
     border-radius:10px;
   }
   .hdr-shield img{
-    height:25px !important;
-    max-width:30px !important;
+    height:24px !important;
+    max-width:28px !important;
   }
   .hdr-torneo-logo img{
-    height:29px !important;
-    max-width:38px !important;
+    height:27px !important;
+    max-width:34px !important;
   }
   .hdr-name,
   .hdr-cat{
-    max-width:calc(100vw - 104px);
+    max-width:calc(100vw - 122px);
+  }
+  .hdr-name{
+    font-size:27px;
+  }
+  .ico-btn{
+    min-width:38px;
+    width:38px;
+    height:38px;
+    border-radius:14px;
   }
 }
