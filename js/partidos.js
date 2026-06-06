@@ -514,7 +514,9 @@ function updateMPEquipos() {
     Object.keys(CAT_NAMES).forEach((k) => {
       if (!orderedKeys.includes(k)) orderedKeys.push(k);
     });
-    catSel.innerHTML = orderedKeys.map((k) => `<option value="${k}"${k === c ? ' selected' : ''}>${CAT_NAMES[k]}</option>`).join('');
+    catSel.innerHTML = orderedKeys
+      .filter((k) => canAccessCat(k, t))
+      .map((k) => `<option value="${k}"${k === c ? ' selected' : ''}>${CAT_NAMES[k]}</option>`).join('');
   }
   const cat2 = document.getElementById('mp_cat')?.value || c;
   const eqs = getEqs().filter((e) => e.torneo === t && e.cat === cat2);
@@ -685,6 +687,10 @@ async function savePartido() {
   }
   const torneo = document.getElementById('mp_torneo').value;
   const cat = document.getElementById('mp_cat').value;
+  if (!canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) {
+    showToast('No tienes permiso para esa categoría', 'tr');
+    return;
+  }
   const arbId = document.getElementById('mp_arbitro').value || null;
   const arb = arbId ? C.arbitros[arbId] : null;
   const key = document.getElementById('mp_key').value;
