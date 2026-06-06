@@ -1912,7 +1912,7 @@ function onAuthChange(user){
       db.ref('usuarios/'+uid).set({
         email: user.email, nombre,
         role: isOwner ? 'admin' : 'viewer',
-        adminScope: isOwner ? Object.fromEntries(TOURNAMENT_OPTION_ORDER.map((t)=>[t, (TORNEO_CONFIG[t]?.categories||[]).map((cat)=>cat.key)])) : {},
+        adminScope: isOwner ? buildFullAdminScope() : {},
         creadoAt: Date.now(), uid
       }).catch(e => console.warn('DB write failed:', e.code));
     } else {
@@ -1924,9 +1924,10 @@ function onAuthChange(user){
       const userData = rSnap.val() || {};
       const role = isOwner ? 'admin' : (userData.role||'viewer');
       isAdmin = (role === 'admin');
+      const normalizedScope = normalizeAdminScope(userData.adminScope || {});
       adminScope = isOwner
-        ? Object.fromEntries(TOURNAMENT_OPTION_ORDER.map((t)=>[t, (TORNEO_CONFIG[t]?.categories||[]).map((cat)=>cat.key)]))
-        : normalizeAdminScope(userData.adminScope || {});
+        ? normalizeAdminScope(buildFullAdminScope())
+        : (role === 'admin' && !Object.keys(normalizedScope).length ? normalizeAdminScope(buildFullAdminScope()) : normalizedScope);
       const capFlag = (role === 'captain');
       const capKey  = userData.equipoKey || null;
       updateAdminUI(isAdmin, isOwner, capFlag, capKey);
@@ -2780,7 +2781,7 @@ function saveAdminRole(){
     showToast('Selecciona torneo y al menos una categoria','ta');
     return;
   }
-  db.ref('usuarios/'+uid).update({ role:'admin', equipoKey:null, adminScope:{ [torneo]: cats } })
+  db.ref('usuarios/'+uid).update({ role:'admin', equipoKey:null, adminScope:buildSingleAdminScope(torneo, cats) })
     .then(()=>{
       closeModal('modalSetAdmin');
       showToast('Permisos de administrador guardados','tg');
