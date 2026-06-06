@@ -1061,18 +1061,32 @@
 
 <!-- ═══════ RESUMEN ═══════ -->
 <div class="page" id="page-resumen">
-  <!-- Period selector -->
-  <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;scrollbar-width:none">
-    <button class="btn btn-g btn-sm" onclick="setResumenPeriodo('dia',this)" id="resPer_dia">📅 Hoy</button>
-    <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('semana',this)" id="resPer_semana">📆 Semana</button>
-    <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('mes',this)" id="resPer_mes">🗓️ Mes</button>
-    <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('anual',this)" id="resPer_anual">📊 Anual</button>
-    <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('general',this)" id="resPer_general">🌐 General</button>
-    <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('custom',this)" id="resPer_custom">📆 Rango</button>
+  <div class="resumen-dash-hero">
+    <div>
+      <div class="resumen-kicker">Resumen del torneo</div>
+      <div class="resumen-title" id="resumenTorneoTitle">CanchaDigital</div>
+      <div class="resumen-subtitle" id="resumenScopeLabel">Categorías del torneo seleccionado</div>
+    </div>
+    <div class="resumen-logo-stack">
+      <img src="/CanchaDigital/img/logo-cancha-shield.png" alt="CanchaDigital"/>
+      <img id="resumenTorneoLogo" src="" alt="Torneo"/>
+    </div>
   </div>
-  <!-- Custom date range -->
-  <div id="customRangePanel" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;">
-    <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">📆 Selecciona rango de fechas</div>
+
+  <div class="resumen-toolbar">
+    <div class="resumen-toolbar-title">Periodo</div>
+    <div class="resumen-pills">
+      <button class="btn btn-g btn-sm" onclick="setResumenPeriodo('dia',this)" id="resPer_dia">📅 Hoy</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('semana',this)" id="resPer_semana">📆 Semana</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('mes',this)" id="resPer_mes">🗓️ Mes</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('anual',this)" id="resPer_anual">📊 Anual</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('general',this)" id="resPer_general">🌐 General</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('custom',this)" id="resPer_custom">📆 Rango</button>
+    </div>
+  </div>
+
+  <div id="customRangePanel" class="resumen-filter-card" style="display:none">
+    <div class="resumen-filter-title">📆 Selecciona rango de fechas</div>
     <div class="form-2">
       <div class="fg"><label class="fl">Desde fecha</label><input class="fi" id="res_desde_fecha" type="date" onchange="renderResumen()"/></div>
       <div class="fg"><label class="fl">Hasta fecha</label><input class="fi" id="res_hasta_fecha" type="date" onchange="renderResumen()"/></div>
@@ -1083,30 +1097,52 @@
     </div>
   </div>
 
+  <div class="resumen-toolbar">
+    <div class="resumen-toolbar-title">Categorías</div>
+    <div class="resumen-pills" id="resumenScopePills">
+      <button class="btn btn-g btn-sm" onclick="setResumenScope('torneo')" id="resScope_torneo">Este torneo</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenScope('actual')" id="resScope_actual">Actual</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenScope('custom')" id="resScope_custom">Seleccionar</button>
+    </div>
+  </div>
+  <div class="resumen-filter-card" id="resumenCategoryFilters" style="display:none"></div>
+
   <div class="sh"><div class="st" id="resumenPeriodoTitle">📋 Resumen del Día</div><div class="sl"></div></div>
   <div class="res-grid" id="resumenGrid"></div>
 
-  <!-- CHART ROW -->
-  <div class="chart-wrap" style="margin-bottom:12px;">
+  <div class="resumen-dashboard-grid" id="resumenDashboards"></div>
+
+  <div id="resumenCategoryBreakdown"></div>
+
+  <div class="resumen-section" id="resumenInscSection">
+    <div class="sh"><div class="st">💰 Inscripciones</div><div class="sl"></div></div>
+    <div class="card"><div id="resInsc"></div></div>
   </div>
 
-  <div class="sh"><div class="st">💡 Análisis Financiero</div><div class="sl"></div></div>
-  <div id="finInsights"></div>
+  <div class="resumen-section" id="resumenDeudasSection">
+    <div class="sh"><div class="st">⚠️ Deudas por Cobrar</div><div class="sl"></div></div>
+    <div class="card"><div id="resDeudas"><div class="empty"><span class="empty-icon">⚠️</span>Calculando...</div></div></div>
+  </div>
 
-  <div class="sh" style="margin-top:8px"><div class="st">💰 Inscripciones</div><div class="sl"></div></div>
-  <div class="card"><div id="resInsc"></div></div>
+  <div class="resumen-section" id="resumenVentasSection">
+    <div class="sh"><div class="st">🛒 Tienda / Top Ventas</div><div class="sl"></div></div>
+    <div class="card"><div id="resVentas"></div></div>
+  </div>
 
-  <div class="sh" style="margin-top:8px"><div class="st">⚠️ Deudas por Cobrar</div><div class="sl"></div></div>
-  <div class="card"><div id="resDeudas"><div class="empty"><span class="empty-icon">⚠️</span>Calculando...</div></div></div>
+  <div class="resumen-section" id="resumenArbSection">
+    <div class="sh"><div class="st">🦺 Arbitrajes — Desglose</div><div class="sl"></div></div>
+    <div class="card"><div id="resArb"></div></div>
+  </div>
 
-  <div class="sh" style="margin-top:8px"><div class="st">🛒 Top Ventas</div><div class="sl"></div></div>
-  <div class="card"><div id="resVentas"></div></div>
+  <div class="resumen-section" id="resumenCapHumSection">
+    <div class="sh"><div class="st">👥 Capital Humano</div><div class="sl"></div></div>
+    <div class="card"><div id="resCapHum"></div></div>
+  </div>
 
-  <div class="sh" style="margin-top:8px"><div class="st">🦺 Arbitrajes — Desglose</div><div class="sl"></div></div>
-  <div class="card"><div id="resArb"></div></div>
-
-  <div class="sh" style="margin-top:8px"><div class="st">👥 Capital Humano</div><div class="sl"></div></div>
-  <div class="card"><div id="resCapHum"></div></div>
+  <div class="resumen-section">
+    <div class="sh"><div class="st">💡 Lectura rápida</div><div class="sl"></div></div>
+    <div id="finInsights"></div>
+  </div>
 
   <!-- REINICIAR ESTADÍSTICAS -->
   <div class="sh" style="margin-top:18px"><div class="st">🗑️ Reiniciar Estadísticas</div><div class="sl"></div></div>
