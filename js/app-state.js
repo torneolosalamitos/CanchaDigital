@@ -105,6 +105,7 @@ function toggleTiendaSection(enabled) {
     const tablaBtn = document.querySelector('.nav-tab');
     showPage('tabla', tablaBtn || null);
   }
+  if (isPageActive('resumen')) renderResumen();
 }
 
 function updateCatTabs() {
