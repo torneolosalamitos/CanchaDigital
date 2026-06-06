@@ -100,12 +100,13 @@ function applyTournamentCatalogToCategoryMap(catMap) {
 
 function hydrateSplashTournamentCards() {
   const cards = Array.from(document.querySelectorAll('#splash [onclick^="selectTorneo"]'));
+  const visibleOrder = typeof getAllowedTorneos === 'function' ? getAllowedTorneos() : TOURNAMENT_OPTION_ORDER;
   TOURNAMENT_OPTION_ORDER.forEach((key, idx) => {
     const card = cards[idx];
     if (!card) return;
 
     const cfg = getTournamentConfig(key);
-    card.style.display = 'flex';
+    card.style.display = visibleOrder.includes(key) ? 'flex' : 'none';
     card.setAttribute('onclick', `selectTorneo('${key}')`);
 
     const logoEl = card.querySelector('img');
