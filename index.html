@@ -57,7 +57,7 @@
   <!-- Tournament cards -->
   <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px">
     <div onclick="selectTorneo('villa')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
-      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-lombardo-toledano.png" alt="TORNEO LOMBARDO TOLEDANO" style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12));"/></div>
+      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-lombardo-toledano.png" alt="TORNEO LOMBARDO TOLEDANO" style="width:60px;height:60px;object-fit:contain;"/></div>
       <div style="flex:1">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO LOMBARDO TOLEDANO</div>
         <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">LIBRE VARONIL Y FEMENIL</div>
@@ -65,7 +65,7 @@
       <div style="font-size:18px;color:rgba(46,168,60,.8);font-weight:700">&#8250;</div>
     </div>
     <div onclick="selectTorneo('nuevos_valores')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
-      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-nuevos-valores.png" alt="TORNEO NUEVOS VALORES" style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12));"/></div>
+      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-nuevos-valores.png" alt="TORNEO NUEVOS VALORES" style="width:60px;height:60px;object-fit:contain;"/></div>
       <div style="flex:1">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO NUEVOS VALORES</div>
         <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">INFANTIL, OSOS Y JUVENIL</div>
@@ -906,6 +906,7 @@
     <button class="btn btn-g btn-sm" onclick="openModal('modalInscEquipo')">+ Equipo</button>
   </div>
   <div class="stats-row" id="inscStats"></div>
+  <div id="inscScopeControls"></div>
   <div id="inscList"></div>
 </div>
 
@@ -1720,6 +1721,27 @@
   </div>
 </div>
 
+<!-- Modal Asignar Administrador -->
+<div class="modal-overlay" id="modalSetAdmin">
+  <div class="modal" style="border-top-color:var(--acc)">
+    <div class="modal-head">
+      <div class="modal-title">⚙️ Permisos de Administrador</div>
+      <button class="modal-close" onclick="closeModal('modalSetAdmin')">✕</button>
+    </div>
+    <input type="hidden" id="sa_uid"/>
+    <div id="sa_user_info" style="background:var(--card2);border-radius:9px;padding:10px;margin-bottom:12px;font-size:13px;font-weight:700;"></div>
+    <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.5;margin-bottom:12px">
+      Solo el propietario puede hacer administradores. Selecciona el torneo y las categorías que este admin podrá gestionar.
+    </div>
+    <div class="fg">
+      <label class="fl">Torneo asignado</label>
+      <select class="fi" id="sa_torneo" onchange="renderAdminCatPermissions()"></select>
+    </div>
+    <div id="sa_cat_list" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px"></div>
+    <button class="btn btn-g btn-full" onclick="saveAdminRole()">💾 Guardar permisos</button>
+  </div>
+</div>
+
 <!-- Modal Gestionar Categorías -->
 <div class="modal-overlay" id="modalGestionCats">
   <div class="modal" style="border-top-color:var(--acc)">
@@ -1811,6 +1833,7 @@
 let db = null, auth = null, currentUser = null, isAdmin = false;
 const LS_LAST_PAGE = 'ld_last_page';
 const ADMIN_ONLY_PAGES = new Set(['tienda','inscripciones','arbitros','calendario','resumen','mercadotecnia']);
+const OWNER_EMAILS = ['edanchra@gmail.com','admincanchadigital@gmail.com'];
 
 // Resize handler for mobile tabla
 (function(){
@@ -1859,11 +1882,12 @@ const DEFAULT_PRODUCTS = [
 
 function onAuthChange(user){
   currentUser = user;
-  const OWNER_EMAILS = ['Edanchra@gmail.com', 'admincanchadigital@gmail.com'];
-  const isOwner = !!(user && OWNER_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase()));
+  isOwner = !!(user && OWNER_EMAILS.includes((user.email||'').toLowerCase()));
 
   if(!user){
     isAdmin = false;
+    isOwner = false;
+    adminScope = {};
     isCaptain = false;
     captainEquipoKey = null;
     // Hide viewer overlay if visible
@@ -1888,6 +1912,7 @@ function onAuthChange(user){
       db.ref('usuarios/'+uid).set({
         email: user.email, nombre,
         role: isOwner ? 'admin' : 'viewer',
+        adminScope: isOwner ? Object.fromEntries(TOURNAMENT_OPTION_ORDER.map((t)=>[t, (TORNEO_CONFIG[t]?.categories||[]).map((cat)=>cat.key)])) : {},
         creadoAt: Date.now(), uid
       }).catch(e => console.warn('DB write failed:', e.code));
     } else {
@@ -1899,6 +1924,9 @@ function onAuthChange(user){
       const userData = rSnap.val() || {};
       const role = isOwner ? 'admin' : (userData.role||'viewer');
       isAdmin = (role === 'admin');
+      adminScope = isOwner
+        ? Object.fromEntries(TOURNAMENT_OPTION_ORDER.map((t)=>[t, (TORNEO_CONFIG[t]?.categories||[]).map((cat)=>cat.key)]))
+        : normalizeAdminScope(userData.adminScope || {});
       const capFlag = (role === 'captain');
       const capKey  = userData.equipoKey || null;
       updateAdminUI(isAdmin, isOwner, capFlag, capKey);
@@ -1919,7 +1947,7 @@ function updateAdminUI(adminFlag, ownerFlag, captainFlag, capEquipoKey){
   if(adminBadge) adminBadge.style.display = canAct?'block':'none';
   if(loginBtn)   loginBtn.style.display   = canAct?'none':'block';
   if(logoutBtn)  logoutBtn.style.display  = currentUser ? 'block' : 'none';
-  if(usersBtn)   usersBtn.style.display   = ownerFlag?'':'none';
+  if(usersBtn)   usersBtn.style.display   = adminFlag?'':'none';
   if(userChip){
     userChip.classList.toggle('show', !!currentUser);
     if(userChipName){
@@ -1953,9 +1981,10 @@ function updateAdminUI(adminFlag, ownerFlag, captainFlag, capEquipoKey){
   if(catAddBtn)  catAddBtn.style.display  = adminFlag?'':'none';
   const tiendaToggleWrap = document.getElementById('adminTiendaToggleWrap');
   if(tiendaToggleWrap) tiendaToggleWrap.style.display = adminFlag ? 'block' : 'none';
+  ensureAllowedTournamentAndCat();
   // Always show the tournament selector first when opening the link.
   const saved = localStorage.getItem('ld_torneo');
-  if(saved && TORNEO_NAMES[saved]) currentTorneo = saved;
+  if(saved && TORNEO_NAMES[saved] && canAccessTorneo(saved)) currentTorneo = saved;
   if(saved && !TORNEO_NAMES[saved]) localStorage.removeItem('ld_torneo');
   document.getElementById('splash').style.display='flex';
   document.getElementById('appShell').style.display='none';
@@ -2068,12 +2097,20 @@ const isPageActive = p => document.getElementById('page-'+p)?.classList.contains
 // ══════════════════════════════════════
 //  HELPERS
 // ══════════════════════════════════════
-const getParts = () => Object.entries(C.partidos).map(([k,v])=>({...v,_key:k}));
-const getEqs = () => Object.entries(C.equipos).map(([k,v])=>({...v,_key:k}));
+const scopeTorneoOf = (record) => record?.torneo || 'villa';
+const scopeCatOf = (record) => record?.cat || 'liga_alta';
+const canReadScopedRecord = (record, useCat = true) => {
+  if (!isAdmin || isOwner) return true;
+  const torneo = scopeTorneoOf(record);
+  const cat = scopeCatOf(record);
+  return canAccessTorneo(torneo) && (!useCat || canAccessCat(cat, torneo));
+};
+const getParts = () => Object.entries(C.partidos).map(([k,v])=>({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
+const getEqs = () => Object.entries(C.equipos).map(([k,v])=>({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
 const getProd = () => Object.entries(C.productos).map(([k,v])=>({...v,_key:k}));
-const getVentas = () => Object.entries(C.ventas).map(([k,v])=>({...v,_key:k})).sort((a,b)=>b.ts-a.ts);
+const getVentas = () => Object.entries(C.ventas).map(([k,v])=>({...v,_key:k})).filter((v)=>canReadScopedRecord(v)).sort((a,b)=>b.ts-a.ts);
 const getArbs = () => Object.entries(C.arbitros).map(([k,v])=>({...v,_key:k}));
-const getInsc = () => Object.entries(C.inscripciones).map(([k,v])=>({...v,_key:k}));
+const getInsc = () => Object.entries(C.inscripciones).map(([k,v])=>({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
 const fmt = s=>{ const m=Math.floor(s/60),ss=Math.floor(s%60); return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; };
 const fmtDate = d=>{ if(!d)return'—'; const dt=new Date(d+'T12:00:00'); const days=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']; const months=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`; };
 
@@ -2620,12 +2657,11 @@ function registrarUsuario(){
 }
 
 // ══════════════════════════════════════════════
-//  PANEL GESTIÓN DE USUARIOS (owner only)
+//  PANEL GESTION DE USUARIOS
 // ══════════════════════════════════════════════
 function renderUsuariosPanel(filter=''){
   const el = document.getElementById('usuariosList');
   if(!el) return;
-  const OWNER_EMAILS = ['edanchra@gmail.com','admincanchadigital@gmail.com'];
   let users = Object.values(C.usuarios||{}).sort((a,b)=>(b.creadoAt||0)-(a.creadoAt||0));
   if(filter){
     const q = filter.toLowerCase();
@@ -2645,11 +2681,12 @@ function renderUsuariosPanel(filter=''){
     const roleBadgeClass = isOwnerU?'role-owner':u.role==='admin'?'role-admin':u.role==='captain'?'role-captain':'role-viewer';
     const roleLabel = isOwnerU?'👑 Owner':u.role==='admin'?'⚙️ Admin':u.role==='captain'?'⚽ Capitán':'👁️ Espectador';
     const equipoNombre = u.equipoKey && C.equipos[u.equipoKey] ? C.equipos[u.equipoKey].nombre : '';
+    const scopeLabel = formatUserAdminScope(u.adminScope);
     const actionBtns = isOwnerU ? '' : `
       <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;margin-top:6px">
-        ${u.role!=='admin'   ? `<button class="btn btn-g btn-sm" onclick="setUserRole('${u.uid}','admin')">⚙️ Admin</button>` : ''}
-        ${u.role!=='captain' ? `<button class="btn btn-sm" style="background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.25);border-radius:7px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:800" onclick="openSetCaptain('${u.uid}')">⚽ Capitán</button>` : ''}
-        ${u.role!=='viewer'  ? `<button class="btn btn-out btn-sm" onclick="setUserRole('${u.uid}','viewer')">Quitar rol</button>` : ''}
+        ${isOwner ? `<button class="btn btn-g btn-sm" onclick="openSetAdmin('${u.uid}')">${u.role==='admin'?'⚙️ Editar admin':'⚙️ Admin'}</button>` : ''}
+        ${(isOwner || u.role==='viewer') && u.role!=='captain' ? `<button class="btn btn-sm" style="background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.25);border-radius:7px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:800" onclick="openSetCaptain('${u.uid}')">⚽ Capitán</button>` : ''}
+        ${(isOwner || u.role==='captain') && u.role!=='viewer' ? `<button class="btn btn-out btn-sm" onclick="setUserRole('${u.uid}','viewer')">Quitar rol</button>` : ''}
       </div>`;
     return `<div class="user-row" style="flex-wrap:wrap;align-items:flex-start">
       <div class="user-avatar" style="margin-top:2px">${initials}</div>
@@ -2657,6 +2694,7 @@ function renderUsuariosPanel(filter=''){
         <div class="user-email">${u.nombre||'Sin nombre'}</div>
         <div class="user-meta">${u.email||'—'}</div>
         <div class="user-meta" style="margin-top:2px">Registro: ${fecha}${lastLogin?' · Último acceso: '+lastLogin:''}${equipoNombre?' · Equipo: '+equipoNombre:''}</div>
+        ${u.role==='admin' && scopeLabel ? `<div class="user-meta" style="margin-top:2px;color:var(--acc);font-weight:800">Permisos: ${scopeLabel}</div>` : ''}
         <div style="margin-top:4px"><span class="role-badge ${roleBadgeClass}">${roleLabel}</span></div>
         ${actionBtns}
       </div>
@@ -2669,9 +2707,83 @@ function filterUsuarios(q){
 }
 
 function setUserRole(uid, role){
-  db.ref('usuarios/'+uid+'/role').set(role)
+  if(role === 'admin' && !isOwner){
+    showToast('Solo el propietario puede hacer administradores','tr');
+    return;
+  }
+  const updates = { role };
+  if(role === 'viewer'){
+    updates.equipoKey = null;
+    updates.adminScope = null;
+  }
+  db.ref('usuarios/'+uid).update(updates)
     .then(()=>{
       showToast(role==='admin'?'✅ Usuario promovido a Admin':'Usuario cambiado a Espectador','tg');
+      renderUsuariosPanel();
+    })
+    .catch(e=>showToast('Error: '+e.message,'tr'));
+}
+
+function formatUserAdminScope(scopeRaw){
+  const scope = normalizeAdminScope(scopeRaw || {});
+  const chunks = Object.entries(scope).map(([torneo, cats])=>{
+    const torneoName = TORNEO_NAMES[torneo] || torneo;
+    const catNames = (cats || []).map((cat)=>DEFAULT_TOURNAMENT_CATEGORY_LABELS[cat] || cat).join(', ');
+    return `${torneoName}${catNames ? ' · ' + catNames : ''}`;
+  });
+  return chunks.join(' | ');
+}
+
+function openSetAdmin(uid){
+  if(!isOwner){
+    showToast('Solo el propietario puede asignar administradores','tr');
+    return;
+  }
+  const u = C.usuarios[uid]; if(!u) return;
+  document.getElementById('sa_uid').value = uid;
+  const info = document.getElementById('sa_user_info');
+  if(info) info.textContent = (u.nombre||u.email) + ' · ' + (u.email||'');
+  const sel = document.getElementById('sa_torneo');
+  if(sel){
+    const scope = normalizeAdminScope(u.adminScope || {});
+    const assigned = Object.keys(scope)[0] || currentTorneo;
+    sel.innerHTML = TOURNAMENT_OPTION_ORDER.map((key)=>`<option value="${key}" ${assigned===key?'selected':''}>${TORNEO_NAMES[key]}</option>`).join('');
+  }
+  renderAdminCatPermissions();
+  openModal('modalSetAdmin');
+}
+
+function renderAdminCatPermissions(){
+  const uid = document.getElementById('sa_uid')?.value;
+  const torneo = document.getElementById('sa_torneo')?.value || currentTorneo;
+  const u = uid ? C.usuarios[uid] : null;
+  const saved = normalizeAdminScope(u?.adminScope || {});
+  const selected = saved[torneo] || (TORNEO_CONFIG[torneo]?.categories || []).map((cat)=>cat.key);
+  const wrap = document.getElementById('sa_cat_list');
+  if(!wrap) return;
+  wrap.innerHTML = (TORNEO_CONFIG[torneo]?.categories || []).map((cat)=>`
+    <label class="resumen-cat-check">
+      <input type="checkbox" value="${cat.key}" ${selected.includes(cat.key)?'checked':''}/>
+      <span>${cat.label}</span>
+    </label>`).join('');
+}
+
+function saveAdminRole(){
+  if(!isOwner){
+    showToast('Solo el propietario puede guardar estos permisos','tr');
+    return;
+  }
+  const uid = document.getElementById('sa_uid').value;
+  const torneo = document.getElementById('sa_torneo').value;
+  const cats = Array.from(document.querySelectorAll('#sa_cat_list input:checked')).map((input)=>input.value);
+  if(!uid || !torneo || !cats.length){
+    showToast('Selecciona torneo y al menos una categoria','ta');
+    return;
+  }
+  db.ref('usuarios/'+uid).update({ role:'admin', equipoKey:null, adminScope:{ [torneo]: cats } })
+    .then(()=>{
+      closeModal('modalSetAdmin');
+      showToast('Permisos de administrador guardados','tg');
       renderUsuariosPanel();
     })
     .catch(e=>showToast('Error: '+e.message,'tr'));
@@ -2689,7 +2801,7 @@ function openSetCaptain(uid){
   const sel = document.getElementById('sc_equipo');
   if(sel){
     const equipos = Object.entries(C.equipos||{})
-      .filter(([,e])=>e.torneo===currentTorneo && e.cat===currentCat)
+      .filter(([,e])=>e.torneo===currentTorneo && e.cat===currentCat && (!isAdmin || isOwner || (canAccessTorneo(e.torneo) && canAccessCat(e.cat, e.torneo))))
       .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
     sel.innerHTML = '<option value="">— Seleccionar equipo —</option>' +
       equipos.map(([k,e])=>`<option value="${k}" ${u.equipoKey===k?'selected':''}>${e.nombre}</option>`).join('');
@@ -2701,7 +2813,17 @@ function saveCaptain(){
   const uid = document.getElementById('sc_uid').value;
   const equipoKey = document.getElementById('sc_equipo').value;
   if(!uid || !equipoKey){ showToast('Selecciona un equipo','ta'); return; }
-  db.ref('usuarios/'+uid).update({ role:'captain', equipoKey })
+  const usuario = C.usuarios[uid];
+  if(!isOwner && usuario?.role !== 'viewer' && usuario?.role !== 'captain'){
+    showToast('Solo puedes asignar capitanes a usuarios normales','tr');
+    return;
+  }
+  const equipo = C.equipos[equipoKey];
+  if(!equipo || (isAdmin && !isOwner && (!canAccessTorneo(equipo.torneo) || !canAccessCat(equipo.cat, equipo.torneo)))){
+    showToast('No tienes permiso para ese equipo','tr');
+    return;
+  }
+  db.ref('usuarios/'+uid).update({ role:'captain', equipoKey, adminScope:null })
     .then(()=>{
       showToast('⚽ Capitán asignado','tg');
       closeModal('modalSetCaptain');
