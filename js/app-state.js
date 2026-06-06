@@ -5,8 +5,10 @@ let pendingGolSide = null;
 let payMethods = { local: null, visita: null };
 let cart = [];
 const timers = {};
+let isOwner = false;
 let isCaptain = false;
 let captainEquipoKey = null;
+let adminScope = {};
 let tiendaEnabled = true;
 let visualShareState = null;
 const visualShareOptions = { showTablaStats: false };
@@ -34,6 +36,47 @@ const CANCHAS = ['Los Alamitos'];
 const ORGANIZER_NAME = 'Jesus "Navo"';
 const ORGANIZER_PHONE = '667 452 5663';
 
+function normalizeAdminScope(rawScope) {
+  if (!rawScope || typeof rawScope !== 'object') return {};
+  const scope = {};
+  Object.entries(rawScope).forEach(([torneo, cats]) => {
+    if (!TORNEO_NAMES[torneo]) return;
+    const list = Array.isArray(cats) ? cats : Object.keys(cats || {});
+    scope[torneo] = list.filter((cat) => typeof cat === 'string');
+  });
+  return scope;
+}
+
+function getAllowedTorneos() {
+  if (isOwner || !isAdmin) return [...TOURNAMENT_OPTION_ORDER];
+  const allowed = Object.keys(adminScope || {}).filter((key) => TORNEO_NAMES[key]);
+  return allowed.length ? allowed : [];
+}
+
+function getAllowedCats(torneo = currentTorneo) {
+  const cfgCats = (TORNEO_CONFIG[torneo]?.categories || []).map((cat) => cat.key);
+  if (isOwner || !isAdmin) return cfgCats;
+  const allowed = adminScope?.[torneo] || [];
+  return allowed.length ? cfgCats.filter((cat) => allowed.includes(cat)) : [];
+}
+
+function canAccessTorneo(torneo) {
+  return !isAdmin || isOwner || getAllowedTorneos().includes(torneo);
+}
+
+function canAccessCat(cat, torneo = currentTorneo) {
+  return !isAdmin || isOwner || getAllowedCats(torneo).includes(cat);
+}
+
+function ensureAllowedTournamentAndCat() {
+  if (!isAdmin || isOwner) return;
+  const allowedTorneos = getAllowedTorneos();
+  if (!allowedTorneos.length) return;
+  if (!allowedTorneos.includes(currentTorneo)) currentTorneo = allowedTorneos[0];
+  const allowedCats = getAllowedCats(currentTorneo);
+  if (allowedCats.length && !allowedCats.includes(currentCat)) currentCat = allowedCats[0];
+}
+
 const splashMainLogoOnLoad = document.querySelector('#splash > div img');
 if (splashMainLogoOnLoad) splashMainLogoOnLoad.src = SPLASH_BIG_LOGO;
 const hdrBrandLogoOnLoad = document.querySelector('.hdr-shield img');
@@ -41,9 +84,14 @@ if (hdrBrandLogoOnLoad) hdrBrandLogoOnLoad.src = CD_LOGO_SHIELD;
 hydrateSplashTournamentCards();
 
 function selectTorneo(t) {
+  if (isAdmin && !canAccessTorneo(t)) {
+    showToast('No tienes permiso para este torneo', 'tr');
+    return;
+  }
   currentTorneo = TORNEO_NAMES[t] ? t : 'villa';
   localStorage.setItem('ld_torneo', currentTorneo);
   loadCustomCats();
+  ensureAllowedTournamentAndCat();
   if (!CAT_NAMES[currentCat]) currentCat = catOrderKeys[0] || currentCat;
   document.getElementById('splash').style.display = 'none';
   launchApp();
@@ -51,7 +99,7 @@ function selectTorneo(t) {
 
 function syncFixedSelectors() {
   const torneoIds = ['gen_torneo', 'mp_torneo', 'eq_torneo', 'ie_torneo', 'temp_torneo', 'rc_torneo'];
-  const torneoOptions = TOURNAMENT_OPTION_ORDER
+  const torneoOptions = getAllowedTorneos()
     .filter((key) => TORNEO_NAMES[key])
     .map((key) => `<option value="${key}">${TORNEO_NAMES[key]}</option>`)
     .join('');
@@ -60,12 +108,13 @@ function syncFixedSelectors() {
     const el = document.getElementById(id);
     if (!el) return;
     el.innerHTML = torneoOptions;
-    el.value = currentTorneo;
+    el.value = canAccessTorneo(currentTorneo) ? currentTorneo : (getAllowedTorneos()[0] || currentTorneo);
   });
 
   const catIds = ['gen_cat', 'mp_cat', 'eq_cat', 'ie_cat', 'temp_cat'];
   const catOptions = catOrderKeys
     .filter((key) => CAT_NAMES[key])
+    .filter((key) => canAccessCat(key))
     .map((key) => `<option value="${key}">${CAT_NAMES[key]}</option>`)
     .join('');
 
@@ -74,7 +123,8 @@ function syncFixedSelectors() {
     if (!el) return;
     const prev = el.value;
     el.innerHTML = catOptions;
-    if (prev && CAT_NAMES[prev]) el.value = prev;
+    if (prev && CAT_NAMES[prev] && canAccessCat(prev)) el.value = prev;
+    else el.value = currentCat;
   });
 }
 
@@ -118,12 +168,14 @@ function updateCatTabs() {
     const firstTab = document.querySelector('.cat-tab');
     if (firstTab) firstTab.classList.add('active');
   }
+  ensureAllowedTournamentAndCat();
 }
 
 function launchApp() {
   document.getElementById('splash').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
   loadCustomCats();
+  ensureAllowedTournamentAndCat();
   if (!CAT_NAMES[currentCat]) currentCat = catOrderKeys[0] || currentCat;
   document.getElementById('hdrName').textContent = TORNEO_NAMES[currentTorneo];
   document.getElementById('hdrCat').textContent = `${ORGANIZER_NAME} · ${ORGANIZER_PHONE}`;
@@ -163,6 +215,10 @@ function launchApp() {
 }
 
 function selectCat(cat, btn) {
+  if (isAdmin && !canAccessCat(cat)) {
+    showToast('No tienes permiso para esta categoria', 'tr');
+    return;
+  }
   currentCat = cat;
   document.querySelectorAll('.cat-tab').forEach((b) => b.classList.remove('active'));
   btn.classList.add('active');
@@ -216,4 +272,11 @@ function loadCustomCats() {
       catOrderKeys = ordered;
     }
   } catch (_err) {}
+  if (isAdmin && !isOwner) {
+    const allowed = getAllowedCats(currentTorneo);
+    Object.keys(CAT_NAMES).forEach((key) => {
+      if (!allowed.includes(key)) delete CAT_NAMES[key];
+    });
+    catOrderKeys = catOrderKeys.filter((key) => allowed.includes(key));
+  }
 }
