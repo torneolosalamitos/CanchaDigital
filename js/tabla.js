@@ -309,8 +309,9 @@ function buildGranFinalFemenilHtml(cupData, adminMode=false){
   return `
   <div class="gff-wrap">
     <div class="gff-label-row">
-      <span class="gff-chip gff-chip-purple">👑 Al finalizar las 6 jornadas</span>
-      <span class="gff-chip gff-chip-gold">Semis 1° vs 4° y 2° vs 3°</span>
+      <span class="gff-chip gff-chip-purple">6 jornadas</span>
+      <span class="gff-chip gff-chip-gold">Semifinales</span>
+      <span class="gff-chip gff-chip-blue">Gran final</span>
     </div>
     <div class="gff-card">
       <div class="gff-trophy-zone">
@@ -322,7 +323,7 @@ function buildGranFinalFemenilHtml(cupData, adminMode=false){
           </div>` : `
           <div class="gff-trophy-icon">🏆</div>
           <div class="gff-trophy-label">RUTA A LA GRAN FINAL</div>
-          <div class="gff-trophy-sub">Las cuatro clasificadas entran a semifinales y las ganadoras chocan por el título.</div>
+          <div class="gff-trophy-sub">1° vs 4° · 2° vs 3°</div>
         `}
       </div>
       <div class="gff-semifinals">
@@ -331,9 +332,9 @@ function buildGranFinalFemenilHtml(cupData, adminMode=false){
       </div>
       <div class="gff-grand-final">
         <div class="gff-grand-copy">
-          <div class="gff-grand-kicker">La gran final</div>
-          <div class="gff-grand-title">Choque por el título</div>
-          <div class="gff-grand-sub">Las ganadoras de semifinales se enfrentan en partido único para definir a las campeonas.</div>
+          <div class="gff-grand-kicker">Partido único</div>
+          <div class="gff-grand-title">GRAN FINAL</div>
+          <div class="gff-grand-sub">Ganadoras de semifinales</div>
         </div>
         <div class="gff-grand-duel">
           ${slotCard(f1, 1)}
@@ -345,8 +346,7 @@ function buildGranFinalFemenilHtml(cupData, adminMode=false){
         </div>
       </div>
       <div class="gff-footer">
-        <div class="gff-footer-item"><span class="gff-footer-icon">🔥</span>Semifinales al cierre de las 6 jornadas de liga</div>
-        <div class="gff-footer-item"><span class="gff-footer-icon">⚽</span>Empate en semis o final = tanda de penales</div>
+        <div class="gff-footer-item"><span class="gff-footer-icon">⚽</span>Empate en eliminación = penales</div>
       </div>
     </div>
   </div>`;
