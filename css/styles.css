@@ -1687,3 +1687,179 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
     border-radius:14px;
   }
 }
+
+.insc-filter-card{
+  margin:8px 0 12px;
+  padding:12px;
+  border:1.5px solid rgba(174,192,222,.85);
+  border-radius:20px;
+  background:linear-gradient(180deg,#ffffff,#f8fbff);
+}
+.insc-filter-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.insc-filter-title{
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  color:#07162c;
+}
+.insc-filter-sub{
+  margin-top:4px;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.insc-filter-pills{
+  display:flex;
+  gap:6px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.insc-filter-pills::-webkit-scrollbar{display:none;}
+.insc-donut-stat{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:14px;
+  padding:14px;
+  border:1.5px solid rgba(174,192,222,.8);
+  border-radius:22px;
+  background:linear-gradient(135deg,#ffffff,#f8fbff);
+}
+.insc-donut-copy .money-row{
+  padding:5px 0;
+}
+.insc-total-amount{
+  margin:4px 0 6px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:34px;
+  letter-spacing:1px;
+  line-height:1;
+  color:#07162c;
+}
+.insc-cat-section{
+  margin-bottom:16px;
+}
+.insc-cat-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:2px 0 10px;
+  padding:12px 14px;
+  border:1.5px solid rgba(174,192,222,.85);
+  border-radius:18px;
+  background:#fff;
+}
+.insc-cat-head span,
+.insc-cat-head small{
+  display:block;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.insc-cat-head strong{
+  display:block;
+  margin-top:3px;
+  font-size:13px;
+  font-weight:900;
+  color:#07162c;
+}
+.insc-cat-head b{
+  display:block;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:26px;
+  line-height:1;
+  color:var(--acc);
+  text-align:right;
+}
+.arb-donut-stat{
+  margin-bottom:10px;
+}
+.gff-chip-blue{
+  background:linear-gradient(135deg,#1d4ed8,#38bdf8);
+  color:#fff;
+  box-shadow:0 4px 12px rgba(29,78,216,.22);
+}
+.gff-card{
+  border:1px solid rgba(255,255,255,.12);
+}
+.gff-trophy-sub{
+  font-weight:900;
+  letter-spacing:1.5px;
+}
+
+.hdr-logos,
+.hdr-shield,
+.hdr-torneo-logo,
+.sp-opt-icon,
+.resumen-logo-stack,
+.equipo-card .eq-logo,
+.finalissima-logo,
+.share-finalissima-logo,
+.share-finalissima-only-logo{
+  box-shadow:none!important;
+}
+.hdr-logos,
+.hdr-shield,
+.hdr-torneo-logo,
+.resumen-logo-stack,
+.sp-opt-icon{
+  background:transparent!important;
+}
+.hdr-shield img,
+.hdr-torneo-logo img,
+.sp-opt img,
+.tc-logo,
+.tm-logo,
+.team-logo,
+.eq-logo,
+.eq-detail-logo,
+.insc-logo,
+.cpm-team-logo,
+.pm-logo,
+.finalissima-logo,
+.finalissima-side img,
+.finalissima-public-side img,
+.share-brand img,
+.share-finalissima-logo,
+.share-finalissima-side img,
+.share-finalissima-only-side img,
+.cup-team-logo,
+.cb-logo,
+.cb-camp-logo,
+.gff-logo,
+.gff-camp-logo,
+.bracket-logo,
+.resumen-logo-stack img{
+  box-shadow:none!important;
+  filter:none!important;
+  background:transparent!important;
+}
+
+@media (max-width:520px){
+  .insc-filter-head{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .insc-filter-pills{
+    width:100%;
+  }
+  .insc-donut-stat{
+    grid-template-columns:1fr;
+    text-align:center;
+  }
+  .insc-donut-stat .resumen-donut{
+    margin:0 auto;
+  }
+}
