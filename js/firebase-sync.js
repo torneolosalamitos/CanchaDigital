@@ -73,12 +73,14 @@ function setupListeners() {
     Object.keys(C.trabajadores).forEach((key) => delete C.trabajadores[key]);
     if (snapshot.exists()) Object.assign(C.trabajadores, snapshot.val());
     if (isAdmin && isPageActive('arbitros')) renderTrabajadores();
+    if (isAdmin && isPageActive('resumen')) renderResumen();
   });
 
   db.ref('gastosTrab').on('value', (snapshot) => {
     Object.keys(C.gastosTrab).forEach((key) => delete C.gastosTrab[key]);
     if (snapshot.exists()) Object.assign(C.gastosTrab, snapshot.val());
     if (isAdmin && isPageActive('arbitros')) renderTrabajadores();
+    if (isAdmin && isPageActive('resumen')) renderResumen();
   });
 
   C.solicitudes = {};
