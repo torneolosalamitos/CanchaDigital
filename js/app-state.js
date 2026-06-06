@@ -40,36 +40,58 @@ function normalizeAdminScope(rawScope) {
   if (!rawScope || typeof rawScope !== 'object') return {};
   const scope = {};
   Object.entries(rawScope).forEach(([torneo, cats]) => {
-    if (!TORNEO_NAMES[torneo]) return;
+    const normalizedTorneo = ({ lombardo_toledano: 'villa', lombardo: 'villa' }[torneo]) || torneo;
+    if (!TORNEO_NAMES[normalizedTorneo]) return;
     const list = Array.isArray(cats) ? cats : Object.keys(cats || {});
-    scope[torneo] = list.filter((cat) => typeof cat === 'string');
+    scope[normalizedTorneo] = list.filter((cat) => typeof cat === 'string');
   });
   return scope;
 }
 
+function catsToPermissionMap(cats = []) {
+  return Object.fromEntries(cats.filter(Boolean).map((cat) => [cat, true]));
+}
+
+function buildFullAdminScope() {
+  return Object.fromEntries(
+    TOURNAMENT_OPTION_ORDER.map((torneo) => [
+      torneo,
+      catsToPermissionMap((TORNEO_CONFIG[torneo]?.categories || []).map((cat) => cat.key))
+    ])
+  );
+}
+
+function buildSingleAdminScope(torneo, cats = []) {
+  return { [torneo]: catsToPermissionMap(cats) };
+}
+
+function hasAdminSession() {
+  return typeof isAdmin !== 'undefined' && !!isAdmin;
+}
+
 function getAllowedTorneos() {
-  if (isOwner || !isAdmin) return [...TOURNAMENT_OPTION_ORDER];
+  if (isOwner || !hasAdminSession()) return [...TOURNAMENT_OPTION_ORDER];
   const allowed = Object.keys(adminScope || {}).filter((key) => TORNEO_NAMES[key]);
   return allowed.length ? allowed : [];
 }
 
 function getAllowedCats(torneo = currentTorneo) {
   const cfgCats = (TORNEO_CONFIG[torneo]?.categories || []).map((cat) => cat.key);
-  if (isOwner || !isAdmin) return cfgCats;
+  if (isOwner || !hasAdminSession()) return cfgCats;
   const allowed = adminScope?.[torneo] || [];
   return allowed.length ? cfgCats.filter((cat) => allowed.includes(cat)) : [];
 }
 
 function canAccessTorneo(torneo) {
-  return !isAdmin || isOwner || getAllowedTorneos().includes(torneo);
+  return !hasAdminSession() || isOwner || getAllowedTorneos().includes(torneo);
 }
 
 function canAccessCat(cat, torneo = currentTorneo) {
-  return !isAdmin || isOwner || getAllowedCats(torneo).includes(cat);
+  return !hasAdminSession() || isOwner || getAllowedCats(torneo).includes(cat);
 }
 
 function ensureAllowedTournamentAndCat() {
-  if (!isAdmin || isOwner) return;
+  if (!hasAdminSession() || isOwner) return;
   const allowedTorneos = getAllowedTorneos();
   if (!allowedTorneos.length) return;
   if (!allowedTorneos.includes(currentTorneo)) currentTorneo = allowedTorneos[0];
@@ -84,7 +106,7 @@ if (hdrBrandLogoOnLoad) hdrBrandLogoOnLoad.src = CD_LOGO_SHIELD;
 hydrateSplashTournamentCards();
 
 function selectTorneo(t) {
-  if (isAdmin && !canAccessTorneo(t)) {
+  if (hasAdminSession() && !canAccessTorneo(t)) {
     showToast('No tienes permiso para este torneo', 'tr');
     return;
   }
@@ -205,7 +227,7 @@ function launchApp() {
   } else if (preferredPage && !canAccessPage(preferredPage)) {
     localStorage.setItem(LS_LAST_PAGE, 'tabla');
   }
-  if (currentUser && !isAdmin && !isCaptain) {
+  if ((typeof currentUser !== 'undefined' && currentUser) && !hasAdminSession() && !isCaptain) {
     const vp = document.getElementById('viewerProfileOverlay');
     if (vp) {
       vp.style.display = 'flex';
@@ -215,7 +237,7 @@ function launchApp() {
 }
 
 function selectCat(cat, btn) {
-  if (isAdmin && !canAccessCat(cat)) {
+  if (hasAdminSession() && !canAccessCat(cat)) {
     showToast('No tienes permiso para esta categoria', 'tr');
     return;
   }
@@ -238,7 +260,7 @@ function selectCat(cat, btn) {
   updatePorterosPublicUI();
   updateCuadroCopaUI();
   updateGoleadoresPublicUI();
-  if (isAdmin) scheduleMarketingAutoSync('categoria');
+  if (hasAdminSession()) scheduleMarketingAutoSync('categoria');
   updateReglamentoVisibility();
 }
 
@@ -272,7 +294,7 @@ function loadCustomCats() {
       catOrderKeys = ordered;
     }
   } catch (_err) {}
-  if (isAdmin && !isOwner) {
+  if (hasAdminSession() && !isOwner) {
     const allowed = getAllowedCats(currentTorneo);
     Object.keys(CAT_NAMES).forEach((key) => {
       if (!allowed.includes(key)) delete CAT_NAMES[key];
