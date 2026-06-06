@@ -398,11 +398,17 @@ function saveEquipo() {
     return;
   }
   const key = document.getElementById('eq_key').value;
+  const torneo = document.getElementById('eq_torneo').value;
+  const cat = document.getElementById('eq_cat').value;
+  if (!canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) {
+    showToast('No tienes permiso para esa categoría', 'tr');
+    return;
+  }
   const data = {
     nombre: n,
     tel: document.getElementById('eq_tel').value.trim(),
-    torneo: document.getElementById('eq_torneo').value,
-    cat: document.getElementById('eq_cat').value,
+    torneo,
+    cat,
     color: document.getElementById('eq_color').value,
     logo: document.getElementById('eq_logo').value || null,
     portero: document.getElementById('eq_portero').value.trim() || null,
