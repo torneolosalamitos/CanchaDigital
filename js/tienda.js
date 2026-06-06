@@ -116,6 +116,8 @@ function cobrar() {
     hora,
     fecha,
     fechaHoraFin: null,
+    torneo: currentTorneo,
+    cat: currentCat,
     items: cart.map((item) => ({ emoji: item.emoji || '📦', nombre: item.nombre, precio: item.precio, qty: item.qty })),
     total,
     ts: Date.now(),
@@ -364,7 +366,10 @@ function renderTurnoUI() {
   }
 }
 
-const getGastosTienda = () => Object.entries(C.gastosTienda || {}).map(([key, value]) => ({ ...value, _key: key })).sort((a, b) => b.ts - a.ts);
+const getGastosTienda = () => Object.entries(C.gastosTienda || {})
+  .map(([key, value]) => ({ ...value, _key: key }))
+  .filter((gasto) => canReadScopedRecord(gasto))
+  .sort((a, b) => b.ts - a.ts);
 
 function renderGastosTienda() {
   const el = document.getElementById('gastosTiendaList');
@@ -404,6 +409,8 @@ function saveGastoTienda() {
   const data = {
     concepto,
     monto,
+    torneo: currentTorneo,
+    cat: currentCat,
     fecha: document.getElementById('gt_fecha').value || now.toISOString().split('T')[0],
     hora: document.getElementById('gt_hora').value || now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
     notas: document.getElementById('gt_notas').value.trim(),
