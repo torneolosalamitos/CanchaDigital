@@ -41,7 +41,7 @@ function renderArbitros() {
   if (!el) return;
   const arbs = getArbs();
   if (!arbs.length) {
-    el.innerHTML = '<div class="empty"><span class="empty-icon">ðŸ¦º</span>Sin Ã¡rbitros</div>';
+    el.innerHTML = '<div class="empty"><span class="empty-icon">🦺</span>Sin árbitros</div>';
   } else {
     el.innerHTML = arbs.map((arbitro) => {
       const partidos = getArbFilteredParts().filter((partido) => partido.arbId === arbitro._key);
@@ -51,17 +51,17 @@ function renderArbitros() {
       }, 0);
       const sinCobrar = partidos.filter((partido) => !partido.sinArbitro && !partido.arbPagado).length;
       return `<div class="arb-card">
-      <div class="arb-av">ðŸ¦º</div>
+      <div class="arb-av">🦺</div>
       <div class="arb-info">
         <div class="arb-name">${arbitro.nombre}</div>
-        <div class="arb-meta">ðŸ“ž ${arbitro.tel || 'â€”'} Â· $${arbitro.tarifa || 250}/partido Â· ${partidos.length} partidos</div>
-        ${sinCobrar > 0 ? `<div style="font-size:10px;font-weight:800;color:var(--amber);margin-top:2px">âš ï¸ ${sinCobrar} partido(s) sin cobrar</div>` : '<div style="font-size:10px;font-weight:800;color:var(--acc);margin-top:2px">âœ… Al corriente</div>'}
+        <div class="arb-meta">📞 ${arbitro.tel || '—'} · $${arbitro.tarifa || 250}/partido · ${partidos.length} partidos</div>
+        ${sinCobrar > 0 ? `<div style="font-size:10px;font-weight:800;color:var(--amber);margin-top:2px">⚠️ ${sinCobrar} partido(s) sin cobrar</div>` : '<div style="font-size:10px;font-weight:800;color:var(--acc);margin-top:2px">✅ Al corriente</div>'}
       </div>
       <div style="text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end">
         <div class="arb-earned">$${cobrado}</div>
         <div style="font-size:9px;color:var(--muted);font-weight:700">COBRADO</div>
-        <button class="btn btn-out btn-sm" onclick="editArbitro('${arbitro._key}')">âœï¸ Editar</button>
-        <button class="btn btn-r btn-sm" onclick="deleteArbitro('${arbitro._key}')">ðŸ—‘ï¸</button>
+        <button class="btn btn-out btn-sm" onclick="editArbitro('${arbitro._key}')">✏️ Editar</button>
+        <button class="btn btn-r btn-sm" onclick="deleteArbitro('${arbitro._key}')">🗑️</button>
       </div>
     </div>`;
     }).join('');
@@ -103,24 +103,24 @@ function renderArbitros() {
         <div class="money-row"><span class="money-lbl">Cobrado</span><span class="money-val" style="color:var(--emerald)">$${totalDia}</span></div>
         <div class="money-row"><span class="money-lbl">Pendiente</span><span class="money-val" style="color:var(--amber)">$${pendienteCobro}</span></div>
       </div>
-    </div>    <div class="money-row"><span class="money-lbl">ðŸ“Š Partidos en perÃ­odo</span><span class="money-val" style="color:var(--blue)">${parts.length}</span></div>
-    ${sinArb > 0 ? `<div class="money-row"><span class="money-lbl">ðŸš« Sin cobro de Ã¡rbitro</span><span class="money-val" style="color:var(--muted)">${sinArb}</span></div>` : ''}
-    <div class="money-row"><span class="money-lbl">ðŸ’µ Efectivo</span><span class="money-val">$${totalEf}</span></div>
-    <div class="money-row"><span class="money-lbl">ðŸ“± Transferencia</span><span class="money-val">$${totalTr}</span></div>
-    <div class="money-row"><span class="money-lbl">âœ… Prepago</span><span class="money-val">$${totalPp}</span></div>
+    </div>    <div class="money-row"><span class="money-lbl">📊 Partidos en período</span><span class="money-val" style="color:var(--blue)">${parts.length}</span></div>
+    ${sinArb > 0 ? `<div class="money-row"><span class="money-lbl">🚫 Sin cobro de árbitro</span><span class="money-val" style="color:var(--muted)">${sinArb}</span></div>` : ''}
+    <div class="money-row"><span class="money-lbl">💵 Efectivo</span><span class="money-val">$${totalEf}</span></div>
+    <div class="money-row"><span class="money-lbl">📱 Transferencia</span><span class="money-val">$${totalTr}</span></div>
+    <div class="money-row"><span class="money-lbl">✅ Prepago</span><span class="money-val">$${totalPp}</span></div>
     <div class="money-row total-row"><span class="money-lbl" style="font-weight:800">Total cobrado</span><span class="money-val" style="font-size:22px">$${totalDia}</span></div>
-    <div class="money-row"><span class="money-lbl">ðŸ¦º Pago a Ã¡rbitros</span><span class="money-val" style="color:var(--red)">âˆ’$${gastoArbs}</span></div>
+    <div class="money-row"><span class="money-lbl">🦺 Pago a árbitros</span><span class="money-val" style="color:var(--red)">−$${gastoArbs}</span></div>
     <div class="money-row total-row"><span class="money-lbl" style="font-weight:800">Ganancia neta</span><span class="money-val" style="color:var(--acc);font-size:22px">$${totalDia - gastoArbs}</span></div>
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-      <button class="btn btn-r btn-sm" onclick="resetArbitrajes()">ðŸ—‘ï¸ Reiniciar estadÃ­sticas</button>
-      <button class="btn btn-out btn-sm" onclick="resetArbitrajesPeriodo()">ðŸ—‘ï¸ Solo este perÃ­odo</button>
+      <button class="btn btn-r btn-sm" onclick="resetArbitrajes()">🗑️ Reiniciar estadísticas</button>
+      <button class="btn btn-out btn-sm" onclick="resetArbitrajesPeriodo()">🗑️ Solo este período</button>
     </div>`;
   }
 
   const editEl = document.getElementById('editCobrosArb');
   if (editEl) {
     if (!conCobro.length) {
-      editEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:12px;font-weight:600">Sin cobros en este perÃ­odo</div>';
+      editEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:12px;font-weight:600">Sin cobros en este período</div>';
     } else {
       editEl.innerHTML = conCobro.map((partido) => {
         const arbitro = partido.arbId ? C.arbitros[partido.arbId] : null;
@@ -129,10 +129,10 @@ function renderArbitros() {
         return `<div class="pago-row">
         <div class="pago-info">
           <div class="pago-match">${partido.localNombre || partido.local} vs ${partido.visitaNombre || partido.visita}</div>
-          <div class="pago-meta">ðŸ“… ${fmtDate(partido.fecha)} Â· ðŸ¦º ${arbitro?.nombre || 'Sin Ã¡rbitro'}</div>
-          <div class="pago-meta">Local: $${cobL} Â· Visita: $${cobV}</div>
+          <div class="pago-meta">📅 ${fmtDate(partido.fecha)} · 🦺 ${arbitro?.nombre || 'Sin árbitro'}</div>
+          <div class="pago-meta">Local: $${cobL} · Visita: $${cobV}</div>
         </div>
-        <button class="btn btn-out btn-sm" onclick="openEditArbPago('${partido._key}')">âœï¸ Editar</button>
+        <button class="btn btn-out btn-sm" onclick="openEditArbPago('${partido._key}')">✏️ Editar</button>
       </div>`;
       }).join('');
     }
@@ -142,16 +142,16 @@ function renderArbitros() {
   const asignEl = document.getElementById('asignacionArb');
   if (asignEl) {
     if (!sinArbAsign.length) {
-      asignEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:12px;font-weight:600">âœ… Todos los partidos tienen Ã¡rbitro asignado</div>';
+      asignEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:12px;font-weight:600">✅ Todos los partidos tienen árbitro asignado</div>';
     } else {
       asignEl.innerHTML = sinArbAsign.map((partido) => `<div class="pago-row">
-      <div class="pago-info"><div class="pago-match">${partido.localNombre || partido.local} vs ${partido.visitaNombre || partido.visita}</div><div class="pago-meta">ðŸ“… ${fmtDate(partido.fecha)}</div></div>
+      <div class="pago-info"><div class="pago-match">${partido.localNombre || partido.local} vs ${partido.visitaNombre || partido.visita}</div><div class="pago-meta">📅 ${fmtDate(partido.fecha)}</div></div>
       <select class="fi" id="arb_sel_${partido._key}" style="max-width:120px;font-size:11px;padding:4px 6px">
-        <option value="">â€” Ãrbitro â€”</option>
+        <option value="">— Árbitro —</option>
         ${arbs.map((arbitro) => `<option value="${arbitro._key}">${arbitro.nombre}</option>`).join('')}
       </select>
-      <button class="btn btn-g btn-sm" onclick="asignarArbitro('${partido._key}')">âœ“</button>
-      <button class="btn btn-out btn-sm" onclick="marcarSinArbitro('${partido._key}')" title="Sin cobro de Ã¡rbitro">ðŸš«</button>
+      <button class="btn btn-g btn-sm" onclick="asignarArbitro('${partido._key}')">✓</button>
+      <button class="btn btn-out btn-sm" onclick="marcarSinArbitro('${partido._key}')" title="Sin cobro de árbitro">🚫</button>
     </div>`).join('');
     }
   }
@@ -160,22 +160,22 @@ function renderArbitros() {
   const pp = document.getElementById('pagosPend');
   if (!pp) return;
   if (!pendientes.length) {
-    pp.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:12px;font-weight:600">âœ… Sin pagos pendientes</div>';
+    pp.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:12px;font-weight:600">✅ Sin pagos pendientes</div>';
     return;
   }
   pp.innerHTML = pendientes.map((partido) => {
     const arbitro = C.arbitros[partido.arbId];
     return `<div class="pago-row">
-    <div class="pago-info"><div class="pago-match">${partido.localNombre || partido.local} vs ${partido.visitaNombre || partido.visita}</div><div class="pago-meta">ðŸ¦º ${arbitro ? arbitro.nombre : 'N/A'} Â· ${fmtDate(partido.fecha)} Â· $${partido.costArb || 250}/eq</div></div>
+    <div class="pago-info"><div class="pago-match">${partido.localNombre || partido.local} vs ${partido.visitaNombre || partido.visita}</div><div class="pago-meta">🦺 ${arbitro ? arbitro.nombre : 'N/A'} · ${fmtDate(partido.fecha)} · $${partido.costArb || 250}/eq</div></div>
     <button class="btn btn-g btn-sm" onclick="activePartidoKey='${partido._key}';initPagoArb();openModal('modalPagoArb')">Pagar</button>
-    <button class="btn btn-out btn-sm" onclick="openEditArbPago('${partido._key}')">âœï¸</button>
+    <button class="btn btn-out btn-sm" onclick="openEditArbPago('${partido._key}')">✏️</button>
   </div>`;
   }).join('');
 }
 
 function marcarSinArbitro(key) {
   db.ref(`partidos/${key}`).update({ sinArbitro: true, arbId: null, arbitroNombre: null });
-  showToast('Marcado sin cobro de Ã¡rbitro', 'ta');
+  showToast('Marcado sin cobro de árbitro', 'ta');
 }
 
 function openEditArbPago(key) {
@@ -186,9 +186,9 @@ function openEditArbPago(key) {
   document.getElementById('eap_form').style.display = partido.sinArbitro ? 'none' : 'block';
   document.getElementById('eap_costo_l').value = partido.costArb || 250;
   document.getElementById('eap_costo_v').value = partido.costArb || 250;
-  document.getElementById('eap_local_title').textContent = `ðŸ  ${partido.localNombre || partido.local}`;
-  document.getElementById('eap_visita_title').textContent = `âœˆï¸ ${partido.visitaNombre || partido.visita}`;
-  document.getElementById('eap_info').innerHTML = `âš½ <strong>${partido.localNombre || partido.local}</strong> vs <strong>${partido.visitaNombre || partido.visita}</strong><br/><span style="color:var(--muted);font-size:11px">ðŸ“… ${fmtDate(partido.fecha)} Â· ðŸŸï¸ ${partido.cancha || 'â€”'}</span>`;
+  document.getElementById('eap_local_title').textContent = `🏠 ${partido.localNombre || partido.local}`;
+  document.getElementById('eap_visita_title').textContent = `✈️ ${partido.visitaNombre || partido.visita}`;
+  document.getElementById('eap_info').innerHTML = `⚽ <strong>${partido.localNombre || partido.local}</strong> vs <strong>${partido.visitaNombre || partido.visita}</strong><br/><span style="color:var(--muted);font-size:11px">📅 ${fmtDate(partido.fecha)} · 🏟️ ${partido.cancha || '—'}</span>`;
   ['l', 'v'].forEach((side) => ['ef', 'tr', 'pp', 'nd'].forEach((method) => {
     const b = document.getElementById(`eap_btn_${side}_${method}`);
     if (b) b.className = 'pmo';
@@ -246,7 +246,7 @@ function guardarEditArbPago() {
 
 function eliminarCobroArb() {
   const key = document.getElementById('eap_key').value;
-  if (!confirm('Â¿Eliminar este cobro de arbitraje?')) return;
+  if (!confirm('¿Eliminar este cobro de arbitraje?')) return;
   db.ref(`partidos/${key}`).update({ arbPago: { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } }, arbPagado: false, sinArbitro: false });
   closeModal('modalEditArbPago');
   showToast('Cobro eliminado', 'tr');
@@ -255,12 +255,12 @@ function eliminarCobroArb() {
 function asignarArbitro(partKey) {
   const arbId = document.getElementById(`arb_sel_${partKey}`)?.value;
   if (!arbId) {
-    showToast('Selecciona un Ã¡rbitro', 'ta');
+    showToast('Selecciona un árbitro', 'ta');
     return;
   }
   const arbitro = C.arbitros[arbId];
   db.ref(`partidos/${partKey}`).update({ arbId, arbitroNombre: arbitro?.nombre || '', sinArbitro: false });
-  showToast('Ãrbitro asignado', 'tg');
+  showToast('Árbitro asignado', 'tg');
 }
 
 function editArbitro(key) {
@@ -269,19 +269,19 @@ function editArbitro(key) {
   document.getElementById('na_n').value = arbitro.nombre || '';
   document.getElementById('na_t').value = arbitro.tel || '';
   document.getElementById('na_f').value = arbitro.tarifa || 250;
-  document.getElementById('arbModalTitle').textContent = 'Editar Ãrbitro';
+  document.getElementById('arbModalTitle').textContent = 'Editar Árbitro';
   document.getElementById('na_n').dataset.editKey = key;
   openModal('modalNuevoArb');
 }
 
 function deleteArbitro(key) {
-  if (!confirm('Â¿Eliminar este Ã¡rbitro?')) return;
+  if (!confirm('¿Eliminar este árbitro?')) return;
   db.ref(`arbitros/${key}`).remove();
-  showToast('Ãrbitro eliminado', 'tr');
+  showToast('Árbitro eliminado', 'tr');
 }
 
 function resetArbitrajes() {
-  if (!confirm('âš ï¸ Â¿Reiniciar TODOS los cobros de arbitraje?')) return;
+  if (!confirm('⚠️ ¿Reiniciar TODOS los cobros de arbitraje?')) return;
   const updates = {};
   getParts().forEach((partido) => {
     updates[`partidos/${partido._key}/arbPago`] = { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } };
@@ -289,12 +289,12 @@ function resetArbitrajes() {
     updates[`partidos/${partido._key}/sinArbitro`] = false;
   });
   db.ref().update(updates);
-  showToast('EstadÃ­sticas reiniciadas', 'ta');
+  showToast('Estadísticas reiniciadas', 'ta');
 }
 
 function resetArbitrajesPeriodo() {
   const parts = getArbFilteredParts();
-  if (!confirm(`Â¿Reiniciar cobros de ${parts.length} partido(s) del perÃ­odo seleccionado?`)) return;
+  if (!confirm(`¿Reiniciar cobros de ${parts.length} partido(s) del período seleccionado?`)) return;
   const updates = {};
   parts.forEach((partido) => {
     updates[`partidos/${partido._key}/arbPago`] = { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } };
@@ -324,8 +324,8 @@ function saveArbitro() {
   }
   closeModal('modalNuevoArb');
   ['na_n', 'na_t', 'na_f'].forEach((id) => { document.getElementById(id).value = ''; });
-  document.getElementById('arbModalTitle').textContent = 'Nuevo Ãrbitro';
-  showToast(editKey ? 'Ãrbitro actualizado' : 'Ãrbitro registrado', 'tg');
+  document.getElementById('arbModalTitle').textContent = 'Nuevo Árbitro';
+  showToast(editKey ? 'Árbitro actualizado' : 'Árbitro registrado', 'tg');
 }
 
 function switchCHTab(tab) {
@@ -348,7 +348,7 @@ const getGastos = () => Object.entries(C.gastosTrab)
   .sort((a, b) => b.ts - a.ts);
 
 let trabPeriodo = 'mes';
-const ROL_NAMES = { tienda: 'ðŸ›’ Tiendita', herrero: 'ðŸ”§ Herrero', electricista: 'âš¡ Electricista', limpieza: 'ðŸ§¹ Limpieza', seguridad: 'ðŸ”’ Seguridad', otro: 'ðŸ“‹ Otro' };
+const ROL_NAMES = { tienda: '🛒 Tiendita', herrero: '🔧 Herrero', electricista: '⚡ Electricista', limpieza: '🧹 Limpieza', seguridad: '🔒 Seguridad', otro: '📋 Otro' };
 
 function setTrabPeriodo(periodo) {
   trabPeriodo = periodo;
@@ -396,25 +396,25 @@ function renderTrabajadores() {
   const el = document.getElementById('trabajadoresList');
   if (!el) return;
   if (!trabs.length) {
-    el.innerHTML = '<div class="empty"><span class="empty-icon">ðŸ‘·</span>Sin trabajadores registrados</div>';
+    el.innerHTML = '<div class="empty"><span class="empty-icon">👷</span>Sin trabajadores registrados</div>';
   } else {
     el.innerHTML = trabs.map((trabajador) => {
       const gastos = getGastos().filter((gasto) => gasto.trabajadorKey === trabajador._key);
       const totalPagado = gastos.filter((gasto) => gasto.metodo !== 'pendiente').reduce((sum, gasto) => sum + gasto.monto, 0);
       const pendiente = gastos.filter((gasto) => gasto.metodo === 'pendiente').reduce((sum, gasto) => sum + gasto.monto, 0);
       return `<div class="arb-card">
-      <div class="arb-av">${ROL_NAMES[trabajador.rol]?.split(' ')[0] || 'ðŸ‘·'}</div>
+      <div class="arb-av">${ROL_NAMES[trabajador.rol]?.split(' ')[0] || '👷'}</div>
       <div class="arb-info">
         <div class="arb-name">${trabajador.nombre}</div>
-        <div class="arb-meta">${ROL_NAMES[trabajador.rol] || trabajador.rol} Â· ${trabajador.tel || ''}</div>
+        <div class="arb-meta">${ROL_NAMES[trabajador.rol] || trabajador.rol} · ${trabajador.tel || ''}</div>
         ${trabajador.desc ? `<div class="arb-meta" style="font-style:italic">${trabajador.desc}</div>` : ''}
-        ${pendiente > 0 ? `<div style="font-size:10px;font-weight:800;color:var(--amber);margin-top:2px">â³ $${pendiente} pendiente</div>` : ''}
+        ${pendiente > 0 ? `<div style="font-size:10px;font-weight:800;color:var(--amber);margin-top:2px">⏳ $${pendiente} pendiente</div>` : ''}
       </div>
       <div style="text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end">
         <div class="arb-earned">$${totalPagado}</div>
         <div style="font-size:9px;color:var(--muted);font-weight:700">PAGADO</div>
-        <button class="btn btn-out btn-sm" onclick="editTrabajador('${trabajador._key}')">âœï¸</button>
-        <button class="btn btn-r btn-sm" onclick="deleteTrabajador('${trabajador._key}')">ðŸ—‘ï¸</button>
+        <button class="btn btn-out btn-sm" onclick="editTrabajador('${trabajador._key}')">✏️</button>
+        <button class="btn btn-r btn-sm" onclick="deleteTrabajador('${trabajador._key}')">🗑️</button>
       </div>
     </div>`;
     }).join('');
@@ -422,7 +422,7 @@ function renderTrabajadores() {
 
   const sel = document.getElementById('gasto_trab_sel');
   if (sel) {
-    sel.innerHTML = '<option value="">â€” Seleccionar â€”</option>' + trabs.map((trabajador) => `<option value="${trabajador._key}">${trabajador.nombre} (${ROL_NAMES[trabajador.rol] || trabajador.rol})</option>`).join('');
+    sel.innerHTML = '<option value="">— Seleccionar —</option>' + trabs.map((trabajador) => `<option value="${trabajador._key}">${trabajador.nombre} (${ROL_NAMES[trabajador.rol] || trabajador.rol})</option>`).join('');
   }
 
   const gastosFilt = getTrabFilteredGastos();
@@ -431,28 +431,28 @@ function renderTrabajadores() {
   const resEl = document.getElementById('resumenTrabajadores');
   if (resEl) {
     resEl.innerHTML = `
-    <div class="money-row"><span class="money-lbl">ðŸ’µ Total pagado en perÃ­odo</span><span class="money-val">$${totalPer - pendPer}</span></div>
-    <div class="money-row"><span class="money-lbl">â³ Pendiente de pago</span><span class="money-val" style="color:var(--amber)">$${pendPer}</span></div>
+    <div class="money-row"><span class="money-lbl">💵 Total pagado en período</span><span class="money-val">$${totalPer - pendPer}</span></div>
+    <div class="money-row"><span class="money-lbl">⏳ Pendiente de pago</span><span class="money-val" style="color:var(--amber)">$${pendPer}</span></div>
     <div class="money-row total-row"><span class="money-lbl" style="font-weight:800">Total gasto trabajadores</span><span class="money-val">$${totalPer}</span></div>`;
   }
 
   const histEl = document.getElementById('historialGastosTrab');
   if (histEl) {
     if (!gastosFilt.length) {
-      histEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:12px;font-weight:600">Sin pagos en este perÃ­odo</div>';
+      histEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:12px;font-weight:600">Sin pagos en este período</div>';
       return;
     }
     histEl.innerHTML = gastosFilt.map((gasto) => {
       const trab = C.trabajadores[gasto.trabajadorKey];
       return `<div class="pago-row">
         <div class="pago-info">
-          <div class="pago-match">${trab?.nombre || 'â€”'} Â· ${gasto.concepto || 'Sin concepto'}</div>
-          <div class="pago-meta">ðŸ“… ${fmtDate(gasto.fecha)} Â· ${gasto.metodo === 'efectivo' ? 'ðŸ’µ Efectivo' : gasto.metodo === 'transferencia' ? 'ðŸ“± Transferencia' : 'â³ Pendiente'}${gasto.notas ? ' Â· ' + gasto.notas : ''}</div>
+          <div class="pago-match">${trab?.nombre || '—'} · ${gasto.concepto || 'Sin concepto'}</div>
+          <div class="pago-meta">📅 ${fmtDate(gasto.fecha)} · ${gasto.metodo === 'efectivo' ? '💵 Efectivo' : gasto.metodo === 'transferencia' ? '📱 Transferencia' : '⏳ Pendiente'}${gasto.notas ? ' · ' + gasto.notas : ''}</div>
         </div>
         <span class="pago-amt">$${gasto.monto}</span>
         <div style="display:flex;flex-direction:column;gap:4px">
-          ${gasto.metodo === 'pendiente' ? `<button class="btn btn-g btn-sm" onclick="marcarGastoPagado('${gasto._key}')">âœ“ Pagar</button>` : ''}
-          <button class="btn btn-r btn-sm" onclick="deleteGastoTrab('${gasto._key}')">ðŸ—‘ï¸</button>
+          ${gasto.metodo === 'pendiente' ? `<button class="btn btn-g btn-sm" onclick="marcarGastoPagado('${gasto._key}')">✓ Pagar</button>` : ''}
+          <button class="btn btn-r btn-sm" onclick="deleteGastoTrab('${gasto._key}')">🗑️</button>
         </div>
       </div>`;
     }).join('');
@@ -480,7 +480,7 @@ function saveTrabajador() {
   else db.ref('trabajadores').push({ ...data, creadoAt: Date.now() });
   closeModal('modalNuevoTrab');
   ['nt_nombre', 'nt_desc', 'nt_tel', 'nt_pago', 'nt_key'].forEach((id) => { document.getElementById(id).value = ''; });
-  document.getElementById('trabModalTitle').textContent = 'ðŸ‘· Nuevo Trabajador';
+  document.getElementById('trabModalTitle').textContent = '👷 Nuevo Trabajador';
   showToast(key ? 'Trabajador actualizado' : 'Trabajador registrado', 'tg');
 }
 
@@ -493,12 +493,12 @@ function editTrabajador(key) {
   document.getElementById('nt_desc').value = trabajador.desc || '';
   document.getElementById('nt_tel').value = trabajador.tel || '';
   document.getElementById('nt_pago').value = trabajador.pago || 0;
-  document.getElementById('trabModalTitle').textContent = 'âœï¸ Editar Trabajador';
+  document.getElementById('trabModalTitle').textContent = '✏️ Editar Trabajador';
   openModal('modalNuevoTrab');
 }
 
 function deleteTrabajador(key) {
-  if (!confirm('Â¿Eliminar este trabajador?')) return;
+  if (!confirm('¿Eliminar este trabajador?')) return;
   db.ref(`trabajadores/${key}`).remove();
   showToast('Trabajador eliminado', 'tr');
 }
@@ -536,7 +536,7 @@ function marcarGastoPagado(key) {
 }
 
 function deleteGastoTrab(key) {
-  if (!confirm('Â¿Eliminar este registro de pago?')) return;
+  if (!confirm('¿Eliminar este registro de pago?')) return;
   db.ref(`gastosTrab/${key}`).remove();
   showToast('Registro eliminado', 'tr');
 }
