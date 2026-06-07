@@ -154,9 +154,11 @@ function buildEquipoFinancialHtml(key, e, eqParts) {
   let inscHtml = '<div style="color:var(--muted);font-size:12px;font-weight:600">Sin inscripción registrada</div>';
   if (insc) {
     const [inscKey, inscData] = insc;
-    const monto = inscData.monto || 0;
+    const monto = Number(inscData.montoTotal || inscData.monto || 0);
     const abonos = inscData.abonos ? Object.values(inscData.abonos) : [];
-    const pagado = abonos.reduce((s, a) => s + (a.monto || 0), 0);
+    const pagado = inscData.montoPagado !== undefined && inscData.montoPagado !== null
+      ? Number(inscData.montoPagado || 0)
+      : abonos.reduce((s, a) => s + (a.monto || 0), 0);
     const pendiente = Math.max(0, monto - pagado);
     const pct = monto > 0 ? Math.min(100, Math.round((pagado / monto) * 100)) : 0;
     inscHtml = `
@@ -391,7 +393,7 @@ function editEquipo(key) {
   openModal('modalEquipo');
 }
 
-function saveEquipo() {
+async function saveEquipo() {
   const n = document.getElementById('eq_nombre').value.trim();
   if (!n) {
     showToast('Ingresa el nombre', 'ta');
@@ -404,15 +406,109 @@ function saveEquipo() {
     showToast('No tienes permiso para esa categoría', 'tr');
     return;
   }
+  const telefonoCapitan = document.getElementById('eq_tel').value.trim();
+  const color = document.getElementById('eq_color').value;
+  const logo = document.getElementById('eq_logo').value || null;
+  const portero = document.getElementById('eq_portero').value.trim() || null;
+  const alineacion = getEqLineup();
+
+  if (fs) {
+    const appTorneo = torneo || currentTorneo || 'villa';
+    const appCat = cat || currentCat || 'liga_alta';
+    const torneoId = firestoreTorneoId(appTorneo);
+    const categoriaId = firestoreCatId(appCat);
+    const equipoId = key || ('equipo_' + slugifyId(n));
+    const isNew = !key;
+    const nombreNormalizado = String(n || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\./g, '')
+      .trim();
+    const existingAlias = Array.isArray(C.equipos[equipoId]?.alias) ? C.equipos[equipoId].alias : [];
+    const alias = Array.from(new Set([
+      nombreNormalizado,
+      nombreNormalizado.replace(/\s+/g, ''),
+      nombreNormalizado.split(' ')[0],
+      ...existingAlias
+    ].filter(Boolean)));
+
+    try {
+      const equipoRef = fs.collection('equipos').doc(equipoId);
+      const equipoData = {
+        nombre: n,
+        nombreNormalizado,
+        alias,
+        capitan: '',
+        telefonoCapitan,
+        tel: telefonoCapitan,
+        torneo: appTorneo,
+        cat: appCat,
+        torneoId,
+        categoriaId,
+        color,
+        logo,
+        portero,
+        alineacion,
+        estado: 'activo',
+        actualizadoEn: firestoreServerTimestamp()
+      };
+      if (isNew) equipoData.creadoEn = firestoreServerTimestamp();
+
+      if (isNew) {
+        const categoriaSnap = await fs.collection('categorias').doc(categoriaId).get();
+        const categoriaData = categoriaSnap.exists ? (categoriaSnap.data() || {}) : {};
+        const precioInscripcion = Number(categoriaData.precioInscripcion || 0);
+        const fechaLimitePago = categoriaData.fechaLimitePago || '';
+        const moneda = categoriaData.moneda || 'MXN';
+        const inscripcionId = 'inscripcion_' + slugifyId(n) + '_' + torneoId.replace('torneo_', '');
+        const inscripcionRef = fs.collection('inscripciones').doc(inscripcionId);
+        const batch = fs.batch();
+
+        batch.set(equipoRef, equipoData, { merge: true });
+        batch.set(inscripcionRef, {
+          torneo: appTorneo,
+          cat: appCat,
+          torneoId,
+          categoriaId,
+          equipoId,
+          equipoNombre: n,
+          nombre: n,
+          montoTotal: precioInscripcion,
+          montoPagado: 0,
+          saldo: precioInscripcion,
+          estado: precioInscripcion > 0 ? 'pendiente' : 'sin_costo',
+          fechaLimitePago,
+          moneda,
+          origen: 'panel',
+          creadoEn: firestoreServerTimestamp(),
+          actualizadoEn: firestoreServerTimestamp()
+        }, { merge: true });
+        await batch.commit();
+      } else {
+        await equipoRef.set(equipoData, { merge: true });
+      }
+
+      closeModal('modalEquipo');
+      resetEquipoForm();
+      showToast(isNew ? 'Equipo registrado e inscripción generada' : 'Equipo actualizado', 'tg');
+      return;
+    } catch (error) {
+      console.error(error);
+      showToast('Error guardando equipo en Firestore', 'tr');
+      return;
+    }
+  }
+
   const data = {
     nombre: n,
-    tel: document.getElementById('eq_tel').value.trim(),
+    tel: telefonoCapitan,
     torneo,
     cat,
-    color: document.getElementById('eq_color').value,
-    logo: document.getElementById('eq_logo').value || null,
-    portero: document.getElementById('eq_portero').value.trim() || null,
-    alineacion: getEqLineup(),
+    color,
+    logo,
+    portero,
+    alineacion,
     updatedAt: Date.now()
   };
   if (key) db.ref(`equipos/${key}`).update(data);
@@ -423,6 +519,15 @@ function saveEquipo() {
 
 function deleteEquipo(key) {
   if (!confirm('¿Eliminar equipo?')) return;
+  if (fs) {
+    fs.collection('equipos').doc(key).delete()
+      .then(() => showToast('Equipo eliminado', 'tr'))
+      .catch((error) => {
+        console.error(error);
+        showToast('Error eliminando equipo en Firestore', 'tr');
+      });
+    return;
+  }
   db.ref(`equipos/${key}`).remove();
   showToast('Equipo eliminado', 'tr');
 }
