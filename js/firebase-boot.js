@@ -23,7 +23,8 @@ function startFirebaseBoot(options) {
     onAuthChange,
     showToast,
     setDb,
-    setAuth
+    setAuth,
+    setFs
   } = options;
 
   applyTheme();
@@ -36,10 +37,12 @@ function startFirebaseBoot(options) {
   try {
     if (!firebase.apps.length) firebase.initializeApp(FB_CFG);
     const dbInstance = firebase.database();
+    const fsInstance = typeof firebase.firestore === 'function' ? firebase.firestore() : null;
     const authInstance = firebase.auth();
 
     if (typeof setDb === 'function') setDb(dbInstance);
     if (typeof setAuth === 'function') setAuth(authInstance);
+    if (typeof setFs === 'function') setFs(fsInstance);
 
     authInstance.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
     authInstance.onAuthStateChanged((user) => {
