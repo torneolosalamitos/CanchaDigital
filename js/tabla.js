@@ -263,25 +263,16 @@ function buildGranFinalFemenilHtml(cupData, adminMode=false){
   const campeon = finalMatch?.winner || null;
   const f1 = finalMatch?.slotA || null;
   const f2 = finalMatch?.slotB || null;
-  const hypeBySeed = {
-    1: 'Líder de la fase regular',
-    2: 'Llega con etiqueta de favorita',
-    3: 'Va por el gran golpe',
-    4: 'Busca la sorpresa total'
-  };
-
   function slotCard(s, side){
-    if(!s) return `<div class="gff-slot"><span class="gff-seed">?</span><div class="gff-logo-ph">⚽</div><div class="gff-name">Por definirse</div><div class="gff-hype">Esperando rival</div></div>`;
+    if(!s) return `<div class="gff-slot"><span class="gff-seed">?</span><div class="gff-logo-ph">⚽</div><div class="gff-name">Por definirse</div></div>`;
     const logo = s.team?.logo
       ? `<img class="gff-logo" src="${escapeHtml(s.team.logo)}" />`
       : `<div class="gff-logo-ph">${side===1?'🥇':'🥈'}</div>`;
     const seedCls = s.seed===1 ? 'gff-seed gff-seed-gold' : 'gff-seed gff-seed-silver';
-    const hype = s.team ? (hypeBySeed[s.seed] || 'Va por su boleto al título') : 'Por definirse';
     return `<div class="gff-slot${s.seed===1?' gff-slot-1':''}">
       <span class="${seedCls}">#${s.seed||'?'}</span>
       ${logo}
       <div class="gff-name">${escapeHtml(s.displayName||'Por definirse')}</div>
-      <div class="gff-hype">${escapeHtml(hype)}</div>
     </div>`;
   }
 
@@ -308,24 +299,14 @@ function buildGranFinalFemenilHtml(cupData, adminMode=false){
 
   return `
   <div class="gff-wrap">
-    <div class="gff-label-row">
-      <span class="gff-chip gff-chip-purple">6 jornadas</span>
-      <span class="gff-chip gff-chip-gold">Semifinales</span>
-      <span class="gff-chip gff-chip-blue">Gran final</span>
-    </div>
     <div class="gff-card">
-      <div class="gff-trophy-zone">
-        ${campeon ? `
-          <div class="gff-camp-wrap">
-            ${campLogoHtml}
-            <div class="gff-camp-name">${escapeHtml(campeon.nombre)}</div>
-            <div class="gff-camp-tag">CAMPEONAS</div>
-          </div>` : `
-          <div class="gff-trophy-icon">🏆</div>
-          <div class="gff-trophy-label">RUTA A LA GRAN FINAL</div>
-          <div class="gff-trophy-sub">1° vs 4° · 2° vs 3°</div>
-        `}
-      </div>
+      ${campeon ? `<div class="gff-trophy-zone">
+        <div class="gff-camp-wrap">
+          ${campLogoHtml}
+          <div class="gff-camp-name">${escapeHtml(campeon.nombre)}</div>
+          <div class="gff-camp-tag">CAMPEONAS</div>
+        </div>
+      </div>` : ''}
       <div class="gff-semifinals">
         ${semiCard(sf1, 'Semifinal 1', '1° vs 4°')}
         ${semiCard(sf2, 'Semifinal 2', '2° vs 3°')}
@@ -634,21 +615,20 @@ function renderTabla(){
         <span class="bracket-chip">${escapeHtml(cupData.stageLabel)}</span>
       </div>`;
     const isFemenil = !!cupData.isFemenilFormat;
-    const copaTitle = isFemenil ? 'RUTA A LA GRAN FINAL' : 'CUADRO DE COPA';
-    const copaSubtitle = isFemenil ? '4 equipos · 6 jornadas · Semis 1° vs 4° y 2° vs 3° · Gran Final' : 'Top 6 · Repechaje → SF → Final';
-    const copaIcon = isFemenil ? '🔥' : '🏆';
-    fbBanner.innerHTML=`
-      <div class="bracket-wrap${adminCls}">
+    const copaHeaderHtml = isFemenil ? '' : `
         <div class="bracket-header">
           <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:24px;">${copaIcon}</span>
+            <span style="font-size:24px;">🏆</span>
             <div>
-              <div class="bracket-title">${copaTitle}</div>
-              <div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:1px;margin-top:2px;">${copaSubtitle}</div>
+              <div class="bracket-title">CUADRO DE COPA</div>
+              <div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:1px;margin-top:2px;">Top 6 · Repechaje → SF → Final</div>
             </div>
           </div>
           ${adminChipsHtml}
-        </div>
+        </div>`;
+    fbBanner.innerHTML=`
+      <div class="bracket-wrap${adminCls}">
+        ${copaHeaderHtml}
         <div class="bracket-scroll">${buildCupBracketHtml(cupData,{adminMode:isAdmin})}</div>
       </div>`;
     } // end else (copa visible)
