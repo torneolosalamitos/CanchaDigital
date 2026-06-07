@@ -1,5 +1,6 @@
 let currentTorneo = 'villa';
 let currentCat = 'liga_alta';
+let fs = null;
 let activePartidoKey = null;
 let pendingGolSide = null;
 let payMethods = { local: null, visita: null };
@@ -22,6 +23,7 @@ const C = {
   ventas: {},
   arbitros: {},
   inscripciones: {},
+  pagos: {},
   trabajadores: {},
   gastosTrab: {},
   gastosTienda: {},
@@ -35,6 +37,72 @@ let catOrderKeys = applyTournamentCatalogToCategoryMap(CAT_NAMES);
 const CANCHAS = ['Los Alamitos'];
 const ORGANIZER_NAME = 'Jesus "Navo"';
 const ORGANIZER_PHONE = '667 452 5663';
+
+const FIRESTORE_TORNEO_TO_APP = {
+  torneo_lombardo_2026: 'villa',
+  villa: 'villa',
+  torneo_nuevos_valores_2026: 'nuevos_valores',
+  nuevos_valores: 'nuevos_valores'
+};
+
+const APP_TORNEO_TO_FIRESTORE = {
+  villa: 'torneo_lombardo_2026',
+  nuevos_valores: 'torneo_nuevos_valores_2026'
+};
+
+const FIRESTORE_CAT_TO_APP = {
+  cat_libre_varonil_lombardo: 'liga_alta',
+  liga_alta: 'liga_alta',
+  cat_libre_femenil_lombardo: 'cat_libre_femenil',
+  cat_libre_femenil: 'cat_libre_femenil',
+  cat_infantil: 'cat_infantil',
+  cat_osos: 'cat_osos',
+  cat_juvenil: 'cat_juvenil'
+};
+
+const APP_CAT_TO_FIRESTORE = {
+  liga_alta: 'cat_libre_varonil_lombardo',
+  cat_libre_femenil: 'cat_libre_femenil_lombardo',
+  cat_infantil: 'cat_infantil',
+  cat_osos: 'cat_osos',
+  cat_juvenil: 'cat_juvenil'
+};
+
+function appTorneoId(id) {
+  return FIRESTORE_TORNEO_TO_APP[id] || id || 'villa';
+}
+
+function appCatId(id) {
+  return FIRESTORE_CAT_TO_APP[id] || id || 'liga_alta';
+}
+
+function firestoreTorneoId(id) {
+  return APP_TORNEO_TO_FIRESTORE[id] || id || 'torneo_lombardo_2026';
+}
+
+function firestoreCatId(id) {
+  return APP_CAT_TO_FIRESTORE[id] || id || 'cat_libre_varonil_lombardo';
+}
+
+function slugifyId(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function clearObj(obj) {
+  Object.keys(obj || {}).forEach((key) => delete obj[key]);
+}
+
+function firestoreServerTimestamp() {
+  return firebase?.firestore?.FieldValue?.serverTimestamp
+    ? firebase.firestore.FieldValue.serverTimestamp()
+    : Date.now();
+}
 
 function normalizeAdminScope(rawScope) {
   if (!rawScope || typeof rawScope !== 'object') return {};
