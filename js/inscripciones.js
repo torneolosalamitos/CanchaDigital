@@ -1,6 +1,28 @@
 let inscScope = 'actual';
 let inscSelectedCats = [];
 
+function getInscAbonos(inscripcion) {
+  return Object.entries(inscripcion?.abonos || {}).map(([key, abono]) => ({
+    ...abono,
+    _key: abono?._key || key,
+    pagoId: abono?.pagoId || key
+  }));
+}
+
+function getInscPaid(inscripcion) {
+  if (inscripcion && inscripcion.montoPagado !== undefined && inscripcion.montoPagado !== null) {
+    return Number(inscripcion.montoPagado || 0);
+  }
+  return getInscAbonos(inscripcion).reduce((sum, abono) => sum + (Number(abono.monto) || 0), 0);
+}
+
+function getInscStatus(total, pagado) {
+  const deuda = Math.max(0, total - pagado);
+  if (deuda === 0) return 'liquidado';
+  if (pagado > 0) return 'abonado';
+  return 'pendiente';
+}
+
 function getInscAvailableCats() {
   return (catOrderKeys || []).filter((key) => CAT_NAMES[key] && canAccessCat(key));
 }
@@ -39,10 +61,7 @@ function getFilteredInsc() {
 
 function getInscPaymentStats(inscripciones) {
   const totalMonto = inscripciones.reduce((sum, inscripcion) => sum + (Number(inscripcion.montoTotal || inscripcion.monto || 0)), 0);
-  const totalPagado = inscripciones.reduce((sum, inscripcion) => {
-    const abonos = inscripcion.abonos ? Object.values(inscripcion.abonos) : [];
-    return sum + abonos.reduce((acc, abono) => acc + (Number(abono.monto) || 0), 0);
-  }, 0);
+  const totalPagado = inscripciones.reduce((sum, inscripcion) => sum + getInscPaid(inscripcion), 0);
   const pendiente = Math.max(0, totalMonto - totalPagado);
   return { totalMonto, totalPagado, pendiente, pct: totalMonto > 0 ? Math.round((totalPagado / totalMonto) * 100) : 0 };
 }
@@ -107,10 +126,11 @@ function renderInscripciones() {
 
 function renderInscCard(inscripcion) {
   const total = Number(inscripcion.montoTotal || inscripcion.monto || 0);
-  const abonos = inscripcion.abonos ? Object.values(inscripcion.abonos) : [];
-  const pagado = abonos.reduce((sum, abono) => sum + (Number(abono.monto) || 0), 0);
+  const abonos = getInscAbonos(inscripcion);
+  const pagado = getInscPaid(inscripcion);
   const deuda = Math.max(0, total - pagado);
   const pct = total > 0 ? Math.min(100, Math.round((pagado / total) * 100)) : 0;
+  const estado = inscripcion.estado || getInscStatus(total, pagado);
   const abonosHtml = abonos
     .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
     .map((abono) => `
@@ -118,6 +138,7 @@ function renderInscCard(inscripcion) {
         <div class="abono-fecha">📅 ${fmtDate(abono.fecha) || '—'}</div>
         <span class="abono-method am-${abono.metodo === 'transferencia' ? 'tr' : abono.metodo === 'prepago' ? 'pp' : 'ef'}">${abono.metodo === 'transferencia' ? 'Transf.' : abono.metodo === 'prepago' ? 'Prepago' : 'Efectivo'}</span>
         <div class="abono-monto">$${abono.monto}</div>
+        ${fs && abono.pagoId && isAdmin ? `<button class="btn btn-r btn-sm" onclick="cancelarPagoFirestore('${abono.pagoId}')">Cancelar</button>` : ''}
         ${abono.notas ? `<div style="font-size:10px;color:var(--muted)">${abono.notas}</div>` : ''}
       </div>`)
     .join('');
@@ -167,7 +188,7 @@ function renderInscStats(inscripciones = getFilteredInsc()) {
   }
 }
 
-function saveInscEquipo() {
+async function saveInscEquipo() {
   const nombre = document.getElementById('ie_nombre').value.trim();
   if (!nombre) {
     showToast('Ingresa el nombre', 'ta');
@@ -180,6 +201,46 @@ function saveInscEquipo() {
     showToast('No tienes permiso para esa categoría', 'tr');
     return;
   }
+  if (fs) {
+    const appTorneo = torneo || currentTorneo || 'villa';
+    const appCat = cat || currentCat || 'liga_alta';
+    const torneoId = firestoreTorneoId(appTorneo);
+    const categoriaId = firestoreCatId(appCat);
+    const inscripcionId = key || ('inscripcion_' + slugifyId(nombre) + '_' + torneoId.replace('torneo_', ''));
+    const montoTotal = parseInt(document.getElementById('ie_monto').value, 10) || 0;
+    const current = C.inscripciones[inscripcionId] || {};
+    const montoPagado = Number(current.montoPagado || 0);
+    const saldo = Math.max(0, montoTotal - montoPagado);
+    try {
+      await fs.collection('inscripciones').doc(inscripcionId).set({
+        nombre,
+        equipoNombre: nombre,
+        torneo: appTorneo,
+        cat: appCat,
+        torneoId,
+        categoriaId,
+        equipoId: current.equipoId || null,
+        montoTotal,
+        montoPagado,
+        saldo,
+        estado: saldo === 0 ? 'liquidado' : montoPagado > 0 ? 'abonado' : (montoTotal > 0 ? 'pendiente' : 'sin_costo'),
+        logo: document.getElementById('ie_logo').value || null,
+        moneda: current.moneda || 'MXN',
+        origen: current.origen || 'panel',
+        actualizadoEn: firestoreServerTimestamp(),
+        ...(key ? {} : { creadoEn: firestoreServerTimestamp() })
+      }, { merge: true });
+      closeModal('modalInscEquipo');
+      resetInscForm();
+      showToast(key ? 'Actualizado' : 'Equipo inscrito', 'tg');
+      return;
+    } catch (error) {
+      console.error(error);
+      showToast('Error guardando inscripción en Firestore', 'tr');
+      return;
+    }
+  }
+
   const data = {
     nombre,
     torneo,
@@ -231,6 +292,15 @@ function deleteInsc(key) {
     return;
   }
   if (!confirm('¿Eliminar esta inscripción?')) return;
+  if (fs) {
+    fs.collection('inscripciones').doc(key).delete()
+      .then(() => showToast('Inscripción eliminada', 'tr'))
+      .catch((error) => {
+        console.error(error);
+        showToast('Error eliminando inscripción en Firestore', 'tr');
+      });
+    return;
+  }
   db.ref(`inscripciones/${key}`).remove();
   showToast('Inscripción eliminada', 'tr');
 }
@@ -249,7 +319,7 @@ function openAbonoModal(key) {
   openModal('modalAbono');
 }
 
-function saveAbono() {
+async function saveAbono() {
   const key = document.getElementById('ab_insc_key').value;
   const inscripcion = C.inscripciones[key];
   if (!inscripcion || !canAccessTorneo(inscripcion.torneo || 'villa') || !canAccessCat(inscripcion.cat || 'liga_alta', inscripcion.torneo || 'villa')) {
@@ -261,6 +331,59 @@ function saveAbono() {
     showToast('Ingresa el monto', 'ta');
     return;
   }
+  if (fs) {
+    const metodo = document.getElementById('ab_metodo').value;
+    const fecha = document.getElementById('ab_fecha').value;
+    const nota = document.getElementById('ab_notas').value.trim();
+    const montoActualPagado = Number(inscripcion.montoPagado || 0);
+    const montoTotal = Number(inscripcion.montoTotal || inscripcion.monto || 0);
+    const nuevoMontoPagado = montoActualPagado + monto;
+    const nuevoSaldo = Math.max(0, montoTotal - nuevoMontoPagado);
+    const nuevoEstado = nuevoSaldo === 0 ? 'liquidado' : nuevoMontoPagado > 0 ? 'abonado' : 'pendiente';
+    const pagoId = 'pago_' + (inscripcion.equipoId || slugifyId(inscripcion.nombre)) + '_' + Date.now();
+    const torneo = inscripcion.torneo || currentTorneo;
+    const cat = inscripcion.cat || currentCat;
+
+    try {
+      const batch = fs.batch();
+      const pagoRef = fs.collection('pagos').doc(pagoId);
+      const inscRef = fs.collection('inscripciones').doc(key);
+      batch.set(pagoRef, {
+        torneo,
+        cat,
+        torneoId: inscripcion.torneoId || firestoreTorneoId(torneo),
+        categoriaId: inscripcion.categoriaId || firestoreCatId(cat),
+        equipoId: inscripcion.equipoId || null,
+        equipoNombre: inscripcion.equipoNombre || inscripcion.nombre || '',
+        inscripcionId: key,
+        concepto: 'inscripcion',
+        monto,
+        metodo,
+        origen: 'panel',
+        registradoPor: (firebase.auth().currentUser && firebase.auth().currentUser.email) ? firebase.auth().currentUser.email : 'admin',
+        cancelado: false,
+        fechaTexto: fecha || todayISO(),
+        ts: Date.now(),
+        nota,
+        creadoEn: firestoreServerTimestamp()
+      });
+      batch.update(inscRef, {
+        montoPagado: nuevoMontoPagado,
+        saldo: nuevoSaldo,
+        estado: nuevoEstado,
+        actualizadoEn: firestoreServerTimestamp()
+      });
+      await batch.commit();
+      closeModal('modalAbono');
+      showToast('Abono registrado', 'tg');
+      renderInscripciones();
+      return;
+    } catch (error) {
+      console.error(error);
+      showToast('Error registrando abono en Firestore', 'tr');
+      return;
+    }
+  }
   db.ref(`inscripciones/${key}/abonos`).push({
     monto,
     fecha: document.getElementById('ab_fecha').value,
@@ -270,4 +393,45 @@ function saveAbono() {
   });
   closeModal('modalAbono');
   showToast('Abono registrado', 'tg');
+}
+
+async function cancelarPagoFirestore(pagoId) {
+  if (!fs) return;
+  const pago = C.pagos[pagoId];
+  if (!pago || pago.cancelado) {
+    showToast('Pago no disponible para cancelar', 'ta');
+    return;
+  }
+  const inscripcionId = pago.inscripcionId;
+  const inscripcion = C.inscripciones[inscripcionId];
+  if (!inscripcion) {
+    showToast('No se encontró la inscripción del pago', 'tr');
+    return;
+  }
+  if (!confirm('¿Cancelar este pago?')) return;
+
+  const montoTotal = Number(inscripcion.montoTotal || inscripcion.monto || 0);
+  const montoPagadoActual = Number(inscripcion.montoPagado || 0);
+  const nuevoMontoPagado = Math.max(0, montoPagadoActual - Number(pago.monto || 0));
+  const nuevoSaldo = Math.max(0, montoTotal - nuevoMontoPagado);
+  const nuevoEstado = nuevoSaldo === 0 ? 'liquidado' : nuevoMontoPagado > 0 ? 'abonado' : 'pendiente';
+
+  try {
+    const batch = fs.batch();
+    batch.update(fs.collection('pagos').doc(pagoId), {
+      cancelado: true,
+      canceladoEn: firestoreServerTimestamp()
+    });
+    batch.update(fs.collection('inscripciones').doc(inscripcionId), {
+      montoPagado: nuevoMontoPagado,
+      saldo: nuevoSaldo,
+      estado: nuevoEstado,
+      actualizadoEn: firestoreServerTimestamp()
+    });
+    await batch.commit();
+    showToast('Pago cancelado', 'tg');
+  } catch (error) {
+    console.error(error);
+    showToast('Error cancelando pago', 'tr');
+  }
 }
