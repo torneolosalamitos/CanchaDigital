@@ -1319,6 +1319,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
 .resumen-donut strong{
   font-family:'Bebas Neue',sans-serif;
   font-size:30px;
+  font-weight:400;
   color:#07162c;
   line-height:1;
 }
@@ -1445,6 +1446,12 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   gap:18px;
   margin-bottom:14px;
 }
+.resumen-pay-donuts{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
 .resumen-pay-bars{display:grid;gap:10px;}
 .resumen-team-row,.resumen-debt-row{
   display:flex;
@@ -1524,6 +1531,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   .resumen-cat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .resumen-cat-grid div{border-bottom:1px solid var(--border);}
   .resumen-pay-layout{grid-template-columns:1fr;justify-items:center;}
+  .resumen-pay-donuts{justify-content:center;}
   .resumen-pay-bars{width:100%;}
   .resumen-bar-row{grid-template-columns:86px minmax(0,1fr) 62px;}
 }
