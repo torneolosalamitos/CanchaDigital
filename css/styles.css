@@ -969,10 +969,6 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
 
 /* ════ COPA FEMENIL ════ */
 .gff-wrap{width:100%;padding:4px 0;}
-.gff-label-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px;}
-.gff-chip{padding:5px 12px;border-radius:999px;font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;}
-.gff-chip-purple{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;box-shadow:0 4px 12px rgba(124,58,237,.25);}
-.gff-chip-gold{background:linear-gradient(135deg,#ca8a04,#f59e0b);color:#fff;box-shadow:0 4px 12px rgba(202,138,4,.25);}
 .gff-card{background:linear-gradient(160deg,#0f172a 0%,#1a1040 42%,#1a3a8a 100%);border-radius:20px;overflow:hidden;box-shadow:0 16px 40px rgba(26,58,138,.35),0 0 0 1.5px rgba(255,255,255,.08) inset;position:relative;}
 .gff-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#7c3aed,#ec4899,#f59e0b);border-radius:20px 20px 0 0;}
 .gff-trophy-zone{display:flex;flex-direction:column;align-items:center;padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.08);}
@@ -998,7 +994,6 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
 .gff-logo{width:52px;height:52px;border-radius:14px;object-fit:cover;border:2px solid rgba(255,255,255,.15);box-shadow:0 4px 14px rgba(0,0,0,.3);}
 .gff-logo-ph{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.05));border:1.5px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:24px;}
 .gff-name{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:#fff;line-height:1.12;word-break:break-word;max-width:110px;}
-.gff-hype{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.55);line-height:1.35;}
 .gff-vs-col{display:flex;flex-direction:column;align-items:center;gap:5px;padding:0 8px;flex-shrink:0;}
 .gff-vs{font-family:'Bebas Neue',sans-serif;font-size:32px;color:rgba(255,255,255,.35);line-height:1;letter-spacing:2px;}
 .gff-winner-badge{font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#fbbf24;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);border-radius:999px;padding:3px 8px;white-space:nowrap;}
@@ -1019,7 +1014,6 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   .gff-name{font-size:13px;max-width:90px;}
   .gff-logo,.gff-logo-ph{width:44px;height:44px;}
   .gff-vs{font-size:26px;}
-  .gff-chip{font-size:9px;padding:4px 10px;}
   .gff-grand-title{font-size:26px;}
 }
 /* ════ FIN COPA FEMENIL ════ */
@@ -1793,11 +1787,6 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
 }
 .arb-donut-stat{
   margin-bottom:10px;
-}
-.gff-chip-blue{
-  background:linear-gradient(135deg,#1d4ed8,#38bdf8);
-  color:#fff;
-  box-shadow:0 4px 12px rgba(29,78,216,.22);
 }
 .gff-card{
   border:1px solid rgba(255,255,255,.12);
