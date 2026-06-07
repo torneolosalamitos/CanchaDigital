@@ -317,8 +317,6 @@ function renderResumenDashboards(ctx) {
   const el = document.getElementById('resumenDashboards');
   if (!el) return;
   const insc = ctx.insc;
-  const paidPct = insc.pctPagadas;
-  const pendingPct = 100 - paidPct;
   const salesCard = ctx.tiendaOn ? `
     <div class="resumen-panel">
       <div class="resumen-panel-title">Tienda</div>
@@ -327,17 +325,7 @@ function renderResumenDashboards(ctx) {
       <div class="resumen-split"><span>${ctx.ventas.ventas} ventas</span><strong>Ticket ${formatMoney(ctx.ventas.ticket)}</strong></div>
     </div>` : '';
   el.innerHTML = `
-    ${ctx.inscOn ? `<div class="resumen-panel resumen-donut-panel">
-      <div class="resumen-panel-title">Inscripciones</div>
-      <div class="resumen-donut" style="--paid:${paidPct};--pending:${pendingPct}">
-        <div><strong>${paidPct}%</strong><span>Pagadas</span></div>
-      </div>
-      <div class="resumen-legend">
-        <span><i class="paid"></i>Pagadas ${insc.pagadas}</span>
-        <span><i class="pending"></i>Pendientes ${insc.pendientes}</span>
-      </div>
-    </div>
-    <div class="resumen-panel">
+    ${ctx.inscOn ? `<div class="resumen-panel">
       <div class="resumen-panel-title">Cobranza</div>
       <div class="resumen-big-money">${formatMoney(insc.pagadoTotal)}</div>
       <div class="resumen-meter"><span style="width:${insc.pctCobranza}%"></span></div>
@@ -422,8 +410,13 @@ function renderResumenInscripciones(metrics, inscripciones, period) {
   }).join('');
   el.innerHTML = `
     <div class="resumen-pay-layout">
-      <div class="resumen-donut" style="--paid:${metrics.pctPagadas};--pending:${100 - metrics.pctPagadas}">
-        <div><strong>${metrics.pctPagadas}%</strong><span>Pagadas</span></div>
+      <div class="resumen-pay-donuts">
+        <div class="resumen-donut" style="--paid:${metrics.pctPagadas};--pending:${100 - metrics.pctPagadas}">
+          <div><strong>${metrics.pctPagadas}%</strong><span>Pagadas</span></div>
+        </div>
+        <div class="resumen-donut" style="--paid:${metrics.pctCobranza};--pending:${100 - metrics.pctCobranza}">
+          <div><strong>${metrics.pctCobranza}%</strong><span>Cobrado</span></div>
+        </div>
       </div>
       <div class="resumen-pay-bars">
         ${resumenBar('Pagadas', metrics.pagadas, Math.max(metrics.equipos, 1))}
