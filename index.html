@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="js/ui-core.js"></script>
 <script src="js/tournament-config.js"></script>
@@ -1999,7 +2000,8 @@ startFirebaseBoot({
   onAuthChange,
   showToast,
   setDb(value){ db = value; },
-  setAuth(value){ auth = value; }
+  setAuth(value){ auth = value; },
+  setFs(value){ fs = value; }
 });
 
 // ══════════════════════════════════════════════
