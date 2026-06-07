@@ -148,9 +148,16 @@ function getAbonosArray(inscripcion) {
   return inscripcion?.abonos ? Object.values(inscripcion.abonos) : [];
 }
 
+function getInscripcionPaid(inscripcion) {
+  if (inscripcion && inscripcion.montoPagado !== undefined && inscripcion.montoPagado !== null) {
+    return Number(inscripcion.montoPagado || 0);
+  }
+  return getAbonosArray(inscripcion).reduce((acc, abono) => acc + (Number(abono.monto) || 0), 0);
+}
+
 function getInscripcionMetrics(inscripciones, period) {
   const totalMonto = inscripciones.reduce((sum, insc) => sum + (Number(insc.montoTotal || insc.monto || 0)), 0);
-  const pagadoTotal = inscripciones.reduce((sum, insc) => sum + getAbonosArray(insc).reduce((acc, abono) => acc + (Number(abono.monto) || 0), 0), 0);
+  const pagadoTotal = inscripciones.reduce((sum, insc) => sum + getInscripcionPaid(insc), 0);
   const pagadoPeriodo = inscripciones.reduce((sum, insc) => {
     return sum + getAbonosArray(insc)
       .filter((abono) => resumenDateInPeriod(abono.fecha || '', period))
@@ -158,7 +165,7 @@ function getInscripcionMetrics(inscripciones, period) {
   }, 0);
   const pendientes = inscripciones.filter((insc) => {
     const total = Number(insc.montoTotal || insc.monto || 0);
-    const pagado = getAbonosArray(insc).reduce((acc, abono) => acc + (Number(abono.monto) || 0), 0);
+    const pagado = getInscripcionPaid(insc);
     return Math.max(0, total - pagado) > 0;
   });
   return {
@@ -401,7 +408,7 @@ function renderResumenInscripciones(metrics, inscripciones, period) {
   }
   const rows = inscripciones.map((insc) => {
     const total = Number(insc.montoTotal || insc.monto || 0);
-    const pagado = getAbonosArray(insc).reduce((sum, abono) => sum + (Number(abono.monto) || 0), 0);
+    const pagado = getInscripcionPaid(insc);
     const deuda = Math.max(0, total - pagado);
     return `<div class="resumen-team-row">
       <div><strong>${escapeHtml(insc.nombre || 'Equipo')}</strong><span>${CAT_NAMES[insc.cat] || 'Categoría'}</span></div>
@@ -498,7 +505,7 @@ function renderResDeudas(inscripcionesArg, partidosArg) {
   if (!el) return;
   const inscDeudas = (inscripcionesArg || []).map((insc) => {
     const total = Number(insc.montoTotal || insc.monto || 0);
-    const pagado = getAbonosArray(insc).reduce((sum, abono) => sum + (Number(abono.monto) || 0), 0);
+    const pagado = getInscripcionPaid(insc);
     return { nombre: insc.nombre || 'Equipo', cat: insc.cat, pendiente: Math.max(0, total - pagado), pagado, total };
   }).filter((d) => d.pendiente > 0);
 
