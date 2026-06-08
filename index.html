@@ -902,7 +902,7 @@
 <div class="page" id="page-inscripciones">
   <div class="sh">
     <div class="st">💰 Inscripciones</div><div class="sl"></div>
-    <button class="btn btn-g btn-sm" onclick="openModal('modalInscEquipo')">+ Equipo</button>
+    <button class="btn btn-g btn-sm" onclick="resetInscForm();openModal('modalInscEquipo')">+ Equipo</button>
   </div>
   <div class="stats-row" id="inscStats"></div>
   <div id="inscScopeControls"></div>
@@ -1102,7 +1102,7 @@
     <div class="resumen-pills" id="resumenScopePills">
       <button class="btn btn-g btn-sm" onclick="setResumenScope('torneo')" id="resScope_torneo">Este torneo</button>
       <button class="btn btn-out btn-sm" onclick="setResumenScope('actual')" id="resScope_actual">Actual</button>
-      <button class="btn btn-out btn-sm" onclick="setResumenScope('custom')" id="resScope_custom">Seleccionar</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenScope('custom')" id="resScope_custom">Periodo por categorías</button>
     </div>
   </div>
   <div class="resumen-filter-card" id="resumenCategoryFilters" style="display:none"></div>
@@ -1458,16 +1458,21 @@
       </div>
       <input type="hidden" id="ie_logo"/>
     </div>
+    <div class="fg"><label class="fl">Equipo registrado</label>
+      <select class="fi" id="ie_equipo" onchange="applyInscEquipoSelection()">
+        <option value="">Selecciona torneo y categoría</option>
+      </select>
+    </div>
     <div class="fg"><label class="fl">Nombre del equipo</label><input class="fi" id="ie_nombre" placeholder="Los Toros FC"/></div>
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
-        <select class="fi" id="ie_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
+        <select class="fi" id="ie_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();if(typeof syncInscEquipoOptions==='function')syncInscEquipoOptions();">
           <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
           <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
-        <select class="fi" id="ie_cat">
+        <select class="fi" id="ie_cat" onchange="if(typeof syncInscEquipoOptions==='function')syncInscEquipoOptions();">
           <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
           <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
           <option value="cat_infantil">CATEGORÍA INFANTIL</option>
