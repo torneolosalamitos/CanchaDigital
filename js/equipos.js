@@ -150,17 +150,23 @@ function openEquipoDetail(key) {
 function buildEquipoFinancialHtml(key, e, eqParts) {
   const canSeeFinancial = isAdmin || (isCaptain && captainEquipoKey === key);
   if (!canSeeFinancial) return '';
-  const insc = Object.entries(C.inscripciones || {}).find(([, i]) => i.nombre === e.nombre && i.torneo === e.torneo && i.cat === e.cat);
+  const inscLinked = findInscripcionForEquipo(key, e);
+  const insc = inscLinked ? [inscLinked.key, inscLinked.data] : null;
   let inscHtml = '<div style="color:var(--muted);font-size:12px;font-weight:600">Sin inscripción registrada</div>';
   if (insc) {
     const [inscKey, inscData] = insc;
     const monto = Number(inscData.montoTotal || inscData.monto || 0);
-    const abonos = inscData.abonos ? Object.values(inscData.abonos) : [];
+    const legacyAbonos = inscData.abonos ? Object.values(inscData.abonos) : [];
+    const firestorePagos = Object.entries(C.pagos || {})
+      .filter(([, pago]) => !pago.cancelado && pago.inscripcionId === inscKey)
+      .map(([pagoId, pago]) => ({ ...pago, pagoId, fecha: pago.fechaTexto || pago.fecha || '', notas: pago.nota || pago.notas || '' }));
+    const abonos = [...legacyAbonos, ...firestorePagos];
     const pagado = inscData.montoPagado !== undefined && inscData.montoPagado !== null
       ? Number(inscData.montoPagado || 0)
       : abonos.reduce((s, a) => s + (a.monto || 0), 0);
     const pendiente = Math.max(0, monto - pagado);
-    const pct = monto > 0 ? Math.min(100, Math.round((pagado / monto) * 100)) : 0;
+    const pct = monto > 0 ? Math.min(100, Math.round((pagado / monto) * 100)) : (pagado > 0 ? 100 : 0);
+    const barColor = pendiente <= 0 && monto > 0 ? '#16a34a' : pct > 0 ? '#f59e0b' : '#dc2626';
     inscHtml = `
       <div style="display:flex;justify-content:space-between;margin-bottom:10px">
         <div>
@@ -177,9 +183,9 @@ function buildEquipoFinancialHtml(key, e, eqParts) {
         </div>
       </div>
       <div style="height:8px;background:var(--border2);border-radius:4px;overflow:hidden;margin-bottom:10px;margin-top:6px">
-        <div style="height:100%;width:${Math.min(pct, 100)}%;background:${pendiente > 0 ? '#f59e0b' : '#16a34a'};border-radius:4px;transition:width .6s ease"></div>
+        <div style="height:100%;width:${Math.min(pct, 100)}%;background:${barColor};border-radius:4px;transition:width .6s ease"></div>
       </div>
-      <div style="font-size:10px;font-weight:700;color:${pendiente > 0 ? 'var(--amber)' : '#16a34a'};margin-bottom:8px">${pct}% pagado</div>
+      <div style="font-size:10px;font-weight:700;color:${barColor};margin-bottom:8px">${monto > 0 ? `${pct}% pagado` : 'Sin monto configurado'}</div>
       ${
         abonos.length
           ? abonos
