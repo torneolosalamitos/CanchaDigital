@@ -320,17 +320,20 @@ function removeAlinePlayer(key, idx) {
   if (inp) inp.closest('div').remove();
 }
 
-function saveAlineacion(key) {
+async function saveAlineacion(key) {
   const e = C.equipos[key];
   if (!e) return;
   const inputs = document.querySelectorAll(`[id^="aline_p_${key}_"]`);
   const aline = Array.from(inputs)
     .map((i) => i.value.trim())
     .filter((v) => v);
-  db.ref('equipos/' + key + '/alineacion')
-    .set(aline)
-    .then(() => showToast('Alineación guardada ✅', 'tg'))
-    .catch((err) => showToast('Error: ' + err.message, 'tr'));
+  try {
+    if (fs) await updateDoc('equipos', key, { alineacion: aline });
+    else await db.ref('equipos/' + key + '/alineacion').set(aline);
+    showToast('Alineación guardada ✅', 'tg');
+  } catch (err) {
+    showToast('Error: ' + err.message, 'tr');
+  }
 }
 
 function resetEquipoForm() {
