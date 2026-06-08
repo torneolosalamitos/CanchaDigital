@@ -2061,7 +2061,7 @@ function buildMarketingSharePayload(post){
     caption: post.caption,
     filename: `mercadotecnia_${slugifyBasic(post.id || post.title)}_${todayISO()}`,
     html: buildVisualShareCard({
-      kicker: `${TORNEO_NAMES[currentTorneo] || 'Torneo Los Alamitos'} · Mercadotecnia`,
+      kicker: `${TORNEO_NAMES[currentTorneo] || 'Torneo Lombardo Toledano'} · Mercadotecnia`,
       title: (post.shareTitle || post.title || 'Publicación').toUpperCase(),
       subtitle: post.visualSubtitle || post.desc || '',
       dateLabel: `Listo para publicar · ${fmtDate(todayISO())}`,
@@ -2107,17 +2107,17 @@ function buildMarketingAutoPosts(){
       platforms:'Instagram Stories · Facebook Stories · WhatsApp',
       priority:'Alta',
       visualTitle:'Partidos\nde hoy',
-      visualSubtitle:`${categoria} · Jornada en Los Alamitos`,
+      visualSubtitle:`${categoria} · Jornada en Cancha Principal`,
       visualItems:todayAgenda.map(p=>({
         title:`${p.horaIni||'--:--'} · ${matchTitle(p)}`,
-        desc:`${p.cancha||'Los Alamitos'} · ${p.status==='jugando'?'En juego':'Programado'}`
+        desc:`${p.cancha||'Cancha Principal'} · ${p.status==='jugando'?'En juego':'Programado'}`
       })),
       visualStats:[
         { val:todayAgenda.length, lbl:'Partidos' },
         { val:opener?.horaIni || '--:--', lbl:'Primer juego' },
         { val:'Asistencia', lbl:'Objetivo' }
       ],
-      hashtags:'#TorneoLosAlamitos #PartidosDeHoy #VamosALosAlamitos',
+      hashtags:'#TorneoLombardoToledano #PartidosDeHoy #VamosALombardo',
       footerNote:'Agenda oficial para activar historias, estados y recordatorios previos a la jornada.',
       hook:`Hoy la cancha no descansa: abrimos con ${matchTitle(opener)} a las ${opener?.horaIni||'--:--'}.`,
       cta:'Pregunta en historias cuál es el juego que más esperan y empuja respuestas rápidas.',
@@ -2127,9 +2127,9 @@ function buildMarketingAutoPosts(){
         `${torneo} | Partidos de hoy`,
         `${categoria}`,
         `Hoy la cancha no descansa: abrimos con ${matchTitle(opener)} a las ${opener?.horaIni||'--:--'}.`,
-        ...todayAgenda.map(p=>`${p.horaIni||'--:--'} · ${matchTitle(p)} · ${p.cancha||'Los Alamitos'}`),
+        ...todayAgenda.map(p=>`${p.horaIni||'--:--'} · ${matchTitle(p)} · ${p.cancha||'Cancha Principal'}`),
         'CTA: comenta cuál juego vienes a ver y etiqueta al equipo que debe pegar primero.',
-        '#TorneoLosAlamitos #PartidosDeHoy #VamosALosAlamitos'
+        '#TorneoLombardoToledano #PartidosDeHoy #VamosALombardo'
       ].join('\n')
     });
   }
@@ -2151,7 +2151,7 @@ function buildMarketingAutoPosts(){
         { val:todayFinished.reduce((sum,p)=>sum+(p.gL||0)+(p.gV||0),0), lbl:'Goles del dia' },
         { val:matchTitle(mainResult), lbl:'Juego foco' }
       ],
-      hashtags:'#TorneoLosAlamitos #ResultadosDelDia #FutbolLocal',
+      hashtags:'#TorneoLombardoToledano #ResultadosDelDia #FutbolLocal',
       footerNote:'Recap oficial para cerrar la jornada con marcadores, goleadores y conversación.',
       hook:`Se cerró el día y ${matchTitle(mainResult)} dejó ruido en la categoría.`,
       cta:'Cierra el copy preguntando quién fue el MVP de la jornada para empujar comentarios.',
@@ -2163,7 +2163,7 @@ function buildMarketingAutoPosts(){
         `Se cerró el día y ${matchTitle(mainResult)} dejó ruido en la categoría.`,
         ...todayFinished.map(p=>`${getMatchScoreLine(p)}\n${summarizeMatchScorers(p)}`),
         'CTA: deja tu MVP de la jornada y etiqueta al equipo que salió más fuerte.',
-        '#TorneoLosAlamitos #ResultadosDelDia #FutbolLocal'
+        '#TorneoLombardoToledano #ResultadosDelDia #FutbolLocal'
       ].join('\n\n')
     });
   }
@@ -2180,14 +2180,14 @@ function buildMarketingAutoPosts(){
       visualSubtitle:`${categoria} · Del ${fmtDate(weekRange.start)} al ${fmtDate(weekRange.end)}`,
       visualItems:weekAgenda.map(p=>({
         title:`${fmtDate(p.fecha)} · ${matchTitle(p)}`,
-        desc:`${p.horaIni||'--:--'} · ${p.cancha||'Los Alamitos'}`
+        desc:`${p.horaIni||'--:--'} · ${p.cancha||'Cancha Principal'}`
       })),
       visualStats:[
         { val:weekAgenda.length, lbl:'Cruces' },
         { val:fmtDate(weekRange.start), lbl:'Arranque' },
         { val:fmtDate(weekRange.end), lbl:'Cierre' }
       ],
-      hashtags:'#TorneoLosAlamitos #PartidosDeLaSemana #AgendaSemanal',
+      hashtags:'#TorneoLombardoToledano #PartidosDeLaSemana #AgendaSemanal',
       footerNote:'Pieza semanal para ordenar la narrativa del torneo de lunes a domingo.',
       hook:`La semana ya tiene ruta: ${weekAgenda.length} cruces confirmados en ${categoria}.`,
       cta:'Usa el caption para pedir que guarden la publicación y no se pierdan su juego.',
@@ -2197,9 +2197,9 @@ function buildMarketingAutoPosts(){
         `${torneo} | Partidos de la semana`,
         `${categoria} · Del ${fmtDate(weekRange.start)} al ${fmtDate(weekRange.end)}`,
         `La semana ya tiene ruta: ${weekAgenda.length} cruces confirmados.`,
-        ...weekAgenda.map(p=>`${fmtDate(p.fecha)} · ${p.horaIni||'--:--'} · ${matchTitle(p)} · ${p.cancha||'Los Alamitos'}`),
+        ...weekAgenda.map(p=>`${fmtDate(p.fecha)} · ${p.horaIni||'--:--'} · ${matchTitle(p)} · ${p.cancha||'Cancha Principal'}`),
         'CTA: guarda esta publicación y etiqueta al equipo que llega con más presión.',
-        '#TorneoLosAlamitos #PartidosDeLaSemana #AgendaSemanal'
+        '#TorneoLombardoToledano #PartidosDeLaSemana #AgendaSemanal'
       ].join('\n')
     });
   }
@@ -2220,7 +2220,7 @@ function buildMarketingAutoPosts(){
         { val:weekFinished.reduce((sum,p)=>sum+(p.gL||0)+(p.gV||0),0), lbl:'Goles' },
         { val:leader?.nombre || 'Abierto', lbl:'Lider' }
       ],
-      hashtags:'#TorneoLosAlamitos #ResumenSemanal #FutbolLocal',
+      hashtags:'#TorneoLombardoToledano #ResumenSemanal #FutbolLocal',
       footerNote:'Recap semanal para sostener highlights, tabla y debate del torneo.',
       hook:`Así se movió la semana en ${categoria}: marcadores, goles y tabla metiendo presión.`,
       cta:'Remata con una pregunta directa: ¿qué partido cambió más la tabla?',
@@ -2232,7 +2232,7 @@ function buildMarketingAutoPosts(){
         'Así se movió la semana en la categoría:',
         ...weekFinished.map(p=>`${getMatchScoreLine(p)}\n${summarizeMatchScorers(p)}`),
         'CTA: comenta qué partido cambió más el torneo esta semana.',
-        '#TorneoLosAlamitos #ResumenSemanal #FutbolLocal'
+        '#TorneoLombardoToledano #ResumenSemanal #FutbolLocal'
       ].join('\n\n')
     });
   }
@@ -2254,7 +2254,7 @@ function buildMarketingAutoPosts(){
         { val:latest.reduce((sum,p)=>sum+(p.gL||0)+(p.gV||0),0), lbl:'Goles' },
         { val:topScorer?.jugador || 'Foco', lbl:'Jugador caliente' }
       ],
-      hashtags:'#TorneoLosAlamitos #UltimosPartidos #FutbolLocal',
+      hashtags:'#TorneoLombardoToledano #UltimosPartidos #FutbolLocal',
       footerNote:'Resumen rápido para sostener ritmo editorial sin caer en copy genérico.',
       hook:'Los últimos movimientos del torneo ya pegaron en la tabla y en el ánimo de la categoría.',
       cta:'Invita a guardar el post y a debatir cuál marcador pesó más.',
@@ -2265,7 +2265,7 @@ function buildMarketingAutoPosts(){
         `${categoria}`,
         ...latest.map(p=>`${getMatchScoreLine(p)}\n${summarizeMatchScorers(p)}`),
         'CTA: ¿qué resultado pesó más en la carrera por la cima?',
-        '#TorneoLosAlamitos #UltimosPartidos #FutbolLocal'
+        '#TorneoLombardoToledano #UltimosPartidos #FutbolLocal'
       ].join('\n\n')
     });
   }
@@ -2281,7 +2281,7 @@ function buildMarketingAutoPosts(){
       priority:'Alta',
       visualTitle:'Tabla general',
       visualSubtitle:'Clasificacion actual y presion por el liderato',
-      hashtags:'#TorneoLosAlamitos #TablaGeneral #CopaDelTorneo',
+      hashtags:'#TorneoLombardoToledano #TablaGeneral #CopaDelTorneo',
       footerNote:'Pieza clave para reforzar la narrativa del torneo con autoridad visual.',
       hook:`${leader.nombre} manda hoy la tabla${runnerUp ? `, pero ${runnerUp.nombre} sigue pegado.` : '.'}`,
       cta:'Cierra con la pregunta: ¿quién llega líder al corte final?',
@@ -2309,7 +2309,7 @@ function buildMarketingAutoPosts(){
       priority:'Alta',
       visualTitle:'Camino a la copa',
       visualSubtitle:'El cuadro se actualiza solo con la tabla',
-      hashtags:'#TorneoLosAlamitos #CopaDelTorneo #CaminoAlTitulo',
+      hashtags:'#TorneoLombardoToledano #CopaDelTorneo #CaminoAlTitulo',
       footerNote:'Bracket oficial para explicar el camino al título sin depender de copies genéricos.',
       hook:firstPair ? `Si la copa arrancara hoy, abriría con ${firstPair.slotA.displayName} vs ${firstPair.slotB.displayName}.` : 'La copa ya tiene cuadro provisional según la tabla.',
       cta:'Usa este post para preguntar qué seed está mejor acomodado rumbo al título.',
@@ -2336,7 +2336,7 @@ function buildMarketingAutoPosts(){
       priority:'Media',
       visualTitle:'Top 10 goleadores',
       visualSubtitle:'Quien esta rompiendo la red',
-      hashtags:'#TorneoLosAlamitos #Top10Goleadores #Futbol',
+      hashtags:'#TorneoLombardoToledano #Top10Goleadores #Futbol',
       footerNote:'Post de alto engagement para menciones, comentarios y rivalidad deportiva.',
       hook:`${topScorer.jugador} está encendido y hoy marca el paso en la tabla individual.`,
       cta:'Etiqueta a los jugadores del top para empujar re-shares orgánicos.',
@@ -2363,7 +2363,7 @@ function buildMarketingAutoPosts(){
       priority:'Media',
       visualTitle:'Top 10 porteros',
       visualSubtitle:'Seguridad bajo los tres palos',
-      hashtags:'#TorneoLosAlamitos #Top10Porteros #CopaDelTorneo',
+      hashtags:'#TorneoLombardoToledano #Top10Porteros #CopaDelTorneo',
       footerNote:'Post diferencial para profesionalizar la comunicación del torneo.',
       hook:`${topKeeper.portero} hoy sostiene la vara más alta en el arco de ${topKeeper.equipo}.`,
       cta:'Invita a etiquetar al portero más pesado de la categoría.',
@@ -2387,7 +2387,7 @@ function buildMarketingAutoPosts(){
       format:'Post informativo',
       platforms:'Instagram · Facebook',
       priority:'Media',
-      visualTitle:'Torneo\nLos Alamitos',
+      visualTitle:'Torneo\nLombardo',
       visualSubtitle:'Proximamente mas partidos, tabla y copa',
       visualItems:[
         { title:'Categoria activa', desc:categoria },
@@ -2399,7 +2399,7 @@ function buildMarketingAutoPosts(){
         { val:'Auto', lbl:'Posts' },
         { val:'Listo', lbl:'Panel' }
       ],
-      hashtags:'#TorneoLosAlamitos #Proximamente #Futbol',
+      hashtags:'#TorneoLombardoToledano #Proximamente #Futbol',
       footerNote:'Plantilla base para no dejar frías las redes mientras entra más data.',
       hook:'La categoria ya está encendida y apenas empieza a tomar forma.',
       cta:'Usa esta pieza para invitar a seguir la cuenta y activar la próxima jornada.',
@@ -2409,7 +2409,7 @@ function buildMarketingAutoPosts(){
         `${torneo} | ${categoria}`,
         'La categoria ya está encendida y la próxima jornada viene con más movimiento.',
         'Sigue la cuenta para ver partidos del dia, de la semana, tabla, copa y rankings automaticos.',
-        '#TorneoLosAlamitos #Proximamente #Futbol'
+        '#TorneoLombardoToledano #Proximamente #Futbol'
       ].join('\n')
     });
   }
@@ -2433,7 +2433,7 @@ function buildMarketingIdeasFallback(){
   return [
     '1. Post de resultados del día: portada fuerte, tres mejores marcadores y CTA para comentar el mejor partido.',
     `2. Post tabla general: resalta que ${leader} va primero y que ${runnerUp} sigue pegado en la pelea por la cima.`,
-    `3. Reel corto: transición de marcadores + celebración final con audio en tendencia y cierre "Así se jugó en Los Alamitos".`,
+    `3. Reel corto: transición de marcadores + celebración final con audio en tendencia y cierre "Así se jugó en Lombardo Toledano".`,
     `4. Story interactiva: encuesta entre goleadores destacados (${scorers.map(s=>s.jugador).join(', ') || 'sin datos aún'}) para empujar respuestas y menciones.`,
     `5. Post diferencial de porteros: destaca a ${keepers[0]?.portero || 'los guardametas del torneo'} con enfoque en porterías imbatidas.`,
     `6. Publicidad local: impulsa la próxima jornada con clip de ${finished[0] ? getMatchScoreLine(finished[0]) : 'la última actividad'} y llamado a asistir / seguir redes.`,
