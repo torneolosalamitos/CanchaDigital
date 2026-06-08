@@ -1196,13 +1196,18 @@
     <input type="hidden" id="mp_key"/>
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
-        <select class="fi" id="mp_torneo" onchange="updateMPEquipos()">
+        <select class="fi" id="mp_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors(); updateMPEquipos();">
           <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
         <select class="fi" id="mp_cat" onchange="updateMPEquipos()">
           <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+          <option value="cat_osos">CATEGORÍA OSOS</option>
+          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
         </select>
       </div>
     </div>
@@ -1369,13 +1374,18 @@
     <div class="fg"><label class="fl">Nombre del equipo</label><input class="fi" id="eq_nombre" placeholder="Los Toros FC"/></div>
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
-        <select class="fi" id="eq_torneo">
+        <select class="fi" id="eq_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
           <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
         <select class="fi" id="eq_cat">
           <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+          <option value="cat_osos">CATEGORÍA OSOS</option>
+          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
         </select>
       </div>
     </div>
@@ -1451,13 +1461,18 @@
     <div class="fg"><label class="fl">Nombre del equipo</label><input class="fi" id="ie_nombre" placeholder="Los Toros FC"/></div>
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
-        <select class="fi" id="ie_torneo">
+        <select class="fi" id="ie_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
           <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
         <select class="fi" id="ie_cat">
           <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+          <option value="cat_osos">CATEGORÍA OSOS</option>
+          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
         </select>
       </div>
     </div>
@@ -1582,13 +1597,21 @@
   <div class="modal" style="border-top-color:var(--gold)">
     <div class="modal-head"><div class="modal-title" style="color:var(--gold)">🏆 Guardar Temporada</div><button class="modal-close" onclick="closeModal('modalGuardarTemporada')">✕</button></div>
     <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:14px">Guarda una foto permanente de esta temporada.</div>
-    <div class="fg"><label class="fl">Nombre de la temporada</label><input class="fi" id="temp_nombre" placeholder="Ej: Torneo Villa 2026 — Liga Alta"/></div>
+    <div class="fg"><label class="fl">Nombre de la temporada</label><input class="fi" id="temp_nombre" placeholder="Ej: Torneo Lombardo Toledano 2026 — Libre Varonil"/></div>
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
-        <select class="fi" id="temp_torneo"><option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option></select>
+        <select class="fi" id="temp_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
+          <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
+        </select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
         <select class="fi" id="temp_cat">
+          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+          <option value="cat_osos">CATEGORÍA OSOS</option>
+          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
         </select>
       </div>
     </div>
@@ -1734,7 +1757,10 @@
     </div>
     <div class="fg">
       <label class="fl">Torneo asignado</label>
-      <select class="fi" id="sa_torneo" onchange="renderAdminCatPermissions()"></select>
+      <select class="fi" id="sa_torneo" onchange="renderAdminCatPermissions()">
+        <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+        <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
+      </select>
     </div>
     <div id="sa_cat_list" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px"></div>
     <button class="btn btn-g btn-full" onclick="saveAdminRole()">💾 Guardar permisos</button>
@@ -1777,12 +1803,19 @@
       </div>
     </div>
     <div class="fg"><label class="fl">Torneo</label>
-      <select class="fi" id="rc_torneo">
+      <select class="fi" id="rc_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
         <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+        <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
       </select>
     </div>
     <div class="fg" style="margin-top:8px"><label class="fl">Categoría</label>
-      <select class="fi" id="rc_cat"></select>
+      <select class="fi" id="rc_cat">
+        <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+        <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+        <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+        <option value="cat_osos">CATEGORÍA OSOS</option>
+        <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
+      </select>
     </div>
     <div class="fg" style="margin-top:8px">
       <label class="fl">Escribe el nombre de la categoría para confirmar</label>
@@ -2860,6 +2893,11 @@ function rechazarSolicitud(solId){
     .then(()=>showToast('Solicitud rechazada','ta'))
     .catch(e=>showToast('Error: '+e.message,'tr'));
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (typeof normalizeStoredState === 'function') normalizeStoredState();
+  if (typeof syncFixedSelectors === 'function') syncFixedSelectors();
+});
 
 </script>
 </body>
