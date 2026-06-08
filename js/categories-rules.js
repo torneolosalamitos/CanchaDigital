@@ -5,7 +5,7 @@ function updateReglamentoVisibility() {
   const heroTitle = document.getElementById('reglHeroTitle');
   if (!content || !placeholder) return;
 
-  if (currentCat === 'liga_alta') {
+  if (currentCat === 'cat_libre_varonil') {
     content.style.display = '';
     if (contentFemenil) contentFemenil.style.display = 'none';
     placeholder.style.display = 'none';
@@ -150,7 +150,7 @@ function eliminarCategoria(key) {
   delete CAT_NAMES[key];
   catOrderKeys = catOrderKeys.filter((item) => item !== key);
   saveCatOrder();
-  if (currentCat === key) currentCat = catOrderKeys[0] || 'liga_alta';
+  if (currentCat === key) currentCat = catOrderKeys[0] || 'cat_libre_varonil';
   renderGcList();
   rebuildCatTabs();
   showToast('Categoría eliminada', 'tg');
