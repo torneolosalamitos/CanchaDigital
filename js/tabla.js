@@ -785,12 +785,14 @@ function renderHistorial(){
 function guardarTemporada(){
   const nombre=document.getElementById('temp_nombre').value.trim();
   if(!nombre){showToast('Ingresa un nombre para la temporada','ta');return;}
-  const torneo=document.getElementById('temp_torneo').value;
-  const cat=document.getElementById('temp_cat').value;
+  const torneo=appTorneoId(document.getElementById('temp_torneo').value || currentTorneo || 'lombardo_toledano');
+  const cat=appCatId(document.getElementById('temp_cat').value || currentCat || 'cat_libre_varonil');
   // Save current tabla snapshot
   const tablaData=buildTablaData();
   const data={
     nombre, torneo, cat,
+    torneoId:firestoreTorneoId(torneo),
+    categoriaId:firestoreCatId(cat),
     campeon:document.getElementById('temp_campeon').value.trim(),
     subcampeon:document.getElementById('temp_subcampeon').value.trim(),
     goleador:document.getElementById('temp_goleador').value.trim(),
