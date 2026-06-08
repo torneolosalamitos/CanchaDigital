@@ -160,8 +160,8 @@
     <button class="cat-tab active" onclick="selectCat('cat_libre_varonil',this)">CATEGORÍA LIBRE VARONIL</button>
     <button class="cat-tab" onclick="selectCat('cat_libre_femenil',this)">CATEGORÍA LIBRE FEMENIL</button>
     <button class="cat-tab" onclick="selectCat('cat_infantil',this)">CATEGORÍA INFANTIL</button>
-    <button class="cat-tab" onclick="selectCat('cat_juvenil_a',this)">CATEGORÍA JUVENIL A</button>
-    <button class="cat-tab" onclick="selectCat('cat_juvenil_b',this)">CATEGORÍA JUVENIL B</button>
+    <button class="cat-tab" onclick="selectCat('cat_osos',this)">CATEGORÍA OSOS</button>
+    <button class="cat-tab" onclick="selectCat('cat_juvenil',this)">CATEGORÍA JUVENIL</button>
     <button id="catAddBtn" onclick="openAddCatInline()" style="display:none;background:none;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,.5);padding:0 12px;cursor:pointer;font-size:18px;flex-shrink:0;line-height:36px" title="Agregar categoría">＋</button>
   </div>
   <!-- Nav -->
@@ -2100,11 +2100,6 @@ const isPageActive = p => document.getElementById('page-'+p)?.classList.contains
 // ══════════════════════════════════════
 //  HELPERS
 // ══════════════════════════════════════
-const normalizeScopedRecord = (record) => ({
-  ...record,
-  torneo: appTorneoId(record?.torneo || record?.torneoId || 'lombardo_toledano'),
-  cat: appCatId(record?.cat || record?.categoriaId || 'cat_libre_varonil')
-});
 const scopeTorneoOf = (record) => appTorneoId(record?.torneo || record?.torneoId || 'lombardo_toledano');
 const scopeCatOf = (record) => appCatId(record?.cat || record?.categoriaId || 'cat_libre_varonil');
 const canReadScopedRecord = (record, useCat = true) => {
