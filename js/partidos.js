@@ -685,8 +685,8 @@ async function savePartido() {
     showToast('Selecciona ambos equipos', 'ta');
     return;
   }
-  const torneo = document.getElementById('mp_torneo').value;
-  const cat = document.getElementById('mp_cat').value;
+  const torneo = appTorneoId(document.getElementById('mp_torneo').value || currentTorneo || 'lombardo_toledano');
+  const cat = appCatId(document.getElementById('mp_cat').value || currentCat || 'cat_libre_varonil');
   if (!canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) {
     showToast('No tienes permiso para esa categoría', 'tr');
     return;
@@ -717,6 +717,8 @@ async function savePartido() {
   const data = {
     torneo,
     cat,
+    torneoId: firestoreTorneoId(torneo),
+    categoriaId: firestoreCatId(cat),
     local: localKey,
     localNombre: eqL.nombre,
     visita: visitaKey,
