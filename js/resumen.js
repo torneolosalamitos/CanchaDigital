@@ -106,8 +106,8 @@ function resumenTsInPeriod(item, period) {
 }
 
 function resumenTournamentMatch(item) {
-  if (!item || !item.torneo) return currentTorneo === 'villa';
-  return item.torneo === currentTorneo;
+  if (!item || !item.torneo) return currentTorneo === 'lombardo_toledano';
+  return appTorneoId(item.torneo || item.torneoId) === currentTorneo;
 }
 
 function resumenCatOf(item) {
