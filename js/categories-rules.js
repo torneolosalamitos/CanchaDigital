@@ -197,12 +197,23 @@ function confirmarResetCategoria() {
     })
     .map(([key]) => key);
 
-  const updates = {};
-  toDelParts.forEach((key) => { updates[`partidos/${key}`] = null; });
-  toDelEquipos.forEach((key) => { updates[`equipos/${key}`] = null; });
-  toDelInscs.forEach((key) => { updates[`inscripciones/${key}`] = null; });
+  const resetPromise = fs
+    ? (async () => {
+        const batch = fs.batch();
+        toDelParts.forEach((key) => batch.delete(fs.collection('partidos').doc(key)));
+        toDelEquipos.forEach((key) => batch.delete(fs.collection('equipos').doc(key)));
+        toDelInscs.forEach((key) => batch.delete(fs.collection('inscripciones').doc(key)));
+        await batch.commit();
+      })()
+    : (() => {
+        const updates = {};
+        toDelParts.forEach((key) => { updates[`partidos/${key}`] = null; });
+        toDelEquipos.forEach((key) => { updates[`equipos/${key}`] = null; });
+        toDelInscs.forEach((key) => { updates[`inscripciones/${key}`] = null; });
+        return db.ref().update(updates);
+      })();
 
-  db.ref().update(updates).then(() => {
+  resetPromise.then(() => {
     closeModal('modalResetCat');
     renderTabla();
     renderGoleadores();
