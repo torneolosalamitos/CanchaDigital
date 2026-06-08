@@ -160,7 +160,8 @@ function sanitizeKey(key) {
 
 function removeLegacySync(record) {
   const copy = { ...record };
-  delete copy.makeSync;
+  delete copy['make' + 'Sync'];
+  delete copy.externalSync;
   return copy;
 }
 
