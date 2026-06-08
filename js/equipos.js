@@ -378,8 +378,8 @@ function editEquipo(key) {
   document.getElementById('eqModalTitle').textContent = 'Editar Equipo';
   document.getElementById('eq_nombre').value = e.nombre || '';
   document.getElementById('eq_tel').value = e.tel || '';
-  document.getElementById('eq_torneo').value = e.torneo || 'lombardo_toledano';
-  document.getElementById('eq_cat').value = e.cat || 'cat_libre_varonil';
+  document.getElementById('eq_torneo').value = appTorneoId(e.torneo || e.torneoId || currentTorneo || 'lombardo_toledano');
+  document.getElementById('eq_cat').value = appCatId(e.cat || e.categoriaId || currentCat || 'cat_libre_varonil');
   document.getElementById('eq_color').value = e.color || '#1a3a8a';
   document.getElementById('eq_portero').value = e.portero || '';
   if (e.logo) {
@@ -400,8 +400,8 @@ async function saveEquipo() {
     return;
   }
   const key = document.getElementById('eq_key').value;
-  const torneo = document.getElementById('eq_torneo').value;
-  const cat = document.getElementById('eq_cat').value;
+  const torneo = appTorneoId(document.getElementById('eq_torneo').value || currentTorneo || 'lombardo_toledano');
+  const cat = appCatId(document.getElementById('eq_cat').value || currentCat || 'cat_libre_varonil');
   if (!canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) {
     showToast('No tienes permiso para esa categoría', 'tr');
     return;
@@ -413,8 +413,8 @@ async function saveEquipo() {
   const alineacion = getEqLineup();
 
   if (fs) {
-    const appTorneo = torneo || currentTorneo || 'lombardo_toledano';
-    const appCat = cat || currentCat || 'cat_libre_varonil';
+    const appTorneo = appTorneoId(torneo || currentTorneo || 'lombardo_toledano');
+    const appCat = appCatId(cat || currentCat || 'cat_libre_varonil');
     const torneoId = firestoreTorneoId(appTorneo);
     const categoriaId = firestoreCatId(appCat);
     const equipoId = key || ('equipo_' + slugifyId(n));
@@ -505,6 +505,8 @@ async function saveEquipo() {
     tel: telefonoCapitan,
     torneo,
     cat,
+    torneoId: firestoreTorneoId(torneo),
+    categoriaId: firestoreCatId(cat),
     color,
     logo,
     portero,
