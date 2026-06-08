@@ -95,24 +95,18 @@ function renderCart() {
   document.getElementById('cartTotal').textContent = `$${cart.reduce((sum, item) => sum + item.precio * item.qty, 0)}`;
 }
 
-function cobrar() {
+async function cobrar() {
   if (!cart.length) {
     showToast('Carrito vacío', 'tr');
     return;
   }
   const total = cart.reduce((sum, item) => sum + item.precio * item.qty, 0);
-  const updates = {};
-  cart.forEach((item) => {
-    const producto = C.productos[item.key];
-    if (producto) updates[`productos/${item.key}/stock`] = Math.max(0, producto.stock - item.qty);
-  });
-  db.ref().update(updates);
   const now = new Date();
   const fecha = now.toISOString().split('T')[0];
   const hora = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
   const turnoActivo = Object.entries(C.turnos || {}).find(([, turno]) => turno.activo);
   const turnoKey = turnoActivo ? turnoActivo[0] : null;
-  db.ref('ventas').push({
+  const venta = scopedPayload({
     hora,
     fecha,
     fechaHoraFin: null,
@@ -124,9 +118,49 @@ function cobrar() {
     nota: '',
     turnoKey
   });
-  if (turnoKey) {
-    db.ref(`turnos/${turnoKey}/ventasCount`).transaction((count) => (count || 0) + 1);
-    db.ref(`turnos/${turnoKey}/ventasTotal`).transaction((amount) => (amount || 0) + total);
+  try {
+    if (fs) {
+      const batch = fs.batch();
+      cart.forEach((item) => {
+        const producto = C.productos[item.key];
+        if (producto) {
+          batch.set(fs.collection('productos').doc(item.key), {
+            stock: Math.max(0, producto.stock - item.qty),
+            actualizadoEn: firestoreServerTimestamp()
+          }, { merge: true });
+        }
+      });
+      batch.set(fs.collection('ventas').doc(newDocId('venta', `${fecha}_${Date.now()}`)), {
+        ...venta,
+        creadoEn: firestoreServerTimestamp(),
+        actualizadoEn: firestoreServerTimestamp()
+      }, { merge: true });
+      if (turnoKey) {
+        const turno = C.turnos[turnoKey] || {};
+        batch.set(fs.collection('turnos').doc(turnoKey), {
+          ventasCount: (turno.ventasCount || 0) + 1,
+          ventasTotal: (turno.ventasTotal || 0) + total,
+          actualizadoEn: firestoreServerTimestamp()
+        }, { merge: true });
+      }
+      await batch.commit();
+    } else {
+      const updates = {};
+      cart.forEach((item) => {
+        const producto = C.productos[item.key];
+        if (producto) updates[`productos/${item.key}/stock`] = Math.max(0, producto.stock - item.qty);
+      });
+      await db.ref().update(updates);
+      await db.ref('ventas').push(venta);
+      if (turnoKey) {
+        db.ref(`turnos/${turnoKey}/ventasCount`).transaction((count) => (count || 0) + 1);
+        db.ref(`turnos/${turnoKey}/ventasTotal`).transaction((amount) => (amount || 0) + total);
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    showToast('Error al cobrar', 'tr');
+    return;
   }
   showToast(`Cobrado $${total}`, 'tg');
   cart.length = 0;
@@ -155,11 +189,18 @@ function renderInventario() {
     </div>`).join('');
 }
 
-function adjStock(key, sign) {
+async function adjStock(key, sign) {
   const producto = C.productos[key];
   if (!producto) return;
   const amount = parseInt(document.getElementById('adj_' + key)?.value, 10) || 5;
-  db.ref(`productos/${key}/stock`).set(Math.max(0, producto.stock + (sign * amount)));
+  const stock = Math.max(0, producto.stock + (sign * amount));
+  try {
+    if (fs) await updateDoc('productos', key, { stock });
+    else await db.ref(`productos/${key}/stock`).set(stock);
+  } catch (error) {
+    console.error(error);
+    showToast('Error al ajustar stock', 'tr');
+  }
 }
 
 function editProd(key) {
@@ -181,13 +222,19 @@ function editProd(key) {
   openModal('modalAddProd');
 }
 
-function deleteProd(key) {
+async function deleteProd(key) {
   if (!confirm('¿Eliminar producto?')) return;
-  db.ref(`productos/${key}`).remove();
-  showToast('Producto eliminado', 'tr');
+  try {
+    if (fs) await deleteDoc('productos', key);
+    else await db.ref(`productos/${key}`).remove();
+    showToast('Producto eliminado', 'tr');
+  } catch (error) {
+    console.error(error);
+    showToast('Error al eliminar producto', 'tr');
+  }
 }
 
-function saveProd() {
+async function saveProd() {
   const nombre = document.getElementById('prod_nombre').value.trim();
   const precio = parseInt(document.getElementById('prod_precio').value, 10) || 0;
   if (!nombre || precio <= 0) {
@@ -202,8 +249,15 @@ function saveProd() {
     stock: parseInt(document.getElementById('prod_stock').value, 10) || 0,
     imagen: document.getElementById('prod_img').value || null
   };
-  if (key) db.ref(`productos/${key}`).update(data);
-  else db.ref('productos').push(data);
+  try {
+    if (fs) await saveDoc('productos', key || newDocId('producto', nombre), data);
+    else if (key) await db.ref(`productos/${key}`).update(data);
+    else await db.ref('productos').push(data);
+  } catch (error) {
+    console.error(error);
+    showToast('Error al guardar producto', 'tr');
+    return;
+  }
   closeModal('modalAddProd');
   document.getElementById('prod_key').value = '';
   document.getElementById('prodModalTitle').textContent = 'Nuevo Producto';
@@ -303,22 +357,24 @@ function openEditVenta(key) {
   openModal('modalEditVenta');
 }
 
-function saveEditVenta() {
+async function saveEditVenta() {
   const key = document.getElementById('ev_key').value;
   const total = parseInt(document.getElementById('ev_total').value, 10) || 0;
   const nota = document.getElementById('ev_nota').value.trim();
-  db.ref(`ventas/${key}`).update({ total, nota });
+  if (fs) await updateDoc('ventas', key, { total, nota });
+  else await db.ref(`ventas/${key}`).update({ total, nota });
   closeModal('modalEditVenta');
   showToast('Venta actualizada', 'tg');
 }
 
-function deleteVenta(key) {
+async function deleteVenta(key) {
   if (!confirm('¿Eliminar esta venta?')) return;
-  db.ref(`ventas/${key}`).remove();
+  if (fs) await deleteDoc('ventas', key);
+  else await db.ref(`ventas/${key}`).remove();
   showToast('Venta eliminada', 'tr');
 }
 
-function abrirTurno() {
+async function abrirTurno() {
   const ya = Object.values(C.turnos || {}).find((turno) => turno.activo);
   if (ya) {
     showToast('Ya hay un turno abierto', 'ta');
@@ -327,11 +383,13 @@ function abrirTurno() {
   const now = new Date();
   const horaApertura = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
   const fecha = now.toISOString().split('T')[0];
-  db.ref('turnos').push({ activo: true, horaApertura, fecha, ts: Date.now(), ventasCount: 0, ventasTotal: 0 });
+  const data = scopedPayload({ activo: true, horaApertura, fecha, ts: Date.now(), ventasCount: 0, ventasTotal: 0 });
+  if (fs) await saveDoc('turnos', newDocId('turno', `${fecha}_${Date.now()}`), data);
+  else await db.ref('turnos').push(data);
   showToast('🟢 Tienda abierta — ' + horaApertura, 'tg');
 }
 
-function cerrarTurno() {
+async function cerrarTurno() {
   const entry = Object.entries(C.turnos || {}).find(([, turno]) => turno.activo);
   if (!entry) {
     showToast('Sin turno activo', 'ta');
@@ -340,7 +398,8 @@ function cerrarTurno() {
   const [key] = entry;
   const now = new Date();
   const horaCierre = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  db.ref(`turnos/${key}`).update({ activo: false, horaCierre, tsCierre: Date.now() });
+  if (fs) await updateDoc('turnos', key, { activo: false, horaCierre, tsCierre: Date.now() });
+  else await db.ref(`turnos/${key}`).update({ activo: false, horaCierre, tsCierre: Date.now() });
   showToast('🔴 Turno cerrado — ' + horaCierre, 'tb');
 }
 
@@ -397,7 +456,7 @@ function renderGastosTienda() {
   </div>`).join('');
 }
 
-function saveGastoTienda() {
+async function saveGastoTienda() {
   const concepto = document.getElementById('gt_concepto').value.trim();
   const monto = parseFloat(document.getElementById('gt_monto').value) || 0;
   if (!concepto || !monto) {
@@ -406,7 +465,7 @@ function saveGastoTienda() {
   }
   const key = document.getElementById('gt_key').value;
   const now = new Date();
-  const data = {
+  const data = scopedPayload({
     concepto,
     monto,
     torneo: currentTorneo,
@@ -415,9 +474,10 @@ function saveGastoTienda() {
     hora: document.getElementById('gt_hora').value || now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
     notas: document.getElementById('gt_notas').value.trim(),
     ts: Date.now()
-  };
-  if (key) db.ref(`gastosTienda/${key}`).update(data);
-  else db.ref('gastosTienda').push(data);
+  });
+  if (fs) await saveDoc('gastosTienda', key || newDocId('gasto_tienda', `${concepto}_${Date.now()}`), data);
+  else if (key) await db.ref(`gastosTienda/${key}`).update(data);
+  else await db.ref('gastosTienda').push(data);
   closeModal('modalGastoTienda');
   resetGastoTiendaForm();
   showToast(key ? 'Gasto actualizado' : 'Retiro registrado', 'tg');
@@ -447,9 +507,10 @@ function editGastoTienda(key) {
   openModal('modalGastoTienda');
 }
 
-function deleteGastoTienda(key) {
+async function deleteGastoTienda(key) {
   if (!confirm('¿Eliminar este retiro?')) return;
-  db.ref(`gastosTienda/${key}`).remove();
+  if (fs) await deleteDoc('gastosTienda', key);
+  else await db.ref(`gastosTienda/${key}`).remove();
   showToast('Retiro eliminado', 'tr');
 }
 
@@ -465,14 +526,16 @@ function openEditVentaFecha(key) {
   openModal('modalEditVentaFecha');
 }
 
-function saveEditVentaFecha() {
+async function saveEditVentaFecha() {
   const key = document.getElementById('evf_key').value;
   const total = parseInt(document.getElementById('evf_total').value, 10) || 0;
   const fecha = document.getElementById('evf_fecha').value;
   const hora = document.getElementById('evf_hora_ini').value;
   const horaFin = document.getElementById('evf_hora_fin').value;
   const nota = document.getElementById('evf_nota').value.trim();
-  db.ref(`ventas/${key}`).update({ total, fecha, hora, fechaHoraFin: horaFin || null, nota });
+  const patch = { total, fecha, hora, fechaHoraFin: horaFin || null, nota };
+  if (fs) await updateDoc('ventas', key, patch);
+  else await db.ref(`ventas/${key}`).update(patch);
   closeModal('modalEditVentaFecha');
   showToast('Venta actualizada', 'tg');
 }
