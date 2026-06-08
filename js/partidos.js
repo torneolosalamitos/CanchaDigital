@@ -12,6 +12,10 @@ function setFechaUltimos(dias) {
   renderPartidos();
 }
 
+function filterProximos() {
+  if (typeof renderPartidos === 'function') renderPartidos();
+}
+
 function populatePartidosTeamFilter() {
   const sel = document.getElementById('partidos_equipo_filter');
   if (!sel) return;
