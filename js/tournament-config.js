@@ -33,13 +33,10 @@ const TORNEO_CONFIG = {
 const TOURNAMENT_OPTION_ORDER = ['lombardo_toledano', 'nuevos_valores'];
 const TOURNAMENT_SYSTEM_CAT_KEYS = new Set([
   'cat_libre_varonil',
-  'liga_alta',
   'cat_libre_femenil',
   'cat_infantil',
-  'cat_juvenil_a',
-  'cat_juvenil_b',
-  'cat_juvenil',
-  'cat_osos'
+  'cat_osos',
+  'cat_juvenil'
 ]);
 
 const DEFAULT_TOURNAMENT_CATEGORY_LABELS = {
@@ -83,9 +80,6 @@ function getTournamentHashtagLine(extraTags = []) {
 }
 
 function applyTournamentCatalogToCategoryMap(catMap) {
-  delete catMap.cat_juvenil_a;
-  delete catMap.cat_juvenil_b;
-
   Object.entries(DEFAULT_TOURNAMENT_CATEGORY_LABELS).forEach(([key, label]) => {
     catMap[key] = label;
   });
