@@ -5,14 +5,14 @@ const LOMBARDO_TOLEDANO_LOGO = 'img/logo-lombardo-toledano.png';
 const NUEVOS_VALORES_LOGO = 'img/logo-nuevos-valores.png';
 
 const TORNEO_CONFIG = {
-  villa: {
+  lombardo_toledano: {
     name: 'TORNEO LOMBARDO TOLEDANO',
     logo: LOMBARDO_TOLEDANO_LOGO,
     splashSubtitle: 'LIBRE VARONIL Y FEMENIL',
     footerTag: 'Lombardo Toledano',
     primaryHashtag: '#TorneoLombardoToledano',
     categories: [
-      { key: 'liga_alta', label: 'CATEGORIA LIBRE VARONIL' },
+      { key: 'cat_libre_varonil', label: 'CATEGORIA LIBRE VARONIL' },
       { key: 'cat_libre_femenil', label: 'CATEGORIA LIBRE FEMENIL' }
     ]
   },
@@ -30,12 +30,10 @@ const TORNEO_CONFIG = {
   }
 };
 
-const TOURNAMENT_OPTION_ORDER = ['villa', 'nuevos_valores'];
+const TOURNAMENT_OPTION_ORDER = ['lombardo_toledano', 'nuevos_valores'];
 const TOURNAMENT_SYSTEM_CAT_KEYS = new Set([
+  'cat_libre_varonil',
   'liga_alta',
-  'liga_media',
-  'liga_baja_a',
-  'liga_baja_b',
   'cat_libre_femenil',
   'cat_infantil',
   'cat_juvenil_a',
@@ -45,7 +43,7 @@ const TOURNAMENT_SYSTEM_CAT_KEYS = new Set([
 ]);
 
 const DEFAULT_TOURNAMENT_CATEGORY_LABELS = {
-  liga_alta: 'CATEGORIA LIBRE VARONIL',
+  cat_libre_varonil: 'CATEGORIA LIBRE VARONIL',
   cat_libre_femenil: 'CATEGORIA LIBRE FEMENIL',
   cat_infantil: 'CATEGORIA INFANTIL',
   cat_osos: 'CATEGORIA OSOS',
@@ -53,7 +51,7 @@ const DEFAULT_TOURNAMENT_CATEGORY_LABELS = {
 };
 
 const DEFAULT_TOURNAMENT_CAT_ORDER = [
-  'liga_alta',
+  'cat_libre_varonil',
   'cat_libre_femenil',
   'cat_infantil',
   'cat_osos',
@@ -69,7 +67,7 @@ const TORNEO_LOGOS = Object.fromEntries(
 );
 
 function getTournamentConfig(t = currentTorneo) {
-  return TORNEO_CONFIG[t] || TORNEO_CONFIG.villa;
+  return TORNEO_CONFIG[t] || TORNEO_CONFIG.lombardo_toledano;
 }
 
 function getTournamentFooterTag(t = currentTorneo) {
@@ -85,9 +83,6 @@ function getTournamentHashtagLine(extraTags = []) {
 }
 
 function applyTournamentCatalogToCategoryMap(catMap) {
-  delete catMap.liga_media;
-  delete catMap.liga_baja_a;
-  delete catMap.liga_baja_b;
   delete catMap.cat_juvenil_a;
   delete catMap.cat_juvenil_b;
 
