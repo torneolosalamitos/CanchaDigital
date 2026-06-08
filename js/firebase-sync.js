@@ -176,22 +176,170 @@ function setupLegacyRealtimeCoreFallbackListeners() {
   });
 }
 
+function normalizeFirestoreDoc(collectionName, id, data = {}) {
+  const scopedCollections = new Set([
+    'partidos',
+    'ventas',
+    'gastosTienda',
+    'gastosTrab',
+    'solicitudes',
+    'mercadotecnia',
+    'temporadas'
+  ]);
+  if (collectionName === 'equipos') return normalizeEquipoRecord(id, data, 'firestore');
+  if (collectionName === 'inscripciones') return normalizeInscripcionRecord(id, data, 'firestore');
+  if (collectionName === 'pagos') {
+    return {
+      ...normalizeScopedRecord(data),
+      _key: id,
+      monto: Number(data.monto || 0),
+      cancelado: !!data.cancelado
+    };
+  }
+  const base = scopedCollections.has(collectionName) || data.torneo || data.cat || data.torneoId || data.categoriaId
+    ? normalizeScopedRecord(data)
+    : data;
+  return { ...base, _key: id };
+}
+
+function renderAfterFirestoreCollection(collectionName) {
+  if (collectionName === 'equipos') {
+    rebuildEquiposFromCoreSources();
+    renderCoreDataConsumers();
+    return;
+  }
+  if (collectionName === 'inscripciones') {
+    rebuildInscripcionesFromCoreSources();
+    renderCoreDataConsumers();
+    return;
+  }
+  if (collectionName === 'pagos') {
+    rebuildInscAbonosFromPagos();
+    renderCoreDataConsumers();
+    return;
+  }
+  if (collectionName === 'partidos') {
+    if (typeof renderPartidos === 'function') renderPartidos();
+    if (typeof renderTabla === 'function') renderTabla();
+    if (typeof renderArbitros === 'function' && isAdmin && isPageActive('arbitros')) renderArbitros();
+    if (typeof renderResumen === 'function' && isAdmin && isPageActive('resumen')) renderResumen();
+    if (typeof renderMercadotecnia === 'function' && isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();
+    if (isAdmin && typeof scheduleMarketingAutoSync === 'function') scheduleMarketingAutoSync('partidos');
+    if (activePartidoKey && document.getElementById('modalPartidoDetail')?.classList.contains('open')) renderPartidoDetail();
+    return;
+  }
+  if (collectionName === 'productos') {
+    if (!Object.keys(C.productos || {}).length && typeof seedProducts === 'function') seedProducts();
+    if (isAdmin && isPageActive('tienda')) renderTienda();
+    return;
+  }
+  if (collectionName === 'ventas') {
+    if (isAdmin && isPageActive('tienda')) renderHistorialVentas();
+    if (typeof renderTiendaStats === 'function') renderTiendaStats();
+    if (isAdmin && isPageActive('resumen')) renderResumen();
+    return;
+  }
+  if (collectionName === 'gastosTienda') {
+    if (isAdmin && isPageActive('tienda')) renderGastosTienda();
+    if (isAdmin && isPageActive('resumen')) renderResumen();
+    return;
+  }
+  if (collectionName === 'turnos') {
+    if (isAdmin && isPageActive('tienda')) renderTurnoUI();
+    return;
+  }
+  if (collectionName === 'arbitros') {
+    if (isAdmin && isPageActive('arbitros')) renderArbitros();
+    return;
+  }
+  if (collectionName === 'trabajadores' || collectionName === 'gastosTrab') {
+    if (isAdmin && isPageActive('arbitros')) renderTrabajadores();
+    if (isAdmin && isPageActive('resumen')) renderResumen();
+    return;
+  }
+  if (collectionName === 'usuarios') {
+    const modal = document.getElementById('modalUsuarios');
+    if (modal && modal.classList.contains('open')) renderUsuariosPanel();
+    return;
+  }
+  if (collectionName === 'solicitudes') {
+    const viewerProfile = document.getElementById('viewerProfileOverlay');
+    if (viewerProfile && viewerProfile.style.display !== 'none') renderViewerProfile();
+    if (isCaptain && captainEquipoKey) renderEquiposPage();
+    return;
+  }
+  if (collectionName === 'mercadotecnia') {
+    if (isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();
+    return;
+  }
+  if (collectionName === 'temporadas') {
+    if (typeof renderHistorial === 'function' && isPageActive('historial')) renderHistorial();
+  }
+}
+
+let firestoreAllListenersReady = false;
+function setupFirestoreAllListeners() {
+  if (!fs || firestoreAllListenersReady) return;
+  firestoreAllListenersReady = true;
+  const collectionMap = {
+    equipos: C.equipos,
+    inscripciones: C.inscripciones,
+    pagos: C.pagos,
+    partidos: C.partidos,
+    productos: C.productos,
+    ventas: C.ventas,
+    gastosTienda: C.gastosTienda,
+    turnos: C.turnos,
+    arbitros: C.arbitros,
+    trabajadores: C.trabajadores,
+    gastosTrab: C.gastosTrab,
+    usuarios: C.usuarios,
+    solicitudes: C.solicitudes,
+    mercadotecnia: C.mercadotecnia,
+    temporadas: C.temporadas
+  };
+
+  Object.entries(collectionMap).forEach(([collectionName, target]) => {
+    fs.collection(collectionName).onSnapshot((snapshot) => {
+      if (collectionName === 'equipos') clearObj(firestoreCoreCache.equipos);
+      else if (collectionName === 'inscripciones') clearObj(firestoreCoreCache.inscripciones);
+      else if (collectionName === 'pagos') clearObj(firestoreCoreCache.pagos);
+      else clearObj(target);
+
+      snapshot.forEach((doc) => {
+        const data = doc.data() || {};
+        const record = normalizeFirestoreDoc(collectionName, doc.id, data);
+        if (collectionName === 'equipos') firestoreCoreCache.equipos[doc.id] = record;
+        else if (collectionName === 'inscripciones') firestoreCoreCache.inscripciones[doc.id] = record;
+        else if (collectionName === 'pagos') firestoreCoreCache.pagos[doc.id] = record;
+        else target[doc.id] = record;
+      });
+
+      if (collectionName === 'pagos') {
+        clearObj(C.pagos);
+        Object.assign(C.pagos, firestoreCoreCache.pagos);
+      }
+      renderAfterFirestoreCollection(collectionName);
+    }, (error) => {
+      console.warn(`Firestore ${collectionName} listener:`, error);
+    });
+  });
+}
+
 function setupListeners() {
-  const useFirestoreCore = !!fs;
-  if (useFirestoreCore) {
-    setupFirestoreCoreListeners();
-    setupLegacyRealtimeCoreFallbackListeners();
+  const useFirestore = !!fs;
+  if (useFirestore) {
+    setupFirestoreAllListeners();
+    return;
   }
 
-  if (!useFirestoreCore) {
-    db.ref('equipos').on('value', (snapshot) => {
-      Object.keys(C.equipos).forEach((key) => delete C.equipos[key]);
-      if (snapshot.exists()) Object.assign(C.equipos, snapshot.val());
-      renderEquiposPage();
-      if (isPageActive('tabla')) renderTabla();
-      if (isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();
-    });
-  }
+  db.ref('equipos').on('value', (snapshot) => {
+    Object.keys(C.equipos).forEach((key) => delete C.equipos[key]);
+    if (snapshot.exists()) Object.assign(C.equipos, snapshot.val());
+    renderEquiposPage();
+    if (isPageActive('tabla')) renderTabla();
+    if (isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();
+  });
 
   db.ref('partidos').on('value', (snapshot) => {
     Object.keys(C.partidos).forEach((key) => delete C.partidos[key]);
@@ -248,14 +396,12 @@ function setupListeners() {
     if (isAdmin && isPageActive('arbitros')) renderArbitros();
   });
 
-  if (!useFirestoreCore) {
-    db.ref('inscripciones').on('value', (snapshot) => {
-      Object.keys(C.inscripciones).forEach((key) => delete C.inscripciones[key]);
-      if (snapshot.exists()) Object.assign(C.inscripciones, snapshot.val());
-      if (isAdmin && isPageActive('inscripciones')) renderInscripciones();
-      if (isAdmin && isPageActive('resumen')) renderResumen();
-    });
-  }
+  db.ref('inscripciones').on('value', (snapshot) => {
+    Object.keys(C.inscripciones).forEach((key) => delete C.inscripciones[key]);
+    if (snapshot.exists()) Object.assign(C.inscripciones, snapshot.val());
+    if (isAdmin && isPageActive('inscripciones')) renderInscripciones();
+    if (isAdmin && isPageActive('resumen')) renderResumen();
+  });
 
   db.ref('trabajadores').on('value', (snapshot) => {
     Object.keys(C.trabajadores).forEach((key) => delete C.trabajadores[key]);
