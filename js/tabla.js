@@ -737,11 +737,9 @@ function renderHistorial(){
     }
   }
 
-  // Load temporadas from Firebase
-  db.ref('historial').once('value', s=>{
-    const el=document.getElementById('historialList'); if(!el)return;
-    if(!s.exists()){el.innerHTML='<div class="empty"><span class="empty-icon">🏆</span>Sin temporadas guardadas aún.<br/><span style="font-size:11px;color:var(--muted)">Guarda la temporada actual desde el botón de arriba.</span></div>';return;}
-    const temps=Object.entries(s.val()).map(([k,v])=>({...v,_key:k})).sort((a,b)=>b.ts-a.ts);
+  const el=document.getElementById('historialList'); if(!el)return;
+  const renderTemps = (temps=[]) => {
+    if(!temps.length){el.innerHTML='<div class="empty"><span class="empty-icon">🏆</span>Sin temporadas guardadas aún.<br/><span style="font-size:11px;color:var(--muted)">Guarda la temporada actual desde el botón de arriba.</span></div>';return;}
     el.innerHTML=temps.map(t=>`
       <div style="background:var(--card);border:2px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden">
         <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--gold),var(--amber))"></div>
@@ -779,10 +777,19 @@ function renderHistorial(){
         </div>`:''}
         ${t.notas?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">📝 ${t.notas}</div>`:''}
       </div>`).join('');
+  };
+  if(fs){
+    const temps=Object.entries(C.temporadas || {}).map(([k,v])=>({...v,_key:k})).sort((a,b)=>(b.ts||0)-(a.ts||0));
+    renderTemps(temps);
+    return;
+  }
+  db.ref('historial').once('value', s=>{
+    const temps=s.exists()?Object.entries(s.val()).map(([k,v])=>({...v,_key:k})).sort((a,b)=>b.ts-a.ts):[];
+    renderTemps(temps);
   });
 }
 
-function guardarTemporada(){
+async function guardarTemporada(){
   const nombre=document.getElementById('temp_nombre').value.trim();
   if(!nombre){showToast('Ingresa un nombre para la temporada','ta');return;}
   const torneo=appTorneoId(document.getElementById('temp_torneo').value || currentTorneo || 'lombardo_toledano');
@@ -798,19 +805,22 @@ function guardarTemporada(){
     goleador:document.getElementById('temp_goleador').value.trim(),
     notas:document.getElementById('temp_notas').value.trim(),
     tabla:tablaData.slice(0,10).map(t=>({nombre:t.nombre,pj:t.pj,pts:t.pts,gf:t.gf,gc:t.gc})),
+    tablaFinal:tablaData.slice(0,10).map(t=>({nombre:t.nombre,pj:t.pj,pts:t.pts,gf:t.gf,gc:t.gc})),
     fecha:new Date().toISOString().split('T')[0],
     ts:Date.now()
   };
-  db.ref('historial').push(data);
+  if(fs) await saveDoc('temporadas', newDocId('temporada', `${nombre}_${Date.now()}`), data);
+  else await db.ref('historial').push(data);
   closeModal('modalGuardarTemporada');
   ['temp_nombre','temp_campeon','temp_subcampeon','temp_goleador','temp_notas'].forEach(id=>document.getElementById(id).value='');
   showToast('✅ Temporada guardada en el historial','tg');
   renderHistorial();
 }
 
-function deleteTemporada(key){
+async function deleteTemporada(key){
   if(!confirm('¿Eliminar esta temporada del historial?'))return;
-  db.ref(`historial/${key}`).remove();
+  if(fs) await deleteDoc('temporadas', key);
+  else await db.ref(`historial/${key}`).remove();
   showToast('Temporada eliminada','tr');
   renderHistorial();
 }
@@ -2463,6 +2473,7 @@ function persistMarketingAutoPosts(reason='partidos'){
   const now = Date.now();
   const autoPosts = {};
   const existingActivity = getMarketingActivity();
+  const actividad = { ...existingActivity };
   posts.forEach((post,index)=>{
     autoPosts[post.id] = {
       title:post.title,
@@ -2478,16 +2489,16 @@ function persistMarketingAutoPosts(reason='partidos'){
       generatedAt:now
     };
     if(!existingActivity[post.id]){
-      batch[`${base}/actividad/${post.id}`] = {
+      actividad[post.id] = {
         status:index<3 ? 'programado' : 'borrador',
         updatedAt:now,
         title:post.title,
         auto:true
       };
+      batch[`${base}/actividad/${post.id}`] = actividad[post.id];
     }
   });
-  batch[`${base}/autoPosts`] = autoPosts;
-  batch[`${base}/autoPostsMeta`] = {
+  const autoPostsMeta = {
     updatedAt:now,
     reason,
     total:posts.length,
@@ -2495,7 +2506,21 @@ function persistMarketingAutoPosts(reason='partidos'){
     cupStage:cup?.stageLabel || '',
     summary:posts.slice(0,3).map(p=>p.title).join(' · ')
   };
+  batch[`${base}/autoPosts`] = autoPosts;
+  batch[`${base}/autoPostsMeta`] = autoPostsMeta;
   batch[`${base}/updatedAt`] = now;
+  if(fs){
+    return saveDoc('mercadotecnia', getMarketingKey(), scopedPayload({
+      torneo:currentTorneo,
+      cat:currentCat,
+      autoPosts,
+      actividad,
+      autoPostsMeta,
+      updatedAt:now
+    })).catch(err=>{
+      console.error(err);
+    });
+  }
   return db.ref().update(batch).catch(err=>{
     console.error(err);
   });
@@ -2618,30 +2643,41 @@ function renderMercadotecnia(){
   }
 }
 
-function saveMarketingNetworks(){
+async function saveMarketingNetworks(){
   const redes = readMarketingNetworksForm();
-  db.ref(`mercadotecnia/${getMarketingKey()}`).update({
+  const patch = scopedPayload({
+    torneo:currentTorneo,
+    cat:currentCat,
     redes,
     updatedAt:Date.now()
-  }).then(()=>{
+  });
+  try{
+    if(fs) await saveDoc('mercadotecnia', getMarketingKey(), patch);
+    else await db.ref(`mercadotecnia/${getMarketingKey()}`).update(patch);
     showToast('Datos de redes guardados','tg');
-  }).catch(err=>{
+  }catch(err){
     console.error(err);
     showToast('No se pudieron guardar los datos de redes','tr');
-  });
+  }
 }
 
-function setMarketingPostStatus(id, status){
-  db.ref(`mercadotecnia/${getMarketingKey()}/actividad/${id}`).update({
+async function setMarketingPostStatus(id, status){
+  const data = getMarketingData();
+  const actividad = { ...(data.actividad || {}) };
+  actividad[id] = {
+    ...(actividad[id] || {}),
     status,
     updatedAt:Date.now(),
     title:marketingPostsCache[id]?.title || id
-  }).then(()=>{
+  };
+  try{
+    if(fs) await saveDoc('mercadotecnia', getMarketingKey(), scopedPayload({ torneo:currentTorneo, cat:currentCat, actividad, updatedAt:Date.now() }));
+    else await db.ref(`mercadotecnia/${getMarketingKey()}/actividad/${id}`).update(actividad[id]);
     showToast(`Estado actualizado a ${getMarketingStatusLabel(status)}`,'tg');
-  }).catch(err=>{
+  }catch(err){
     console.error(err);
     showToast('No se pudo actualizar el estado','tr');
-  });
+  }
 }
 
 function openMarketingPostShare(id){
@@ -2663,10 +2699,14 @@ async function generarIdeasMerca(){
   if(btn){ btn.disabled = true; btn.textContent = 'Actualizando...'; }
   try{
     const ideas = buildMarketingIdeasFallback();
-    await db.ref(`mercadotecnia/${getMarketingKey()}`).update({
+    const patch = scopedPayload({
+      torneo:currentTorneo,
+      cat:currentCat,
       ideasMarketing:ideas,
       ideasUpdatedAt:Date.now()
     });
+    if(fs) await saveDoc('mercadotecnia', getMarketingKey(), patch);
+    else await db.ref(`mercadotecnia/${getMarketingKey()}`).update(patch);
     const ideasEl = document.getElementById('mercaIdeasOutput');
     if(ideasEl) ideasEl.innerHTML = `<pre>${escapeHtml(ideas)}</pre>`;
     showToast('Ideas de Mercadotecnia actualizadas','tg');
