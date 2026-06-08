@@ -195,15 +195,15 @@ async function saveInscEquipo() {
     return;
   }
   const key = document.getElementById('ie_key').value;
-  const torneo = document.getElementById('ie_torneo').value;
-  const cat = document.getElementById('ie_cat').value;
+  const torneo = appTorneoId(document.getElementById('ie_torneo').value || currentTorneo || 'lombardo_toledano');
+  const cat = appCatId(document.getElementById('ie_cat').value || currentCat || 'cat_libre_varonil');
   if (!canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) {
     showToast('No tienes permiso para esa categoría', 'tr');
     return;
   }
   if (fs) {
-    const appTorneo = torneo || currentTorneo || 'lombardo_toledano';
-    const appCat = cat || currentCat || 'cat_libre_varonil';
+    const appTorneo = appTorneoId(torneo || currentTorneo || 'lombardo_toledano');
+    const appCat = appCatId(cat || currentCat || 'cat_libre_varonil');
     const torneoId = firestoreTorneoId(appTorneo);
     const categoriaId = firestoreCatId(appCat);
     const inscripcionId = key || ('inscripcion_' + slugifyId(nombre) + '_' + torneoId.replace('torneo_', ''));
@@ -245,6 +245,8 @@ async function saveInscEquipo() {
     nombre,
     torneo,
     cat,
+    torneoId: firestoreTorneoId(torneo),
+    categoriaId: firestoreCatId(cat),
     montoTotal: parseInt(document.getElementById('ie_monto').value, 10) || 0,
     logo: document.getElementById('ie_logo').value || null,
     updatedAt: Date.now()
@@ -274,8 +276,8 @@ function editInscEquipo(key) {
   document.getElementById('ie_key').value = key;
   document.getElementById('ieModalTitle').textContent = 'Editar Equipo';
   document.getElementById('ie_nombre').value = inscripcion.nombre || '';
-  document.getElementById('ie_torneo').value = inscripcion.torneo || currentTorneo;
-  document.getElementById('ie_cat').value = inscripcion.cat || currentCat;
+  document.getElementById('ie_torneo').value = torneo;
+  document.getElementById('ie_cat').value = cat;
   document.getElementById('ie_monto').value = inscripcion.montoTotal || 0;
   document.getElementById('ie_logo').value = inscripcion.logo || '';
   if (inscripcion.logo) {
@@ -349,8 +351,8 @@ async function saveAbono() {
     const nuevoSaldo = Math.max(0, montoTotal - nuevoMontoPagado);
     const nuevoEstado = nuevoSaldo === 0 ? 'liquidado' : nuevoMontoPagado > 0 ? 'abonado' : 'pendiente';
     const pagoId = 'pago_' + (inscripcion.equipoId || slugifyId(inscripcion.nombre)) + '_' + Date.now();
-    const torneo = inscripcion.torneo || currentTorneo;
-    const cat = inscripcion.cat || currentCat;
+    const torneo = appTorneoId(inscripcion.torneo || inscripcion.torneoId || currentTorneo || 'lombardo_toledano');
+    const cat = appCatId(inscripcion.cat || inscripcion.categoriaId || currentCat || 'cat_libre_varonil');
 
     try {
       const batch = fs.batch();
@@ -359,8 +361,8 @@ async function saveAbono() {
       batch.set(pagoRef, {
         torneo,
         cat,
-        torneoId: inscripcion.torneoId || firestoreTorneoId(torneo),
-        categoriaId: inscripcion.categoriaId || firestoreCatId(cat),
+        torneoId: firestoreTorneoId(torneo),
+        categoriaId: firestoreCatId(cat),
         equipoId: inscripcion.equipoId || null,
         equipoNombre: inscripcion.equipoNombre || inscripcion.nombre || '',
         inscripcionId: key,
