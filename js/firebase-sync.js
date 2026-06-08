@@ -34,11 +34,11 @@ function setupFirestoreCoreListeners() {
 
     snapshot.forEach((doc) => {
       const data = doc.data() || {};
-      const torneo = appTorneoId(data.torneoId || data.torneo);
-      const cat = appCatId(data.categoriaId || data.cat);
+      const scoped = normalizeScopedRecord(data);
+      const { torneo, cat, torneoId, categoriaId } = scoped;
 
       C.equipos[doc.id] = {
-        ...data,
+        ...scoped,
         _key: doc.id,
         nombre: data.nombre || data.equipoNombre || '',
         nombreNormalizado: data.nombreNormalizado || slugifyId(data.nombre || data.equipoNombre || '').replace(/_/g, ' '),
@@ -47,8 +47,8 @@ function setupFirestoreCoreListeners() {
         capitan: data.capitan || '',
         torneo,
         cat,
-        torneoId: data.torneoId || firestoreTorneoId(torneo),
-        categoriaId: data.categoriaId || firestoreCatId(cat),
+        torneoId,
+        categoriaId,
         color: data.color || '#1a3a8a',
         logo: data.logo || null,
         portero: data.portero || null,
@@ -71,18 +71,18 @@ function setupFirestoreCoreListeners() {
 
     snapshot.forEach((doc) => {
       const data = doc.data() || {};
-      const torneo = appTorneoId(data.torneoId || data.torneo);
-      const cat = appCatId(data.categoriaId || data.cat);
+      const scoped = normalizeScopedRecord(data);
+      const { torneo, cat, torneoId, categoriaId } = scoped;
 
       C.inscripciones[doc.id] = {
-        ...data,
+        ...scoped,
         _key: doc.id,
         nombre: data.nombre || data.equipoNombre || '',
         equipoNombre: data.equipoNombre || data.nombre || '',
         torneo,
         cat,
-        torneoId: data.torneoId || firestoreTorneoId(torneo),
-        categoriaId: data.categoriaId || firestoreCatId(cat),
+        torneoId,
+        categoriaId,
         equipoId: data.equipoId || null,
         montoTotal: Number(data.montoTotal || data.monto || 0),
         montoPagado: Number(data.montoPagado || 0),
@@ -108,16 +108,16 @@ function setupFirestoreCoreListeners() {
 
     snapshot.forEach((doc) => {
       const data = doc.data() || {};
-      const torneo = appTorneoId(data.torneoId || data.torneo);
-      const cat = appCatId(data.categoriaId || data.cat);
+      const scoped = normalizeScopedRecord(data);
+      const { torneo, cat, torneoId, categoriaId } = scoped;
 
       C.pagos[doc.id] = {
-        ...data,
+        ...scoped,
         _key: doc.id,
         torneo,
         cat,
-        torneoId: data.torneoId || firestoreTorneoId(torneo),
-        categoriaId: data.categoriaId || firestoreCatId(cat),
+        torneoId,
+        categoriaId,
         monto: Number(data.monto || 0),
         cancelado: !!data.cancelado
       };
