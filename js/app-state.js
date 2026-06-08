@@ -208,36 +208,44 @@ function hasAdminSession() {
 }
 
 function getAllowedTorneos() {
+  return [...TOURNAMENT_OPTION_ORDER];
+}
+
+function getManagedTorneos() {
   if (isOwner || !hasAdminSession()) return [...TOURNAMENT_OPTION_ORDER];
   const allowed = Object.keys(adminScope || {}).filter((key) => TORNEO_NAMES[key]);
   return allowed.length ? allowed : [];
 }
 
 function getAllowedCats(torneo = currentTorneo) {
-  const cfgCats = (TORNEO_CONFIG[torneo]?.categories || []).map((cat) => cat.key);
+  const normalizedTorneo = appTorneoId(torneo);
+  const cfgCats = (TORNEO_CONFIG[normalizedTorneo]?.categories || []).map((cat) => cat.key);
+  return cfgCats;
+}
+
+function getManagedCats(torneo = currentTorneo) {
+  const normalizedTorneo = appTorneoId(torneo);
+  const cfgCats = (TORNEO_CONFIG[normalizedTorneo]?.categories || []).map((cat) => cat.key);
   if (isOwner || !hasAdminSession()) return cfgCats;
-  const allowed = adminScope?.[torneo] || [];
+  const allowed = adminScope?.[normalizedTorneo] || [];
   return allowed.length ? cfgCats.filter((cat) => allowed.includes(cat)) : [];
 }
 
 function canAccessTorneo(torneo) {
   const normalizedTorneo = appTorneoId(torneo);
-  return !hasAdminSession() || isOwner || getAllowedTorneos().includes(normalizedTorneo);
+  return !hasAdminSession() || isOwner || getManagedTorneos().includes(normalizedTorneo);
 }
 
 function canAccessCat(cat, torneo = currentTorneo) {
   const normalizedTorneo = appTorneoId(torneo);
   const normalizedCat = appCatId(cat);
-  return !hasAdminSession() || isOwner || getAllowedCats(normalizedTorneo).includes(normalizedCat);
+  return !hasAdminSession() || isOwner || getManagedCats(normalizedTorneo).includes(normalizedCat);
 }
 
 function ensureAllowedTournamentAndCat() {
-  if (!hasAdminSession() || isOwner) return;
-  const allowedTorneos = getAllowedTorneos();
-  if (!allowedTorneos.length) return;
-  if (!allowedTorneos.includes(currentTorneo)) currentTorneo = allowedTorneos[0];
-  const allowedCats = getAllowedCats(currentTorneo);
-  if (allowedCats.length && !allowedCats.includes(currentCat)) currentCat = allowedCats[0];
+  if (!TORNEO_NAMES[currentTorneo]) currentTorneo = TOURNAMENT_OPTION_ORDER[0] || 'lombardo_toledano';
+  const visibleCats = getAllowedCats(currentTorneo);
+  if (visibleCats.length && !visibleCats.includes(currentCat)) currentCat = visibleCats[0];
 }
 
 const splashMainLogoOnLoad = document.querySelector('#splash > div img');
@@ -249,10 +257,6 @@ hydrateSplashTournamentCards();
 
 function selectTorneo(t) {
   t = appTorneoId(t);
-  if (hasAdminSession() && !canAccessTorneo(t)) {
-    showToast('No tienes permiso para este torneo', 'tr');
-    return;
-  }
   currentTorneo = TORNEO_NAMES[t] ? t : 'lombardo_toledano';
   localStorage.setItem('ld_torneo', currentTorneo);
   loadCustomCats();
@@ -273,13 +277,12 @@ function syncFixedSelectors() {
     const el = document.getElementById(id);
     if (!el) return;
     el.innerHTML = torneoOptions;
-    el.value = canAccessTorneo(currentTorneo) ? currentTorneo : (getAllowedTorneos()[0] || currentTorneo);
+    el.value = TORNEO_NAMES[currentTorneo] ? currentTorneo : (getAllowedTorneos()[0] || currentTorneo);
   });
 
-  const catIds = ['gen_cat', 'mp_cat', 'eq_cat', 'ie_cat', 'temp_cat'];
+  const catIds = ['gen_cat', 'mp_cat', 'eq_cat', 'ie_cat', 'temp_cat', 'rc_cat'];
   const catOptions = catOrderKeys
     .filter((key) => CAT_NAMES[key])
-    .filter((key) => canAccessCat(key))
     .map((key) => `<option value="${key}">${CAT_NAMES[key]}</option>`)
     .join('');
 
@@ -288,7 +291,7 @@ function syncFixedSelectors() {
     if (!el) return;
     const prev = el.value;
     el.innerHTML = catOptions;
-    if (prev && CAT_NAMES[prev] && canAccessCat(prev)) el.value = prev;
+    if (prev && CAT_NAMES[prev]) el.value = prev;
     else el.value = currentCat;
   });
 }
@@ -381,10 +384,6 @@ function launchApp() {
 
 function selectCat(cat, btn) {
   cat = appCatId(cat);
-  if (hasAdminSession() && !canAccessCat(cat)) {
-    showToast('No tienes permiso para esta categoria', 'tr');
-    return;
-  }
   currentCat = cat;
   document.querySelectorAll('.cat-tab').forEach((b) => b.classList.remove('active'));
   btn.classList.add('active');
@@ -438,11 +437,4 @@ function loadCustomCats() {
       catOrderKeys = ordered;
     }
   } catch (_err) {}
-  if (hasAdminSession() && !isOwner) {
-    const allowed = getAllowedCats(currentTorneo);
-    Object.keys(CAT_NAMES).forEach((key) => {
-      if (!allowed.includes(key)) delete CAT_NAMES[key];
-    });
-    catOrderKeys = catOrderKeys.filter((key) => allowed.includes(key));
-  }
 }
