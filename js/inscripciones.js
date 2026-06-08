@@ -53,8 +53,8 @@ function toggleInscCat(catKey, checked) {
 function getFilteredInsc() {
   const selectedCats = getInscSelectedCats();
   return getInsc().filter((inscripcion) => {
-    const torneo = inscripcion.torneo || 'villa';
-    const cat = inscripcion.cat || 'liga_alta';
+    const torneo = appTorneoId(inscripcion.torneo || inscripcion.torneoId || 'lombardo_toledano');
+    const cat = appCatId(inscripcion.cat || inscripcion.categoriaId || 'cat_libre_varonil');
     return torneo === currentTorneo && selectedCats.includes(cat) && canAccessTorneo(torneo) && canAccessCat(cat, torneo);
   });
 }
@@ -106,7 +106,7 @@ function renderInscripciones() {
 
   const groups = {};
   inscripciones.forEach((inscripcion) => {
-    const catKey = inscripcion.cat || 'liga_alta';
+    const catKey = appCatId(inscripcion.cat || inscripcion.categoriaId || 'cat_libre_varonil');
     if (!groups[catKey]) groups[catKey] = [];
     groups[catKey].push(inscripcion);
   });
@@ -202,8 +202,8 @@ async function saveInscEquipo() {
     return;
   }
   if (fs) {
-    const appTorneo = torneo || currentTorneo || 'villa';
-    const appCat = cat || currentCat || 'liga_alta';
+    const appTorneo = torneo || currentTorneo || 'lombardo_toledano';
+    const appCat = cat || currentCat || 'cat_libre_varonil';
     const torneoId = firestoreTorneoId(appTorneo);
     const categoriaId = firestoreCatId(appCat);
     const inscripcionId = key || ('inscripcion_' + slugifyId(nombre) + '_' + torneoId.replace('torneo_', ''));
@@ -268,7 +268,9 @@ function resetInscForm() {
 
 function editInscEquipo(key) {
   const inscripcion = C.inscripciones[key];
-  if (!inscripcion || !canAccessTorneo(inscripcion.torneo || 'villa') || !canAccessCat(inscripcion.cat || 'liga_alta', inscripcion.torneo || 'villa')) return;
+  const torneo = appTorneoId(inscripcion?.torneo || inscripcion?.torneoId || 'lombardo_toledano');
+  const cat = appCatId(inscripcion?.cat || inscripcion?.categoriaId || 'cat_libre_varonil');
+  if (!inscripcion || !canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) return;
   document.getElementById('ie_key').value = key;
   document.getElementById('ieModalTitle').textContent = 'Editar Equipo';
   document.getElementById('ie_nombre').value = inscripcion.nombre || '';
@@ -287,7 +289,9 @@ function editInscEquipo(key) {
 
 function deleteInsc(key) {
   const inscripcion = C.inscripciones[key];
-  if (!inscripcion || !canAccessTorneo(inscripcion.torneo || 'villa') || !canAccessCat(inscripcion.cat || 'liga_alta', inscripcion.torneo || 'villa')) {
+  const torneo = appTorneoId(inscripcion?.torneo || inscripcion?.torneoId || 'lombardo_toledano');
+  const cat = appCatId(inscripcion?.cat || inscripcion?.categoriaId || 'cat_libre_varonil');
+  if (!inscripcion || !canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) {
     showToast('No tienes permiso para eliminar esta inscripción', 'tr');
     return;
   }
@@ -307,7 +311,9 @@ function deleteInsc(key) {
 
 function openAbonoModal(key) {
   const inscripcion = C.inscripciones[key];
-  if (!inscripcion || !canAccessTorneo(inscripcion.torneo || 'villa') || !canAccessCat(inscripcion.cat || 'liga_alta', inscripcion.torneo || 'villa')) {
+  const torneo = appTorneoId(inscripcion?.torneo || inscripcion?.torneoId || 'lombardo_toledano');
+  const cat = appCatId(inscripcion?.cat || inscripcion?.categoriaId || 'cat_libre_varonil');
+  if (!inscripcion || !canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) {
     showToast('No tienes permiso para esta inscripción', 'tr');
     return;
   }
@@ -322,7 +328,9 @@ function openAbonoModal(key) {
 async function saveAbono() {
   const key = document.getElementById('ab_insc_key').value;
   const inscripcion = C.inscripciones[key];
-  if (!inscripcion || !canAccessTorneo(inscripcion.torneo || 'villa') || !canAccessCat(inscripcion.cat || 'liga_alta', inscripcion.torneo || 'villa')) {
+  const torneoPermitido = appTorneoId(inscripcion?.torneo || inscripcion?.torneoId || 'lombardo_toledano');
+  const catPermitida = appCatId(inscripcion?.cat || inscripcion?.categoriaId || 'cat_libre_varonil');
+  if (!inscripcion || !canAccessTorneo(torneoPermitido) || !canAccessCat(catPermitida, torneoPermitido)) {
     showToast('No tienes permiso para esta inscripción', 'tr');
     return;
   }
