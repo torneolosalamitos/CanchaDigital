@@ -607,10 +607,10 @@ function openEditPartido(key) {
   resetPartidoForm();
   document.getElementById('mp_key').value = key;
   document.getElementById('mpModalTitle').textContent = 'Editar Partido';
-  document.getElementById('mp_torneo').value = p.torneo || 'villa';
-  document.getElementById('mp_cat').value = p.cat || 'liga_alta';
+  document.getElementById('mp_torneo').value = appTorneoId(p.torneo || p.torneoId || 'lombardo_toledano');
+  document.getElementById('mp_cat').value = appCatId(p.cat || p.categoriaId || 'cat_libre_varonil');
   updateMPEquipos();
-  document.getElementById('mp_cancha').value = p.cancha || 'Los Alamitos';
+  document.getElementById('mp_cancha').value = p.cancha || 'Cancha Principal';
   document.getElementById('mp_arbitro').value = p.arbId || '';
   document.getElementById('mp_fecha').value = p.fecha || '';
   document.getElementById('mp_hora_ini').value = p.horaIni || '';
