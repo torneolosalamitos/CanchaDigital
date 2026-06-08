@@ -238,6 +238,47 @@ function scopedPayload(data = {}) {
   };
 }
 
+function normalizeLookupText(value) {
+  return slugifyId(value || '');
+}
+
+function getTournamentCatKeys(torneo = currentTorneo) {
+  const configCats = TORNEO_CONFIG?.[appTorneoId(torneo)]?.categories || [];
+  if (configCats.length) return configCats.map((cat) => cat.key);
+  return (catOrderKeys || []).filter((key) => CAT_NAMES[key]);
+}
+
+function findEquipoForInscripcion(inscripcion = {}) {
+  const equipoKey = inscripcion.equipoId || inscripcion.equipoKey;
+  if (equipoKey && C.equipos?.[equipoKey]) return { key: equipoKey, data: C.equipos[equipoKey] };
+
+  const torneo = appTorneoId(inscripcion.torneo || inscripcion.torneoId || currentTorneo);
+  const cat = appCatId(inscripcion.cat || inscripcion.categoriaId || currentCat);
+  const name = normalizeLookupText(inscripcion.equipoNombre || inscripcion.nombre);
+  if (!name) return null;
+
+  const found = Object.entries(C.equipos || {}).find(([, equipo]) => (
+    appTorneoId(equipo.torneo || equipo.torneoId || currentTorneo) === torneo &&
+    appCatId(equipo.cat || equipo.categoriaId || currentCat) === cat &&
+    normalizeLookupText(equipo.nombre) === name
+  ));
+  return found ? { key: found[0], data: found[1] } : null;
+}
+
+function findInscripcionForEquipo(equipoKey, equipo = {}, torneoArg, catArg) {
+  const torneo = appTorneoId(torneoArg || equipo.torneo || equipo.torneoId || currentTorneo);
+  const cat = appCatId(catArg || equipo.cat || equipo.categoriaId || currentCat);
+  const name = normalizeLookupText(equipo.nombre);
+  const found = Object.entries(C.inscripciones || {}).find(([, inscripcion]) => {
+    const inscTorneo = appTorneoId(inscripcion.torneo || inscripcion.torneoId || currentTorneo);
+    const inscCat = appCatId(inscripcion.cat || inscripcion.categoriaId || currentCat);
+    if (inscTorneo !== torneo || inscCat !== cat) return false;
+    if (equipoKey && (inscripcion.equipoId === equipoKey || inscripcion.equipoKey === equipoKey)) return true;
+    return name && normalizeLookupText(inscripcion.equipoNombre || inscripcion.nombre) === name;
+  });
+  return found ? { key: found[0], data: found[1] } : null;
+}
+
 function normalizeAdminScope(rawScope) {
   if (!rawScope || typeof rawScope !== 'object') return {};
   const scope = {};
