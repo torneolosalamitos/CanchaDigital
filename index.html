@@ -57,7 +57,7 @@
 
   <!-- Tournament cards -->
   <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px">
-    <div onclick="selectTorneo('villa')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
+    <div onclick="selectTorneo('lombardo_toledano')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
       <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-lombardo-toledano.png" alt="TORNEO LOMBARDO TOLEDANO" style="width:60px;height:60px;object-fit:contain;"/></div>
       <div style="flex:1">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO LOMBARDO TOLEDANO</div>
@@ -157,13 +157,11 @@
   </div>
   <!-- Category tabs -->
   <div class="cat-tabs" id="catTabsContainer">
-    <button class="cat-tab active" onclick="selectCat('liga_alta',this)">CATEGORÍA LIBRE VARONIL</button>
+    <button class="cat-tab active" onclick="selectCat('cat_libre_varonil',this)">CATEGORÍA LIBRE VARONIL</button>
     <button class="cat-tab" onclick="selectCat('cat_libre_femenil',this)">CATEGORÍA LIBRE FEMENIL</button>
     <button class="cat-tab" onclick="selectCat('cat_infantil',this)">CATEGORÍA INFANTIL</button>
     <button class="cat-tab" onclick="selectCat('cat_juvenil_a',this)">CATEGORÍA JUVENIL A</button>
     <button class="cat-tab" onclick="selectCat('cat_juvenil_b',this)">CATEGORÍA JUVENIL B</button>
-    <button class="cat-tab" id="catTab_baja_a" onclick="selectCat('liga_baja_a',this)" style="display:none">Liga Baja A</button>
-    <button class="cat-tab" id="catTab_baja_b" onclick="selectCat('liga_baja_b',this)" style="display:none">Liga Baja B</button>
     <button id="catAddBtn" onclick="openAddCatInline()" style="display:none;background:none;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,.5);padding:0 12px;cursor:pointer;font-size:18px;flex-shrink:0;line-height:36px" title="Agregar categoría">＋</button>
   </div>
   <!-- Nav -->
@@ -306,9 +304,9 @@
   <div style="position:relative;overflow:hidden;border-radius:24px;padding:24px 20px 22px;margin-bottom:16px;background:linear-gradient(135deg,#0f172a 0%,#1a3a8a 55%,#2554d4 100%);box-shadow:0 16px 36px rgba(26,58,138,.28);">
     <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#ca8a04,#2ea83c,#4d7ef5);border-radius:24px 24px 0 0;"></div>
     <div style="position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(77,126,245,.22),transparent 55%);pointer-events:none;"></div>
-    <div style="font-size:10px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:rgba(253,224,71,.9);margin-bottom:6px;position:relative;z-index:1;">⚽ Torneo Los Alamitos · Fútbol 7</div>
+    <div style="font-size:10px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:rgba(253,224,71,.9);margin-bottom:6px;position:relative;z-index:1;">⚽ Torneo Lombardo Toledano · Fútbol 7</div>
     <div id="reglHeroTitle" style="font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:2px;color:#fff;line-height:.95;position:relative;z-index:1;">Reglamento<br>& Premios</div>
-    <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.65);margin-top:8px;line-height:1.55;position:relative;z-index:1;">Unidad Deportiva Los Alamitos · Cancha de Pasto Natural</div>
+    <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.65);margin-top:8px;line-height:1.55;position:relative;z-index:1;">Cancha Principal · Torneo Lombardo Toledano</div>
   </div>
 
   <!-- Placeholder para categorías sin reglamento -->
@@ -1199,19 +1197,19 @@
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
         <select class="fi" id="mp_torneo" onchange="updateMPEquipos()">
-          <option value="villa">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
         <select class="fi" id="mp_cat" onchange="updateMPEquipos()">
-          <option value="liga_alta">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
         </select>
       </div>
     </div>
     <div class="form-2">
       <div class="fg"><label class="fl">Cancha</label>
         <select class="fi" id="mp_cancha">
-          <option value="Los Alamitos">Los Alamitos</option>
+          <option value="Cancha Principal">Cancha Principal</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Árbitro</label>
@@ -1372,12 +1370,12 @@
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
         <select class="fi" id="eq_torneo">
-          <option value="villa">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
         <select class="fi" id="eq_cat">
-          <option value="liga_alta">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
         </select>
       </div>
     </div>
@@ -1454,12 +1452,12 @@
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
         <select class="fi" id="ie_torneo">
-          <option value="villa">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
         <select class="fi" id="ie_cat">
-          <option value="liga_alta">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
         </select>
       </div>
     </div>
@@ -1587,7 +1585,7 @@
     <div class="fg"><label class="fl">Nombre de la temporada</label><input class="fi" id="temp_nombre" placeholder="Ej: Torneo Villa 2026 — Liga Alta"/></div>
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
-        <select class="fi" id="temp_torneo"><option value="villa">TORNEO LOMBARDO TOLEDANO</option></select>
+        <select class="fi" id="temp_torneo"><option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option></select>
       </div>
       <div class="fg"><label class="fl">Categoría</label>
         <select class="fi" id="temp_cat">
@@ -1780,7 +1778,7 @@
     </div>
     <div class="fg"><label class="fl">Torneo</label>
       <select class="fi" id="rc_torneo">
-        <option value="villa">TORNEO LOMBARDO TOLEDANO</option>
+        <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
       </select>
     </div>
     <div class="fg" style="margin-top:8px"><label class="fl">Categoría</label>
@@ -1985,8 +1983,9 @@ function updateAdminUI(adminFlag, ownerFlag, captainFlag, capEquipoKey){
   if(tiendaToggleWrap) tiendaToggleWrap.style.display = adminFlag ? 'block' : 'none';
   ensureAllowedTournamentAndCat();
   // Always show the tournament selector first when opening the link.
-  const saved = localStorage.getItem('ld_torneo');
+  const saved = appTorneoId(localStorage.getItem('ld_torneo'));
   if(saved && TORNEO_NAMES[saved] && canAccessTorneo(saved)) currentTorneo = saved;
+  if(saved && saved !== localStorage.getItem('ld_torneo')) localStorage.setItem('ld_torneo', saved);
   if(saved && !TORNEO_NAMES[saved]) localStorage.removeItem('ld_torneo');
   document.getElementById('splash').style.display='flex';
   document.getElementById('appShell').style.display='none';
@@ -2011,6 +2010,7 @@ function openJoinRequest(){
   const sel = document.getElementById('jr_equipo_sel');
   if(!sel) return;
   const equipos = Object.entries(C.equipos||{})
+    .map(([k,e]) => [k, normalizeScopedRecord(e)])
     .filter(([,e])=>e.torneo===currentTorneo)
     .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
   sel.innerHTML = '<option value="">— Seleccionar equipo —</option>' +
@@ -2100,20 +2100,25 @@ const isPageActive = p => document.getElementById('page-'+p)?.classList.contains
 // ══════════════════════════════════════
 //  HELPERS
 // ══════════════════════════════════════
-const scopeTorneoOf = (record) => record?.torneo || 'villa';
-const scopeCatOf = (record) => record?.cat || 'liga_alta';
+const normalizeScopedRecord = (record) => ({
+  ...record,
+  torneo: appTorneoId(record?.torneo || record?.torneoId || 'lombardo_toledano'),
+  cat: appCatId(record?.cat || record?.categoriaId || 'cat_libre_varonil')
+});
+const scopeTorneoOf = (record) => appTorneoId(record?.torneo || record?.torneoId || 'lombardo_toledano');
+const scopeCatOf = (record) => appCatId(record?.cat || record?.categoriaId || 'cat_libre_varonil');
 const canReadScopedRecord = (record, useCat = true) => {
   if (!isAdmin || isOwner) return true;
   const torneo = scopeTorneoOf(record);
   const cat = scopeCatOf(record);
   return canAccessTorneo(torneo) && (!useCat || canAccessCat(cat, torneo));
 };
-const getParts = () => Object.entries(C.partidos).map(([k,v])=>({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
-const getEqs = () => Object.entries(C.equipos).map(([k,v])=>({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
+const getParts = () => Object.entries(C.partidos).map(([k,v])=>normalizeScopedRecord({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
+const getEqs = () => Object.entries(C.equipos).map(([k,v])=>normalizeScopedRecord({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
 const getProd = () => Object.entries(C.productos).map(([k,v])=>({...v,_key:k}));
-const getVentas = () => Object.entries(C.ventas).map(([k,v])=>({...v,_key:k})).filter((v)=>canReadScopedRecord(v)).sort((a,b)=>b.ts-a.ts);
+const getVentas = () => Object.entries(C.ventas).map(([k,v])=>normalizeScopedRecord({...v,_key:k})).filter((v)=>canReadScopedRecord(v)).sort((a,b)=>b.ts-a.ts);
 const getArbs = () => Object.entries(C.arbitros).map(([k,v])=>({...v,_key:k}));
-const getInsc = () => Object.entries(C.inscripciones).map(([k,v])=>({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
+const getInsc = () => Object.entries(C.inscripciones).map(([k,v])=>normalizeScopedRecord({...v,_key:k})).filter((v)=>canReadScopedRecord(v));
 const fmt = s=>{ const m=Math.floor(s/60),ss=Math.floor(s%60); return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; };
 const fmtDate = d=>{ if(!d)return'—'; const dt=new Date(d+'T12:00:00'); const days=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']; const months=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`; };
 
@@ -2125,7 +2130,7 @@ const todayISO = () => {
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const slugifyBasic = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 const MAKE_WEBHOOK_URL = 'https://hook.eu1.make.com/tb8luwfk1kkd3sdeoxif163k4vi7m4p1';
-const MAKE_TORNEO_NAME = 'Torneo Los Alamitos';
+const MAKE_TORNEO_NAME = 'Torneo Lombardo Toledano';
 const MAKE_CIUDAD_NAME = 'Culiacán, Sinaloa';
 const MAKE_RESULT_STALE_MS = 120000;
 
@@ -2804,6 +2809,7 @@ function openSetCaptain(uid){
   const sel = document.getElementById('sc_equipo');
   if(sel){
     const equipos = Object.entries(C.equipos||{})
+      .map(([k,e]) => [k, normalizeScopedRecord(e)])
       .filter(([,e])=>e.torneo===currentTorneo && e.cat===currentCat && (!isAdmin || isOwner || (canAccessTorneo(e.torneo) && canAccessCat(e.cat, e.torneo))))
       .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
     sel.innerHTML = '<option value="">— Seleccionar equipo —</option>' +
