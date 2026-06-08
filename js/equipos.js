@@ -470,7 +470,7 @@ async function saveEquipo() {
         const precioInscripcion = Number(categoriaData.precioInscripcion || 0);
         const fechaLimitePago = categoriaData.fechaLimitePago || '';
         const moneda = categoriaData.moneda || 'MXN';
-        const inscripcionId = 'inscripcion_' + slugifyId(n) + '_' + torneoId.replace('torneo_', '');
+        const inscripcionId = 'inscripcion_' + slugifyId(equipoId);
         const inscripcionRef = fs.collection('inscripciones').doc(inscripcionId);
         const batch = fs.batch();
 
@@ -481,8 +481,10 @@ async function saveEquipo() {
           torneoId,
           categoriaId,
           equipoId,
+          equipoKey: equipoId,
           equipoNombre: n,
           nombre: n,
+          logo,
           montoTotal: precioInscripcion,
           montoPagado: 0,
           saldo: precioInscripcion,
