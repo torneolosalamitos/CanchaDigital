@@ -1,5 +1,5 @@
-let currentTorneo = 'villa';
-let currentCat = 'liga_alta';
+let currentTorneo = 'lombardo_toledano';
+let currentCat = 'cat_libre_varonil';
 let fs = null;
 let activePartidoKey = null;
 let pendingGolSide = null;
@@ -32,27 +32,30 @@ const C = {
   solicitudes: {},
   mercadotecnia: {}
 };
-const CAT_NAMES = { liga_alta: 'Liga Alta', liga_media: 'Liga Media', liga_baja_a: 'Liga Baja A', liga_baja_b: 'Liga Baja B' };
+const CAT_NAMES = { cat_libre_varonil: 'CATEGORIA LIBRE VARONIL', cat_libre_femenil: 'CATEGORIA LIBRE FEMENIL' };
 let catOrderKeys = applyTournamentCatalogToCategoryMap(CAT_NAMES);
-const CANCHAS = ['Los Alamitos'];
+const CANCHAS = ['Cancha Principal'];
 const ORGANIZER_NAME = 'Jesus "Navo"';
 const ORGANIZER_PHONE = '667 452 5663';
 
 const FIRESTORE_TORNEO_TO_APP = {
-  torneo_lombardo_2026: 'villa',
-  villa: 'villa',
+  torneo_lombardo_2026: 'lombardo_toledano',
+  lombardo_toledano: 'lombardo_toledano',
+  villa: 'lombardo_toledano',
   torneo_nuevos_valores_2026: 'nuevos_valores',
   nuevos_valores: 'nuevos_valores'
 };
 
 const APP_TORNEO_TO_FIRESTORE = {
+  lombardo_toledano: 'torneo_lombardo_2026',
   villa: 'torneo_lombardo_2026',
   nuevos_valores: 'torneo_nuevos_valores_2026'
 };
 
 const FIRESTORE_CAT_TO_APP = {
-  cat_libre_varonil_lombardo: 'liga_alta',
-  liga_alta: 'liga_alta',
+  cat_libre_varonil_lombardo: 'cat_libre_varonil',
+  cat_libre_varonil: 'cat_libre_varonil',
+  liga_alta: 'cat_libre_varonil',
   cat_libre_femenil_lombardo: 'cat_libre_femenil',
   cat_libre_femenil: 'cat_libre_femenil',
   cat_infantil: 'cat_infantil',
@@ -61,6 +64,7 @@ const FIRESTORE_CAT_TO_APP = {
 };
 
 const APP_CAT_TO_FIRESTORE = {
+  cat_libre_varonil: 'cat_libre_varonil_lombardo',
   liga_alta: 'cat_libre_varonil_lombardo',
   cat_libre_femenil: 'cat_libre_femenil_lombardo',
   cat_infantil: 'cat_infantil',
@@ -69,11 +73,11 @@ const APP_CAT_TO_FIRESTORE = {
 };
 
 function appTorneoId(id) {
-  return FIRESTORE_TORNEO_TO_APP[id] || id || 'villa';
+  return FIRESTORE_TORNEO_TO_APP[id] || id || 'lombardo_toledano';
 }
 
 function appCatId(id) {
-  return FIRESTORE_CAT_TO_APP[id] || id || 'liga_alta';
+  return FIRESTORE_CAT_TO_APP[id] || id || 'cat_libre_varonil';
 }
 
 function firestoreTorneoId(id) {
@@ -108,10 +112,12 @@ function normalizeAdminScope(rawScope) {
   if (!rawScope || typeof rawScope !== 'object') return {};
   const scope = {};
   Object.entries(rawScope).forEach(([torneo, cats]) => {
-    const normalizedTorneo = ({ lombardo_toledano: 'villa', lombardo: 'villa' }[torneo]) || torneo;
+    const normalizedTorneo = appTorneoId(({ lombardo: 'lombardo_toledano' }[torneo]) || torneo);
     if (!TORNEO_NAMES[normalizedTorneo]) return;
     const list = Array.isArray(cats) ? cats : Object.keys(cats || {});
-    scope[normalizedTorneo] = list.filter((cat) => typeof cat === 'string');
+    scope[normalizedTorneo] = list
+      .map((cat) => appCatId(cat))
+      .filter((cat) => typeof cat === 'string');
   });
   return scope;
 }
@@ -178,7 +184,7 @@ function selectTorneo(t) {
     showToast('No tienes permiso para este torneo', 'tr');
     return;
   }
-  currentTorneo = TORNEO_NAMES[t] ? t : 'villa';
+  currentTorneo = TORNEO_NAMES[t] ? t : 'lombardo_toledano';
   localStorage.setItem('ld_torneo', currentTorneo);
   loadCustomCats();
   ensureAllowedTournamentAndCat();
@@ -254,7 +260,7 @@ function updateCatTabs() {
   if (bajaB) bajaB.style.display = 'none';
   if (bajaA) bajaA.style.display = 'none';
   if (!CAT_NAMES[currentCat]) {
-    currentCat = catOrderKeys[0] || 'liga_alta';
+    currentCat = catOrderKeys[0] || 'cat_libre_varonil';
     const firstTab = document.querySelector('.cat-tab');
     if (firstTab) firstTab.classList.add('active');
   }
