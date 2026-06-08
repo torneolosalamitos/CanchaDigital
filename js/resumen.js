@@ -115,7 +115,7 @@ function resumenCatOf(item) {
 }
 
 function getResumenTournamentCats() {
-  return (catOrderKeys || []).filter((key) => CAT_NAMES[key]);
+  return getTournamentCatKeys(currentTorneo).filter((key) => CAT_NAMES[key] && canAccessCat(key, currentTorneo));
 }
 
 function getResumenSelectedCats() {
@@ -145,7 +145,17 @@ function pct(num, den) {
 }
 
 function getAbonosArray(inscripcion) {
-  return inscripcion?.abonos ? Object.values(inscripcion.abonos) : [];
+  const legacy = inscripcion?.abonos ? Object.values(inscripcion.abonos) : [];
+  const inscKey = inscripcion?._key;
+  const firestorePagos = Object.entries(C.pagos || {})
+    .filter(([, pago]) => !pago.cancelado && inscKey && pago.inscripcionId === inscKey)
+    .map(([key, pago]) => ({
+      ...pago,
+      _key: key,
+      fecha: pago.fechaTexto || pago.fecha || '',
+      notas: pago.nota || pago.notas || ''
+    }));
+  return [...legacy, ...firestorePagos];
 }
 
 function getInscripcionPaid(inscripcion) {
@@ -251,7 +261,7 @@ function renderResumenFilters(selectedCats) {
   if (resumenScope !== 'custom') return;
 
   wrap.innerHTML = `
-    <div class="resumen-filter-title">Selecciona una o varias categorías para juntar sus resúmenes</div>
+    <div class="resumen-filter-title">Selecciona una o varias categorías del torneo actual para verlas en el periodo elegido: ${getResumenPeriodInfo().label}</div>
     <div class="resumen-cat-checks">
       ${getResumenTournamentCats().map((key) => `
         <label class="resumen-cat-check">
