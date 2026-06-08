@@ -30,7 +30,8 @@ const C = {
   turnos: {},
   usuarios: {},
   solicitudes: {},
-  mercadotecnia: {}
+  mercadotecnia: {},
+  temporadas: {}
 };
 const CAT_NAMES = { cat_libre_varonil: 'CATEGORIA LIBRE VARONIL', cat_libre_femenil: 'CATEGORIA LIBRE FEMENIL' };
 let catOrderKeys = applyTournamentCatalogToCategoryMap(CAT_NAMES);
@@ -56,6 +57,9 @@ const FIRESTORE_CAT_TO_APP = {
   cat_libre_varonil_lombardo: 'cat_libre_varonil',
   cat_libre_varonil: 'cat_libre_varonil',
   liga_alta: 'cat_libre_varonil',
+  liga_media: 'cat_libre_varonil',
+  liga_baja_a: 'cat_libre_varonil',
+  liga_baja_b: 'cat_libre_varonil',
   cat_libre_femenil_lombardo: 'cat_libre_femenil',
   cat_libre_femenil: 'cat_libre_femenil',
   cat_infantil: 'cat_infantil',
@@ -68,6 +72,9 @@ const FIRESTORE_CAT_TO_APP = {
 const APP_CAT_TO_FIRESTORE = {
   cat_libre_varonil: 'cat_libre_varonil_lombardo',
   liga_alta: 'cat_libre_varonil_lombardo',
+  liga_media: 'cat_libre_varonil_lombardo',
+  liga_baja_a: 'cat_libre_varonil_lombardo',
+  liga_baja_b: 'cat_libre_varonil_lombardo',
   cat_libre_femenil: 'cat_libre_femenil_lombardo',
   cat_infantil: 'cat_infantil',
   cat_osos: 'cat_osos',
@@ -111,6 +118,9 @@ function normalizeStoredState() {
 
   const legacyCatMap = {
     liga_alta: 'cat_libre_varonil',
+    liga_media: 'cat_libre_varonil',
+    liga_baja_a: 'cat_libre_varonil',
+    liga_baja_b: 'cat_libre_varonil',
     cat_juvenil_a: 'cat_juvenil',
     cat_juvenil_b: 'cat_juvenil'
   };
@@ -132,7 +142,7 @@ function normalizeStoredState() {
     if (value !== null) localStorage.removeItem(oldKey);
   });
 
-  const legacyCatKeys = new Set(['liga_alta', 'cat_juvenil_a', 'cat_juvenil_b']);
+  const legacyCatKeys = new Set(['liga_alta', 'liga_media', 'liga_baja_a', 'liga_baja_b', 'cat_juvenil_a', 'cat_juvenil_b']);
   ['lombardo_toledano', 'nuevos_valores'].forEach((torneo) => {
     try {
       const catsKey = 'ld_cats_' + torneo;
@@ -170,6 +180,62 @@ function firestoreServerTimestamp() {
   return firebase?.firestore?.FieldValue?.serverTimestamp
     ? firebase.firestore.FieldValue.serverTimestamp()
     : Date.now();
+}
+
+function collectionRef(name) {
+  if (!fs) return null;
+  return fs.collection(name);
+}
+
+function newDocId(prefix, base) {
+  const clean = slugifyId(base || '');
+  return `${prefix}_${clean || Date.now()}`;
+}
+
+async function saveDoc(collection, id, data) {
+  if (!fs) throw new Error('Firestore no disponible');
+  const payload = {
+    ...data,
+    actualizadoEn: firestoreServerTimestamp()
+  };
+  if (!id) {
+    const ref = await fs.collection(collection).add({
+      ...payload,
+      creadoEn: firestoreServerTimestamp()
+    });
+    return ref.id;
+  }
+  const ref = fs.collection(collection).doc(id);
+  const snap = await ref.get();
+  await ref.set({
+    ...payload,
+    ...(snap.exists ? {} : { creadoEn: firestoreServerTimestamp() })
+  }, { merge: true });
+  return id;
+}
+
+async function deleteDoc(collection, id) {
+  if (!fs) throw new Error('Firestore no disponible');
+  await fs.collection(collection).doc(id).delete();
+}
+
+async function updateDoc(collection, id, data) {
+  if (!fs) throw new Error('Firestore no disponible');
+  await fs.collection(collection).doc(id).update({
+    ...data,
+    actualizadoEn: firestoreServerTimestamp()
+  });
+}
+
+function scopedPayload(data = {}) {
+  const scoped = normalizeScopedRecord(data);
+  return {
+    ...data,
+    torneo: scoped.torneo,
+    cat: scoped.cat,
+    torneoId: scoped.torneoId,
+    categoriaId: scoped.categoriaId
+  };
 }
 
 function normalizeAdminScope(rawScope) {
