@@ -169,8 +169,8 @@ function openResetCategoria() {
 }
 
 function confirmarResetCategoria() {
-  const torneo = document.getElementById('rc_torneo').value;
-  const cat = document.getElementById('rc_cat').value;
+  const torneo = appTorneoId(document.getElementById('rc_torneo').value || currentTorneo || 'lombardo_toledano');
+  const cat = appCatId(document.getElementById('rc_cat').value || currentCat || 'cat_libre_varonil');
   const catNombre = CAT_NAMES[cat] || cat;
   const confirmVal = document.getElementById('rc_confirm').value.trim();
   if (confirmVal !== catNombre) {
@@ -179,13 +179,22 @@ function confirmarResetCategoria() {
   }
 
   const toDelParts = Object.entries(C.partidos || {})
-    .filter(([, partido]) => partido.torneo === torneo && partido.cat === cat)
+    .filter(([, partido]) => {
+      const scoped = normalizeScopedRecord(partido);
+      return scoped.torneo === torneo && scoped.cat === cat;
+    })
     .map(([key]) => key);
   const toDelEquipos = Object.entries(C.equipos || {})
-    .filter(([, equipo]) => equipo.torneo === torneo && equipo.cat === cat)
+    .filter(([, equipo]) => {
+      const scoped = normalizeScopedRecord(equipo);
+      return scoped.torneo === torneo && scoped.cat === cat;
+    })
     .map(([key]) => key);
   const toDelInscs = Object.entries(C.inscripciones || {})
-    .filter(([, inscripcion]) => inscripcion.torneo === torneo && inscripcion.cat === cat)
+    .filter(([, inscripcion]) => {
+      const scoped = normalizeScopedRecord(inscripcion);
+      return scoped.torneo === torneo && scoped.cat === cat;
+    })
     .map(([key]) => key);
 
   const updates = {};
