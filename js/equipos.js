@@ -378,8 +378,8 @@ function editEquipo(key) {
   document.getElementById('eqModalTitle').textContent = 'Editar Equipo';
   document.getElementById('eq_nombre').value = e.nombre || '';
   document.getElementById('eq_tel').value = e.tel || '';
-  document.getElementById('eq_torneo').value = e.torneo || 'villa';
-  document.getElementById('eq_cat').value = e.cat || 'liga_alta';
+  document.getElementById('eq_torneo').value = e.torneo || 'lombardo_toledano';
+  document.getElementById('eq_cat').value = e.cat || 'cat_libre_varonil';
   document.getElementById('eq_color').value = e.color || '#1a3a8a';
   document.getElementById('eq_portero').value = e.portero || '';
   if (e.logo) {
@@ -413,8 +413,8 @@ async function saveEquipo() {
   const alineacion = getEqLineup();
 
   if (fs) {
-    const appTorneo = torneo || currentTorneo || 'villa';
-    const appCat = cat || currentCat || 'liga_alta';
+    const appTorneo = torneo || currentTorneo || 'lombardo_toledano';
+    const appCat = cat || currentCat || 'cat_libre_varonil';
     const torneoId = firestoreTorneoId(appTorneo);
     const categoriaId = firestoreCatId(appCat);
     const equipoId = key || ('equipo_' + slugifyId(n));
