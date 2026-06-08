@@ -60,6 +60,8 @@ const FIRESTORE_CAT_TO_APP = {
   cat_libre_femenil: 'cat_libre_femenil',
   cat_infantil: 'cat_infantil',
   cat_osos: 'cat_osos',
+  cat_juvenil_a: 'cat_juvenil',
+  cat_juvenil_b: 'cat_juvenil',
   cat_juvenil: 'cat_juvenil'
 };
 
@@ -86,6 +88,68 @@ function firestoreTorneoId(id) {
 
 function firestoreCatId(id) {
   return APP_CAT_TO_FIRESTORE[id] || id || 'cat_libre_varonil_lombardo';
+}
+
+function normalizeScopedRecord(record = {}) {
+  const torneo = appTorneoId(record.torneo || record.torneoId || currentTorneo || 'lombardo_toledano');
+  const cat = appCatId(record.cat || record.categoriaId || currentCat || 'cat_libre_varonil');
+  return {
+    ...record,
+    torneo,
+    cat,
+    torneoId: record.torneoId || firestoreTorneoId(torneo),
+    categoriaId: record.categoriaId || firestoreCatId(cat)
+  };
+}
+
+function normalizeStoredState() {
+  const storedTorneo = localStorage.getItem('ld_torneo');
+  const normalizedTorneo = appTorneoId(storedTorneo);
+  if (storedTorneo && normalizedTorneo !== storedTorneo) {
+    localStorage.setItem('ld_torneo', normalizedTorneo);
+  }
+
+  const legacyCatMap = {
+    liga_alta: 'cat_libre_varonil',
+    cat_juvenil_a: 'cat_juvenil',
+    cat_juvenil_b: 'cat_juvenil'
+  };
+  const storedCat = localStorage.getItem('ld_cat');
+  if (storedCat && legacyCatMap[storedCat]) {
+    localStorage.setItem('ld_cat', legacyCatMap[storedCat]);
+  }
+
+  const keyMigrations = [
+    ['ld_copa_public_villa_liga_alta', 'ld_copa_public_lombardo_toledano_cat_libre_varonil'],
+    ['ld_goleadores_public_villa_liga_alta', 'ld_goleadores_public_lombardo_toledano_cat_libre_varonil'],
+    ['ld_porteros_public_villa_liga_alta', 'ld_porteros_public_lombardo_toledano_cat_libre_varonil'],
+    ['ld_cats_villa', 'ld_cats_lombardo_toledano'],
+    ['ld_cats_order_villa', 'ld_cats_order_lombardo_toledano']
+  ];
+  keyMigrations.forEach(([oldKey, newKey]) => {
+    const value = localStorage.getItem(oldKey);
+    if (value !== null && localStorage.getItem(newKey) === null) localStorage.setItem(newKey, value);
+    if (value !== null) localStorage.removeItem(oldKey);
+  });
+
+  const legacyCatKeys = new Set(['liga_alta', 'cat_juvenil_a', 'cat_juvenil_b']);
+  ['lombardo_toledano', 'nuevos_valores'].forEach((torneo) => {
+    try {
+      const catsKey = 'ld_cats_' + torneo;
+      const cats = JSON.parse(localStorage.getItem(catsKey) || 'null');
+      if (cats && typeof cats === 'object') {
+        legacyCatKeys.forEach((key) => delete cats[key]);
+        localStorage.setItem(catsKey, JSON.stringify(cats));
+      }
+      const orderKey = 'ld_cats_order_' + torneo;
+      const order = JSON.parse(localStorage.getItem(orderKey) || 'null');
+      if (Array.isArray(order)) {
+        localStorage.setItem(orderKey, JSON.stringify(order
+          .map((key) => legacyCatMap[key] || key)
+          .filter((key, index, arr) => !legacyCatKeys.has(key) && arr.indexOf(key) === index)));
+      }
+    } catch (_err) {}
+  });
 }
 
 function slugifyId(value) {
@@ -123,7 +187,7 @@ function normalizeAdminScope(rawScope) {
 }
 
 function catsToPermissionMap(cats = []) {
-  return Object.fromEntries(cats.filter(Boolean).map((cat) => [cat, true]));
+  return Object.fromEntries(cats.filter(Boolean).map((cat) => [appCatId(cat), true]));
 }
 
 function buildFullAdminScope() {
@@ -136,7 +200,7 @@ function buildFullAdminScope() {
 }
 
 function buildSingleAdminScope(torneo, cats = []) {
-  return { [torneo]: catsToPermissionMap(cats) };
+  return { [appTorneoId(torneo)]: catsToPermissionMap(cats) };
 }
 
 function hasAdminSession() {
@@ -157,11 +221,14 @@ function getAllowedCats(torneo = currentTorneo) {
 }
 
 function canAccessTorneo(torneo) {
-  return !hasAdminSession() || isOwner || getAllowedTorneos().includes(torneo);
+  const normalizedTorneo = appTorneoId(torneo);
+  return !hasAdminSession() || isOwner || getAllowedTorneos().includes(normalizedTorneo);
 }
 
 function canAccessCat(cat, torneo = currentTorneo) {
-  return !hasAdminSession() || isOwner || getAllowedCats(torneo).includes(cat);
+  const normalizedTorneo = appTorneoId(torneo);
+  const normalizedCat = appCatId(cat);
+  return !hasAdminSession() || isOwner || getAllowedCats(normalizedTorneo).includes(normalizedCat);
 }
 
 function ensureAllowedTournamentAndCat() {
@@ -177,9 +244,11 @@ const splashMainLogoOnLoad = document.querySelector('#splash > div img');
 if (splashMainLogoOnLoad) splashMainLogoOnLoad.src = SPLASH_BIG_LOGO;
 const hdrBrandLogoOnLoad = document.querySelector('.hdr-shield img');
 if (hdrBrandLogoOnLoad) hdrBrandLogoOnLoad.src = CD_LOGO_SHIELD;
+normalizeStoredState();
 hydrateSplashTournamentCards();
 
 function selectTorneo(t) {
+  t = appTorneoId(t);
   if (hasAdminSession() && !canAccessTorneo(t)) {
     showToast('No tienes permiso para este torneo', 'tr');
     return;
@@ -311,6 +380,7 @@ function launchApp() {
 }
 
 function selectCat(cat, btn) {
+  cat = appCatId(cat);
   if (hasAdminSession() && !canAccessCat(cat)) {
     showToast('No tienes permiso para esta categoria', 'tr');
     return;
