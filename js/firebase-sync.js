@@ -1,10 +1,72 @@
 let firestoreCoreListenersReady = false;
+let legacyRealtimeCoreListenersReady = false;
+const firestoreCoreCache = { equipos: {}, inscripciones: {}, pagos: {} };
+const legacyRealtimeCoreCache = { equipos: {}, inscripciones: {} };
+
+function normalizeEquipoRecord(key, data = {}, source = 'firestore') {
+  const scoped = normalizeScopedRecord(data);
+  return {
+    ...scoped,
+    _key: key,
+    _source: source,
+    nombre: data.nombre || data.equipoNombre || '',
+    nombreNormalizado: data.nombreNormalizado || slugifyId(data.nombre || data.equipoNombre || '').replace(/_/g, ' '),
+    tel: data.tel || data.telefonoCapitan || '',
+    telefonoCapitan: data.telefonoCapitan || data.tel || '',
+    capitan: data.capitan || '',
+    color: data.color || '#1a3a8a',
+    logo: data.logo || null,
+    portero: data.portero || null,
+    alineacion: Array.isArray(data.alineacion) ? data.alineacion : [],
+    alias: Array.isArray(data.alias) ? data.alias : [],
+    estado: data.estado || 'activo'
+  };
+}
+
+function normalizeInscripcionRecord(key, data = {}, source = 'firestore') {
+  const scoped = normalizeScopedRecord(data);
+  return {
+    ...scoped,
+    _key: key,
+    _source: source,
+    nombre: data.nombre || data.equipoNombre || '',
+    equipoNombre: data.equipoNombre || data.nombre || '',
+    equipoId: data.equipoId || null,
+    montoTotal: Number(data.montoTotal || data.monto || 0),
+    montoPagado: Number(data.montoPagado || 0),
+    saldo: Number(data.saldo || 0),
+    estado: data.estado || 'pendiente',
+    fechaLimitePago: data.fechaLimitePago || '',
+    moneda: data.moneda || 'MXN',
+    abonos: data.abonos || {}
+  };
+}
+
+function renderCoreDataConsumers() {
+  if (typeof renderEquiposPage === 'function' && typeof isPageActive === 'function' && isPageActive('equipos')) renderEquiposPage();
+  if (typeof renderTabla === 'function' && typeof isPageActive === 'function' && isPageActive('tabla')) renderTabla();
+  if (typeof renderPartidos === 'function' && typeof isPageActive === 'function' && isPageActive('partidos')) renderPartidos();
+  if (typeof renderInscripciones === 'function' && typeof isPageActive === 'function' && isPageActive('inscripciones')) renderInscripciones();
+  if (typeof renderResumen === 'function' && typeof isPageActive === 'function' && isPageActive('resumen')) renderResumen();
+}
+
+function rebuildEquiposFromCoreSources() {
+  clearObj(C.equipos);
+  Object.assign(C.equipos, legacyRealtimeCoreCache.equipos, firestoreCoreCache.equipos);
+}
+
+function rebuildInscripcionesFromCoreSources() {
+  clearObj(C.inscripciones);
+  Object.assign(C.inscripciones, legacyRealtimeCoreCache.inscripciones, firestoreCoreCache.inscripciones);
+  rebuildInscAbonosFromPagos();
+}
 
 function rebuildInscAbonosFromPagos() {
   if (!C.inscripciones || !C.pagos) return;
 
   Object.values(C.inscripciones).forEach((insc) => {
-    insc.abonos = {};
+    if (insc._source !== 'realtime') insc.abonos = {};
+    else insc.abonos = insc.abonos || {};
   });
 
   Object.entries(C.pagos).forEach(([pagoId, pago]) => {
@@ -30,80 +92,35 @@ function setupFirestoreCoreListeners() {
   firestoreCoreListenersReady = true;
 
   fs.collection('equipos').onSnapshot((snapshot) => {
-    clearObj(C.equipos);
+    clearObj(firestoreCoreCache.equipos);
 
     snapshot.forEach((doc) => {
       const data = doc.data() || {};
-      const scoped = normalizeScopedRecord(data);
-      const { torneo, cat, torneoId, categoriaId } = scoped;
-
-      C.equipos[doc.id] = {
-        ...scoped,
-        _key: doc.id,
-        nombre: data.nombre || data.equipoNombre || '',
-        nombreNormalizado: data.nombreNormalizado || slugifyId(data.nombre || data.equipoNombre || '').replace(/_/g, ' '),
-        tel: data.tel || data.telefonoCapitan || '',
-        telefonoCapitan: data.telefonoCapitan || data.tel || '',
-        capitan: data.capitan || '',
-        torneo,
-        cat,
-        torneoId,
-        categoriaId,
-        color: data.color || '#1a3a8a',
-        logo: data.logo || null,
-        portero: data.portero || null,
-        alineacion: Array.isArray(data.alineacion) ? data.alineacion : [],
-        alias: Array.isArray(data.alias) ? data.alias : [],
-        estado: data.estado || 'activo'
-      };
+      firestoreCoreCache.equipos[doc.id] = normalizeEquipoRecord(doc.id, data, 'firestore');
     });
 
-    if (typeof renderEquiposPage === 'function' && typeof isPageActive === 'function' && isPageActive('equipos')) renderEquiposPage();
-    if (typeof renderTabla === 'function' && typeof isPageActive === 'function' && isPageActive('tabla')) renderTabla();
-    if (typeof renderPartidos === 'function' && typeof isPageActive === 'function' && isPageActive('partidos')) renderPartidos();
-    if (typeof renderInscripciones === 'function' && typeof isPageActive === 'function' && isPageActive('inscripciones')) renderInscripciones();
+    rebuildEquiposFromCoreSources();
+    renderCoreDataConsumers();
   }, (error) => {
     console.warn('Firestore equipos listener:', error);
   });
 
   fs.collection('inscripciones').onSnapshot((snapshot) => {
-    clearObj(C.inscripciones);
+    clearObj(firestoreCoreCache.inscripciones);
 
     snapshot.forEach((doc) => {
       const data = doc.data() || {};
-      const scoped = normalizeScopedRecord(data);
-      const { torneo, cat, torneoId, categoriaId } = scoped;
-
-      C.inscripciones[doc.id] = {
-        ...scoped,
-        _key: doc.id,
-        nombre: data.nombre || data.equipoNombre || '',
-        equipoNombre: data.equipoNombre || data.nombre || '',
-        torneo,
-        cat,
-        torneoId,
-        categoriaId,
-        equipoId: data.equipoId || null,
-        montoTotal: Number(data.montoTotal || data.monto || 0),
-        montoPagado: Number(data.montoPagado || 0),
-        saldo: Number(data.saldo || 0),
-        estado: data.estado || 'pendiente',
-        fechaLimitePago: data.fechaLimitePago || '',
-        moneda: data.moneda || 'MXN',
-        abonos: data.abonos || {}
-      };
+      firestoreCoreCache.inscripciones[doc.id] = normalizeInscripcionRecord(doc.id, data, 'firestore');
     });
 
-    rebuildInscAbonosFromPagos();
-
-    if (typeof renderInscripciones === 'function' && typeof isPageActive === 'function' && isPageActive('inscripciones')) renderInscripciones();
-    if (typeof renderResumen === 'function' && typeof isPageActive === 'function' && isPageActive('resumen')) renderResumen();
-    if (typeof renderEquiposPage === 'function' && typeof isPageActive === 'function' && isPageActive('equipos')) renderEquiposPage();
+    rebuildInscripcionesFromCoreSources();
+    renderCoreDataConsumers();
   }, (error) => {
     console.warn('Firestore inscripciones listener:', error);
   });
 
   fs.collection('pagos').onSnapshot((snapshot) => {
+    clearObj(firestoreCoreCache.pagos);
     clearObj(C.pagos);
 
     snapshot.forEach((doc) => {
@@ -111,7 +128,7 @@ function setupFirestoreCoreListeners() {
       const scoped = normalizeScopedRecord(data);
       const { torneo, cat, torneoId, categoriaId } = scoped;
 
-      C.pagos[doc.id] = {
+      firestoreCoreCache.pagos[doc.id] = {
         ...scoped,
         _key: doc.id,
         torneo,
@@ -123,19 +140,48 @@ function setupFirestoreCoreListeners() {
       };
     });
 
+    Object.assign(C.pagos, firestoreCoreCache.pagos);
     rebuildInscAbonosFromPagos();
+    renderCoreDataConsumers();
 
-    if (typeof renderInscripciones === 'function' && typeof isPageActive === 'function' && isPageActive('inscripciones')) renderInscripciones();
-    if (typeof renderResumen === 'function' && typeof isPageActive === 'function' && isPageActive('resumen')) renderResumen();
-    if (typeof renderEquiposPage === 'function' && typeof isPageActive === 'function' && isPageActive('equipos')) renderEquiposPage();
   }, (error) => {
     console.warn('Firestore pagos listener:', error);
   });
 }
 
+function setupLegacyRealtimeCoreFallbackListeners() {
+  if (legacyRealtimeCoreListenersReady) return;
+  legacyRealtimeCoreListenersReady = true;
+
+  db.ref('equipos').on('value', (snapshot) => {
+    clearObj(legacyRealtimeCoreCache.equipos);
+    if (snapshot.exists()) {
+      Object.entries(snapshot.val() || {}).forEach(([key, data]) => {
+        legacyRealtimeCoreCache.equipos[key] = normalizeEquipoRecord(key, data, 'realtime');
+      });
+    }
+    rebuildEquiposFromCoreSources();
+    renderCoreDataConsumers();
+  });
+
+  db.ref('inscripciones').on('value', (snapshot) => {
+    clearObj(legacyRealtimeCoreCache.inscripciones);
+    if (snapshot.exists()) {
+      Object.entries(snapshot.val() || {}).forEach(([key, data]) => {
+        legacyRealtimeCoreCache.inscripciones[key] = normalizeInscripcionRecord(key, data, 'realtime');
+      });
+    }
+    rebuildInscripcionesFromCoreSources();
+    renderCoreDataConsumers();
+  });
+}
+
 function setupListeners() {
   const useFirestoreCore = !!fs;
-  if (useFirestoreCore) setupFirestoreCoreListeners();
+  if (useFirestoreCore) {
+    setupFirestoreCoreListeners();
+    setupLegacyRealtimeCoreFallbackListeners();
+  }
 
   if (!useFirestoreCore) {
     db.ref('equipos').on('value', (snapshot) => {
