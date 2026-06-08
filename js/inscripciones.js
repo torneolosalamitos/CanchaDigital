@@ -2,11 +2,22 @@ let inscScope = 'actual';
 let inscSelectedCats = [];
 
 function getInscAbonos(inscripcion) {
-  return Object.entries(inscripcion?.abonos || {}).map(([key, abono]) => ({
+  const legacy = Object.entries(inscripcion?.abonos || {}).map(([key, abono]) => ({
     ...abono,
     _key: abono?._key || key,
     pagoId: abono?.pagoId || key
   }));
+  const inscKey = inscripcion?._key;
+  const firestorePagos = Object.entries(C.pagos || {})
+    .filter(([, pago]) => !pago.cancelado && inscKey && pago.inscripcionId === inscKey)
+    .map(([key, pago]) => ({
+      ...pago,
+      _key: key,
+      pagoId: key,
+      fecha: pago.fechaTexto || pago.fecha || '',
+      notas: pago.nota || pago.notas || ''
+    }));
+  return [...legacy, ...firestorePagos];
 }
 
 function getInscPaid(inscripcion) {
@@ -24,7 +35,70 @@ function getInscStatus(total, pagado) {
 }
 
 function getInscAvailableCats() {
-  return (catOrderKeys || []).filter((key) => CAT_NAMES[key] && canAccessCat(key));
+  return getTournamentCatKeys(currentTorneo).filter((key) => CAT_NAMES[key] && canAccessCat(key, currentTorneo));
+}
+
+function getInscEquipoOptions() {
+  const torneo = appTorneoId(document.getElementById('ie_torneo')?.value || currentTorneo);
+  const cat = appCatId(document.getElementById('ie_cat')?.value || currentCat);
+  return Object.entries(C.equipos || {})
+    .filter(([, equipo]) => (
+      appTorneoId(equipo.torneo || equipo.torneoId || currentTorneo) === torneo &&
+      appCatId(equipo.cat || equipo.categoriaId || currentCat) === cat &&
+      canAccessTorneo(torneo) &&
+      canAccessCat(cat, torneo)
+    ))
+    .sort((a, b) => String(a[1].nombre || '').localeCompare(String(b[1].nombre || ''), 'es'));
+}
+
+function syncInscEquipoOptions(selectedKey = '') {
+  const select = document.getElementById('ie_equipo');
+  if (!select) return;
+  const equipos = getInscEquipoOptions();
+  const currentValue = selectedKey || select.value;
+  select.innerHTML = '<option value="">Selecciona un equipo registrado</option>' + equipos
+    .map(([key, equipo]) => `<option value="${key}">${escapeHtml(equipo.nombre || key)}</option>`)
+    .join('');
+  if (currentValue && equipos.some(([key]) => key === currentValue)) select.value = currentValue;
+  else select.value = '';
+  if (select.value) applyInscEquipoSelection(false);
+}
+
+function setInscLogoPreview(logo) {
+  const input = document.getElementById('ie_logo');
+  const preview = document.getElementById('ie_logo_prev');
+  const label = document.getElementById('ie_logo_lbl');
+  if (input) input.value = logo || '';
+  if (!preview || !label) return;
+  if (logo) {
+    preview.src = logo;
+    preview.style.display = 'block';
+    label.style.display = 'none';
+  } else {
+    preview.removeAttribute('src');
+    preview.style.display = 'none';
+    label.style.display = 'block';
+  }
+}
+
+function applyInscEquipoSelection(fillExisting = true) {
+  const equipoKey = document.getElementById('ie_equipo')?.value || '';
+  const equipo = equipoKey ? C.equipos[equipoKey] : null;
+  if (!equipo) return;
+  const torneo = appTorneoId(equipo.torneo || equipo.torneoId || currentTorneo);
+  const cat = appCatId(equipo.cat || equipo.categoriaId || currentCat);
+  document.getElementById('ie_nombre').value = equipo.nombre || '';
+  document.getElementById('ie_torneo').value = torneo;
+  document.getElementById('ie_cat').value = cat;
+  setInscLogoPreview(equipo.logo || '');
+  if (fillExisting) {
+    const existing = findInscripcionForEquipo(equipoKey, equipo, torneo, cat);
+    if (existing?.data) {
+      document.getElementById('ie_key').value = existing.key;
+      document.getElementById('ie_monto').value = existing.data.montoTotal || existing.data.monto || 0;
+      document.getElementById('ieModalTitle').textContent = 'Editar Equipo';
+    }
+  }
 }
 
 function getInscSelectedCats() {
@@ -125,6 +199,10 @@ function renderInscripciones() {
 }
 
 function renderInscCard(inscripcion) {
+  const linkedEquipo = findEquipoForInscripcion(inscripcion);
+  const equipo = linkedEquipo?.data || {};
+  const nombre = inscripcion.equipoNombre || inscripcion.nombre || equipo.nombre || 'Equipo';
+  const logo = inscripcion.logo || equipo.logo || '';
   const total = Number(inscripcion.montoTotal || inscripcion.monto || 0);
   const abonos = getInscAbonos(inscripcion);
   const pagado = getInscPaid(inscripcion);
@@ -145,9 +223,9 @@ function renderInscCard(inscripcion) {
 
   return `<div class="insc-card">
     <div class="insc-header">
-      ${inscripcion.logo ? `<img class="insc-logo" src="${inscripcion.logo}"/>` : '<div class="insc-ph">⚽</div>'}
+      ${logo ? `<img class="insc-logo" src="${logo}"/>` : '<div class="insc-ph">⚽</div>'}
       <div class="insc-info">
-        <div class="insc-name">${inscripcion.nombre}</div>
+        <div class="insc-name">${nombre}</div>
         <div class="insc-meta">${CAT_NAMES[inscripcion.cat] || ''}</div>
       </div>
       <div class="insc-total">
@@ -189,24 +267,28 @@ function renderInscStats(inscripciones = getFilteredInsc()) {
 }
 
 async function saveInscEquipo() {
-  const nombre = document.getElementById('ie_nombre').value.trim();
+  const selectedEquipoKey = document.getElementById('ie_equipo')?.value || '';
+  const selectedEquipo = selectedEquipoKey ? C.equipos[selectedEquipoKey] : null;
+  const nombre = (selectedEquipo?.nombre || document.getElementById('ie_nombre').value || '').trim();
   if (!nombre) {
-    showToast('Ingresa el nombre', 'ta');
+    showToast('Selecciona o ingresa el equipo', 'ta');
     return;
   }
   const key = document.getElementById('ie_key').value;
-  const torneo = appTorneoId(document.getElementById('ie_torneo').value || currentTorneo || 'lombardo_toledano');
-  const cat = appCatId(document.getElementById('ie_cat').value || currentCat || 'cat_libre_varonil');
+  const torneo = appTorneoId(selectedEquipo?.torneo || selectedEquipo?.torneoId || document.getElementById('ie_torneo').value || currentTorneo || 'lombardo_toledano');
+  const cat = appCatId(selectedEquipo?.cat || selectedEquipo?.categoriaId || document.getElementById('ie_cat').value || currentCat || 'cat_libre_varonil');
   if (!canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) {
     showToast('No tienes permiso para esa categoría', 'tr');
     return;
   }
+  const existing = selectedEquipo ? findInscripcionForEquipo(selectedEquipoKey, selectedEquipo, torneo, cat) : null;
+  const logo = selectedEquipo?.logo || document.getElementById('ie_logo').value || null;
   if (fs) {
     const appTorneo = appTorneoId(torneo || currentTorneo || 'lombardo_toledano');
     const appCat = appCatId(cat || currentCat || 'cat_libre_varonil');
     const torneoId = firestoreTorneoId(appTorneo);
     const categoriaId = firestoreCatId(appCat);
-    const inscripcionId = key || ('inscripcion_' + slugifyId(nombre) + '_' + torneoId.replace('torneo_', ''));
+    const inscripcionId = key || existing?.key || (selectedEquipoKey ? `inscripcion_${slugifyId(selectedEquipoKey)}` : ('inscripcion_' + slugifyId(nombre) + '_' + torneoId.replace('torneo_', '')));
     const montoTotal = parseInt(document.getElementById('ie_monto').value, 10) || 0;
     const current = C.inscripciones[inscripcionId] || {};
     const montoPagado = Number(current.montoPagado || 0);
@@ -219,12 +301,13 @@ async function saveInscEquipo() {
         cat: appCat,
         torneoId,
         categoriaId,
-        equipoId: current.equipoId || null,
+        equipoId: selectedEquipoKey || current.equipoId || null,
+        equipoKey: selectedEquipoKey || current.equipoKey || null,
         montoTotal,
         montoPagado,
         saldo,
         estado: saldo === 0 ? 'liquidado' : montoPagado > 0 ? 'abonado' : (montoTotal > 0 ? 'pendiente' : 'sin_costo'),
-        logo: document.getElementById('ie_logo').value || null,
+        logo,
         moneda: current.moneda || 'MXN',
         origen: current.origen || 'panel',
         actualizadoEn: firestoreServerTimestamp(),
@@ -247,8 +330,10 @@ async function saveInscEquipo() {
     cat,
     torneoId: firestoreTorneoId(torneo),
     categoriaId: firestoreCatId(cat),
+    equipoId: selectedEquipoKey || null,
+    equipoKey: selectedEquipoKey || null,
     montoTotal: parseInt(document.getElementById('ie_monto').value, 10) || 0,
-    logo: document.getElementById('ie_logo').value || null,
+    logo,
     updatedAt: Date.now()
   };
   if (key) db.ref(`inscripciones/${key}`).update(data);
@@ -264,8 +349,8 @@ function resetInscForm() {
   ['ie_nombre', 'ie_monto', 'ie_logo'].forEach((id) => { document.getElementById(id).value = ''; });
   document.getElementById('ie_torneo').value = currentTorneo;
   document.getElementById('ie_cat').value = currentCat;
-  document.getElementById('ie_logo_prev').style.display = 'none';
-  document.getElementById('ie_logo_lbl').style.display = 'block';
+  setInscLogoPreview('');
+  syncInscEquipoOptions();
 }
 
 function editInscEquipo(key) {
@@ -273,19 +358,15 @@ function editInscEquipo(key) {
   const torneo = appTorneoId(inscripcion?.torneo || inscripcion?.torneoId || 'lombardo_toledano');
   const cat = appCatId(inscripcion?.cat || inscripcion?.categoriaId || 'cat_libre_varonil');
   if (!inscripcion || !canAccessTorneo(torneo) || !canAccessCat(cat, torneo)) return;
+  const linkedEquipo = findEquipoForInscripcion(inscripcion);
   document.getElementById('ie_key').value = key;
   document.getElementById('ieModalTitle').textContent = 'Editar Equipo';
-  document.getElementById('ie_nombre').value = inscripcion.nombre || '';
+  document.getElementById('ie_nombre').value = inscripcion.equipoNombre || inscripcion.nombre || linkedEquipo?.data?.nombre || '';
   document.getElementById('ie_torneo').value = torneo;
   document.getElementById('ie_cat').value = cat;
   document.getElementById('ie_monto').value = inscripcion.montoTotal || 0;
-  document.getElementById('ie_logo').value = inscripcion.logo || '';
-  if (inscripcion.logo) {
-    const preview = document.getElementById('ie_logo_prev');
-    preview.src = inscripcion.logo;
-    preview.style.display = 'block';
-    document.getElementById('ie_logo_lbl').style.display = 'none';
-  }
+  syncInscEquipoOptions(linkedEquipo?.key || inscripcion.equipoId || inscripcion.equipoKey || '');
+  setInscLogoPreview(inscripcion.logo || linkedEquipo?.data?.logo || '');
   openModal('modalInscEquipo');
 }
 
