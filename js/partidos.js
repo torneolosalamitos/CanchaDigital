@@ -144,10 +144,16 @@ function buildScorersHtml(goles, local, visita) {
   return '<div class="scorers-split">' + lH + vH + '</div>';
 }
 
-function deletePartido(key) {
+async function deletePartido(key) {
   if (!confirm('¿Eliminar este partido?')) return;
-  db.ref(`partidos/${key}`).remove();
-  showToast('Partido eliminado', 'tr');
+  try {
+    if (fs) await deleteDoc('partidos', key);
+    else await db.ref(`partidos/${key}`).remove();
+    showToast('Partido eliminado', 'tr');
+  } catch (error) {
+    console.error(error);
+    showToast('Error al eliminar partido', 'tr');
+  }
 }
 
 async function guardarMarcadorEdit() {
@@ -157,7 +163,8 @@ async function guardarMarcadorEdit() {
   const gV = parseInt(document.getElementById('edit_gV')?.value) || 0;
   const updatedAt = Date.now();
   try {
-    await db.ref(`partidos/${activePartidoKey}`).update({ gL, gV, updatedAt });
+    if (fs) await updateDoc('partidos', activePartidoKey, { gL, gV, updatedAt });
+    else await db.ref(`partidos/${activePartidoKey}`).update({ gL, gV, updatedAt });
     await intentarSincronizarResultado(activePartidoKey, { ...p, gL, gV, updatedAt });
     showToast('Marcador actualizado', 'tg');
   } catch (error) {
@@ -173,11 +180,17 @@ async function eliminarGolEspecifico(partKey, golKey, equipo) {
   const nextScore = Math.max(0, (p[campo] || 1) - 1);
   const updatedAt = Date.now();
   try {
-    const updates = {};
-    updates[`partidos/${partKey}/goles/${golKey}`] = null;
-    updates[`partidos/${partKey}/${campo}`] = nextScore;
-    updates[`partidos/${partKey}/updatedAt`] = updatedAt;
-    await db.ref().update(updates);
+    if (fs) {
+      const goles = { ...(p.goles || {}) };
+      delete goles[golKey];
+      await updateDoc('partidos', partKey, { goles, [campo]: nextScore, updatedAt });
+    } else {
+      const updates = {};
+      updates[`partidos/${partKey}/goles/${golKey}`] = null;
+      updates[`partidos/${partKey}/${campo}`] = nextScore;
+      updates[`partidos/${partKey}/updatedAt`] = updatedAt;
+      await db.ref().update(updates);
+    }
     await intentarSincronizarResultado(partKey, { ...p, [campo]: nextScore, updatedAt });
     showToast('Gol eliminado', 'tr');
   } catch (error) {
@@ -186,10 +199,16 @@ async function eliminarGolEspecifico(partKey, golKey, equipo) {
   }
 }
 
-function reabrirPartido(key) {
+async function reabrirPartido(key) {
   if (!confirm('¿Reabrir este partido? Volverá a estado "jugando"')) return;
-  db.ref(`partidos/${key}/status`).set('jugando');
-  showToast('Partido reabierto', 'ta');
+  try {
+    if (fs) await updateDoc('partidos', key, { status: 'jugando' });
+    else await db.ref(`partidos/${key}/status`).set('jugando');
+    showToast('Partido reabierto', 'ta');
+  } catch (error) {
+    console.error(error);
+    showToast('Error al reabrir partido', 'tr');
+  }
 }
 
 function openPartidoDetail(key) {
@@ -384,13 +403,20 @@ async function confirmGol() {
   const field = side === 'local' ? 'gL' : 'gV';
   const nextScore = (p[field] || 0) + 1;
   const updatedAt = Date.now();
-  const golRef = db.ref(`partidos/${activePartidoKey}/goles`).push();
   try {
-    const updates = {};
-    updates[`partidos/${activePartidoKey}/${field}`] = nextScore;
-    updates[`partidos/${activePartidoKey}/goles/${golRef.key}`] = { jugador, equipo: side, ts: updatedAt };
-    updates[`partidos/${activePartidoKey}/updatedAt`] = updatedAt;
-    await db.ref().update(updates);
+    if (fs) {
+      const goles = { ...(p.goles || {}) };
+      const golKey = newDocId('gol', `${jugador}_${updatedAt}`);
+      goles[golKey] = { jugador, equipo: side, ts: updatedAt };
+      await updateDoc('partidos', activePartidoKey, { [field]: nextScore, goles, updatedAt });
+    } else {
+      const golRef = db.ref(`partidos/${activePartidoKey}/goles`).push();
+      const updates = {};
+      updates[`partidos/${activePartidoKey}/${field}`] = nextScore;
+      updates[`partidos/${activePartidoKey}/goles/${golRef.key}`] = { jugador, equipo: side, ts: updatedAt };
+      updates[`partidos/${activePartidoKey}/updatedAt`] = updatedAt;
+      await db.ref().update(updates);
+    }
     await intentarSincronizarResultado(activePartidoKey, { ...p, [field]: nextScore, updatedAt });
     closeModal('modalGol');
     showToast(`⚽ GOL de ${jugador}!`, 'tg');
@@ -410,11 +436,17 @@ async function quitarGol(side) {
   const last = goles.filter(([, g]) => g.equipo === side).sort((a, b) => b[1].ts - a[1].ts)[0];
   const updatedAt = Date.now();
   try {
-    const updates = {};
-    if (last) updates[`partidos/${activePartidoKey}/goles/${last[0]}`] = null;
-    updates[`partidos/${activePartidoKey}/${field}`] = cur - 1;
-    updates[`partidos/${activePartidoKey}/updatedAt`] = updatedAt;
-    await db.ref().update(updates);
+    if (fs) {
+      const nextGoles = { ...(p.goles || {}) };
+      if (last) delete nextGoles[last[0]];
+      await updateDoc('partidos', activePartidoKey, { [field]: cur - 1, goles: nextGoles, updatedAt });
+    } else {
+      const updates = {};
+      if (last) updates[`partidos/${activePartidoKey}/goles/${last[0]}`] = null;
+      updates[`partidos/${activePartidoKey}/${field}`] = cur - 1;
+      updates[`partidos/${activePartidoKey}/updatedAt`] = updatedAt;
+      await db.ref().update(updates);
+    }
     await intentarSincronizarResultado(activePartidoKey, { ...p, [field]: cur - 1, updatedAt });
   } catch (error) {
     console.log('[Make] Error al quitar gol', error);
@@ -422,15 +454,18 @@ async function quitarGol(side) {
   }
 }
 
-function toggleTimer() {
+async function toggleTimer() {
   const p = C.partidos[activePartidoKey];
   if (!p) return;
   if (p.timerRunning) {
     const ne = (p.elapsed || 0) + (Date.now() - (p.timerStart || Date.now())) / 1000;
     clearInterval(timers[activePartidoKey]);
-    db.ref(`partidos/${activePartidoKey}`).update({ timerRunning: false, elapsed: ne });
+    if (fs) await updateDoc('partidos', activePartidoKey, { timerRunning: false, elapsed: ne });
+    else await db.ref(`partidos/${activePartidoKey}`).update({ timerRunning: false, elapsed: ne });
   } else {
-    db.ref(`partidos/${activePartidoKey}`).update({ timerRunning: true, timerStart: Date.now(), status: 'jugando' });
+    const patch = { timerRunning: true, timerStart: Date.now(), status: 'jugando' };
+    if (fs) await updateDoc('partidos', activePartidoKey, patch);
+    else await db.ref(`partidos/${activePartidoKey}`).update(patch);
   }
 }
 
@@ -456,9 +491,9 @@ async function terminarPartido() {
   const updatedAt = Date.now();
   clearInterval(timers[activePartidoKey]);
   try {
-    await db
-      .ref(`partidos/${activePartidoKey}`)
-      .update({ status: 'terminado', timerRunning: false, elapsed, updatedAt });
+    const patch = { status: 'terminado', timerRunning: false, elapsed, updatedAt };
+    if (fs) await updateDoc('partidos', activePartidoKey, patch);
+    else await db.ref(`partidos/${activePartidoKey}`).update(patch);
     await intentarSincronizarResultado(activePartidoKey, {
       ...p,
       status: 'terminado',
@@ -743,7 +778,19 @@ async function savePartido() {
   try {
     let partidoKey = key;
     let partidoData = { ...data };
-    if (key) {
+    if (fs) {
+      partidoKey = key || newDocId('partido', `${data.fecha}_${localKey}_${visitaKey}_${updatedAt}`);
+      partidoData = key
+        ? { ...(C.partidos[key] || {}), ...data }
+        : {
+            ...data,
+            goles: {},
+            arbPago: { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } },
+            arbPagado: false,
+            creadoAt: updatedAt
+          };
+      await saveDoc('partidos', partidoKey, partidoData);
+    } else if (key) {
       await db.ref(`partidos/${key}`).update(data);
       partidoData = { ...(C.partidos[key] || {}), ...data };
     } else {
@@ -819,8 +866,9 @@ function setPM(side, method) {
   }
 }
 
-function guardarPagoArb() {
+async function guardarPagoArb() {
   const key = document.getElementById('pa_key').value;
+  const partido = C.partidos[key] || {};
   const ga = (id) => parseInt(document.getElementById(id)?.value) || 0;
   const build = (side) => {
     const m = side === 'local' ? payMethods.local : payMethods.visita;
@@ -835,11 +883,29 @@ function guardarPagoArb() {
   const lp = build('local');
   const vp = build('visita');
   const updates = {};
-  if (lp) updates[`partidos/${key}/arbPago/local`] = lp;
-  if (vp) updates[`partidos/${key}/arbPago/visita`] = vp;
+  const arbPago = {
+    local: { ...(partido.arbPago?.local || { ef: 0, tr: 0, pp: 0 }) },
+    visita: { ...(partido.arbPago?.visita || { ef: 0, tr: 0, pp: 0 }) }
+  };
+  if (lp) {
+    arbPago.local = lp;
+    updates[`partidos/${key}/arbPago/local`] = lp;
+  }
+  if (vp) {
+    arbPago.visita = vp;
+    updates[`partidos/${key}/arbPago/visita`] = vp;
+  }
   const fullyPaid = lp && vp && !lp.nd && !vp.nd;
-  updates[`partidos/${key}/arbPagado`] = fullyPaid;
-  db.ref().update(updates);
-  closeModal('modalPagoArb');
-  showToast(fullyPaid ? 'Pagos guardados ✅' : 'Guardado — hay pagos pendientes ⚠️', 'tg');
+  try {
+    if (fs) await updateDoc('partidos', key, { arbPago, arbPagado: fullyPaid });
+    else {
+      updates[`partidos/${key}/arbPagado`] = fullyPaid;
+      await db.ref().update(updates);
+    }
+    closeModal('modalPagoArb');
+    showToast(fullyPaid ? 'Pagos guardados ✅' : 'Guardado — hay pagos pendientes ⚠️', 'tg');
+  } catch (error) {
+    console.error(error);
+    showToast('Error al guardar pagos de arbitraje', 'tr');
+  }
 }
