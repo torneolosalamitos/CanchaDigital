@@ -2141,8 +2141,8 @@ const canReadScopedRecord = (record, useCat = true) => {
   const cat = scopeCatOf(record);
   return canAccessTorneo(torneo) && (!useCat || canAccessCat(cat, torneo));
 };
-const getParts = () => Object.entries(C.partidos).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k })).filter((v)=>canReadScopedRecord(v));
-const getEqs = () => Object.entries(C.equipos).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k })).filter((v)=>canReadScopedRecord(v));
+const getParts = () => Object.entries(C.partidos).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k }));
+const getEqs = () => Object.entries(C.equipos).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k }));
 const getProd = () => Object.entries(C.productos).map(([k,v])=>({ ...v, _key: k }));
 const getVentas = () => Object.entries(C.ventas).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k })).filter((v)=>canReadScopedRecord(v)).sort((a,b)=>b.ts-a.ts);
 const getArbs = () => Object.entries(C.arbitros).map(([k,v])=>({ ...v, _key: k }));
