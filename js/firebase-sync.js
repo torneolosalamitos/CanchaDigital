@@ -5,6 +5,13 @@ const legacyRealtimeCoreCache = { equipos: {}, inscripciones: {} };
 
 function normalizeEquipoRecord(key, data = {}, source = 'firestore') {
   const scoped = normalizeScopedRecord(data);
+  const rawAlias = data.alias;
+  const alias = Array.isArray(rawAlias)
+    ? rawAlias
+    : String(rawAlias || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
   return {
     ...scoped,
     _key: key,
@@ -18,7 +25,7 @@ function normalizeEquipoRecord(key, data = {}, source = 'firestore') {
     logo: data.logo || null,
     portero: data.portero || null,
     alineacion: Array.isArray(data.alineacion) ? data.alineacion : [],
-    alias: Array.isArray(data.alias) ? data.alias : [],
+    alias,
     estado: data.estado || 'activo'
   };
 }
@@ -296,7 +303,10 @@ function setupFirestoreAllListeners() {
     usuarios: C.usuarios,
     solicitudes: C.solicitudes,
     mercadotecnia: C.mercadotecnia,
-    temporadas: C.temporadas
+    temporadas: C.temporadas,
+    categorias: C.categorias,
+    usuarios_autorizados: C.usuarios_autorizados,
+    bot_sessions: C.bot_sessions
   };
 
   Object.entries(collectionMap).forEach(([collectionName, target]) => {
