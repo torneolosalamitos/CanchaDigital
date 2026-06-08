@@ -173,8 +173,10 @@ function renderArbitros() {
   }).join('');
 }
 
-function marcarSinArbitro(key) {
-  db.ref(`partidos/${key}`).update({ sinArbitro: true, arbId: null, arbitroNombre: null });
+async function marcarSinArbitro(key) {
+  const patch = { sinArbitro: true, arbId: null, arbitroNombre: null };
+  if (fs) await updateDoc('partidos', key, patch);
+  else await db.ref(`partidos/${key}`).update(patch);
   showToast('Marcado sin cobro de árbitro', 'ta');
 }
 
@@ -215,11 +217,13 @@ function setEapPM(side, method) {
   if (mix) mix.style.display = 'none';
 }
 
-function guardarEditArbPago() {
+async function guardarEditArbPago() {
   const key = document.getElementById('eap_key').value;
   const sinArb = document.getElementById('eap_sin_arb').checked;
   if (sinArb) {
-    db.ref(`partidos/${key}`).update({ sinArbitro: true, arbPagado: false, arbPago: { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } } });
+    const patch = { sinArbitro: true, arbPagado: false, arbPago: { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } } };
+    if (fs) await updateDoc('partidos', key, patch);
+    else await db.ref(`partidos/${key}`).update(patch);
     closeModal('modalEditArbPago');
     showToast('Guardado sin cobro', 'ta');
     return;
@@ -236,30 +240,48 @@ function guardarEditArbPago() {
   const lp = eapMethods.local ? getMethod(costoL, eapMethods.local) : null;
   const vp = eapMethods.visita ? getMethod(costoV, eapMethods.visita) : null;
   const updates = { sinArbitro: false, costArb: costoL };
-  if (lp) updates['arbPago/local'] = lp;
-  if (vp) updates['arbPago/visita'] = vp;
+  const arbPago = { ...(C.partidos[key]?.arbPago || {}) };
+  if (lp) {
+    updates['arbPago/local'] = lp;
+    arbPago.local = lp;
+  }
+  if (vp) {
+    updates['arbPago/visita'] = vp;
+    arbPago.visita = vp;
+  }
   if (lp && vp) updates.arbPagado = true;
-  db.ref(`partidos/${key}`).update(updates);
+  if (fs) {
+    const patch = { sinArbitro: false, costArb: costoL };
+    if (lp || vp) patch.arbPago = arbPago;
+    if (lp && vp) patch.arbPagado = true;
+    await updateDoc('partidos', key, patch);
+  } else {
+    await db.ref(`partidos/${key}`).update(updates);
+  }
   closeModal('modalEditArbPago');
   showToast('Cobro actualizado', 'tg');
 }
 
-function eliminarCobroArb() {
+async function eliminarCobroArb() {
   const key = document.getElementById('eap_key').value;
   if (!confirm('¿Eliminar este cobro de arbitraje?')) return;
-  db.ref(`partidos/${key}`).update({ arbPago: { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } }, arbPagado: false, sinArbitro: false });
+  const patch = { arbPago: { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } }, arbPagado: false, sinArbitro: false };
+  if (fs) await updateDoc('partidos', key, patch);
+  else await db.ref(`partidos/${key}`).update(patch);
   closeModal('modalEditArbPago');
   showToast('Cobro eliminado', 'tr');
 }
 
-function asignarArbitro(partKey) {
+async function asignarArbitro(partKey) {
   const arbId = document.getElementById(`arb_sel_${partKey}`)?.value;
   if (!arbId) {
     showToast('Selecciona un árbitro', 'ta');
     return;
   }
   const arbitro = C.arbitros[arbId];
-  db.ref(`partidos/${partKey}`).update({ arbId, arbitroNombre: arbitro?.nombre || '', sinArbitro: false });
+  const patch = { arbId, arbitroNombre: arbitro?.nombre || '', sinArbitro: false };
+  if (fs) await updateDoc('partidos', partKey, patch);
+  else await db.ref(`partidos/${partKey}`).update(patch);
   showToast('Árbitro asignado', 'tg');
 }
 
@@ -274,53 +296,83 @@ function editArbitro(key) {
   openModal('modalNuevoArb');
 }
 
-function deleteArbitro(key) {
+async function deleteArbitro(key) {
   if (!confirm('¿Eliminar este árbitro?')) return;
-  db.ref(`arbitros/${key}`).remove();
+  if (fs) await deleteDoc('arbitros', key);
+  else await db.ref(`arbitros/${key}`).remove();
   showToast('Árbitro eliminado', 'tr');
 }
 
-function resetArbitrajes() {
+async function resetArbitrajes() {
   if (!confirm('⚠️ ¿Reiniciar TODOS los cobros de arbitraje?')) return;
-  const updates = {};
-  getParts().forEach((partido) => {
-    updates[`partidos/${partido._key}/arbPago`] = { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } };
-    updates[`partidos/${partido._key}/arbPagado`] = false;
-    updates[`partidos/${partido._key}/sinArbitro`] = false;
-  });
-  db.ref().update(updates);
+  if (fs) {
+    const batch = fs.batch();
+    getParts().forEach((partido) => {
+      batch.set(fs.collection('partidos').doc(partido._key), {
+        arbPago: { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } },
+        arbPagado: false,
+        sinArbitro: false,
+        actualizadoEn: firestoreServerTimestamp()
+      }, { merge: true });
+    });
+    await batch.commit();
+  } else {
+    const updates = {};
+    getParts().forEach((partido) => {
+      updates[`partidos/${partido._key}/arbPago`] = { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } };
+      updates[`partidos/${partido._key}/arbPagado`] = false;
+      updates[`partidos/${partido._key}/sinArbitro`] = false;
+    });
+    await db.ref().update(updates);
+  }
   showToast('Estadísticas reiniciadas', 'ta');
 }
 
-function resetArbitrajesPeriodo() {
+async function resetArbitrajesPeriodo() {
   const parts = getArbFilteredParts();
   if (!confirm(`¿Reiniciar cobros de ${parts.length} partido(s) del período seleccionado?`)) return;
-  const updates = {};
-  parts.forEach((partido) => {
-    updates[`partidos/${partido._key}/arbPago`] = { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } };
-    updates[`partidos/${partido._key}/arbPagado`] = false;
-  });
-  db.ref().update(updates);
+  if (fs) {
+    const batch = fs.batch();
+    parts.forEach((partido) => {
+      batch.set(fs.collection('partidos').doc(partido._key), {
+        arbPago: { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } },
+        arbPagado: false,
+        actualizadoEn: firestoreServerTimestamp()
+      }, { merge: true });
+    });
+    await batch.commit();
+  } else {
+    const updates = {};
+    parts.forEach((partido) => {
+      updates[`partidos/${partido._key}/arbPago`] = { local: { ef: 0, tr: 0, pp: 0 }, visita: { ef: 0, tr: 0, pp: 0 } };
+      updates[`partidos/${partido._key}/arbPagado`] = false;
+    });
+    await db.ref().update(updates);
+  }
   showToast(`${parts.length} cobros reiniciados`, 'ta');
 }
 
-function saveArbitro() {
+async function saveArbitro() {
   const nombre = document.getElementById('na_n').value.trim();
   if (!nombre) {
     showToast('Ingresa el nombre', 'ta');
     return;
   }
   const editKey = document.getElementById('na_n').dataset.editKey;
-  const data = {
+  const data = scopedPayload({
     nombre,
     tel: document.getElementById('na_t').value.trim(),
-    tarifa: parseInt(document.getElementById('na_f').value, 10) || 250
-  };
+    tarifa: parseInt(document.getElementById('na_f').value, 10) || 250,
+    torneo: currentTorneo,
+    cat: currentCat
+  });
   if (editKey) {
-    db.ref(`arbitros/${editKey}`).update(data);
+    if (fs) await saveDoc('arbitros', editKey, data);
+    else await db.ref(`arbitros/${editKey}`).update(data);
     delete document.getElementById('na_n').dataset.editKey;
   } else {
-    db.ref('arbitros').push(data);
+    if (fs) await saveDoc('arbitros', newDocId('arbitro', nombre), data);
+    else await db.ref('arbitros').push(data);
   }
   closeModal('modalNuevoArb');
   ['na_n', 'na_t', 'na_f'].forEach((id) => { document.getElementById(id).value = ''; });
@@ -461,23 +513,26 @@ function renderTrabajadores() {
   if (fd && !fd.value) fd.value = new Date().toISOString().split('T')[0];
 }
 
-function saveTrabajador() {
+async function saveTrabajador() {
   const nombre = document.getElementById('nt_nombre').value.trim();
   if (!nombre) {
     showToast('Ingresa el nombre', 'ta');
     return;
   }
   const key = document.getElementById('nt_key').value;
-  const data = {
+  const data = scopedPayload({
     nombre,
     rol: document.getElementById('nt_rol').value,
     desc: document.getElementById('nt_desc').value.trim(),
     tel: document.getElementById('nt_tel').value.trim(),
     pago: parseInt(document.getElementById('nt_pago').value, 10) || 0,
+    torneo: currentTorneo,
+    cat: currentCat,
     updatedAt: Date.now()
-  };
-  if (key) db.ref(`trabajadores/${key}`).update(data);
-  else db.ref('trabajadores').push({ ...data, creadoAt: Date.now() });
+  });
+  if (fs) await saveDoc('trabajadores', key || newDocId('trabajador', nombre), key ? data : { ...data, creadoAt: Date.now() });
+  else if (key) await db.ref(`trabajadores/${key}`).update(data);
+  else await db.ref('trabajadores').push({ ...data, creadoAt: Date.now() });
   closeModal('modalNuevoTrab');
   ['nt_nombre', 'nt_desc', 'nt_tel', 'nt_pago', 'nt_key'].forEach((id) => { document.getElementById(id).value = ''; });
   document.getElementById('trabModalTitle').textContent = '👷 Nuevo Trabajador';
@@ -497,13 +552,14 @@ function editTrabajador(key) {
   openModal('modalNuevoTrab');
 }
 
-function deleteTrabajador(key) {
+async function deleteTrabajador(key) {
   if (!confirm('¿Eliminar este trabajador?')) return;
-  db.ref(`trabajadores/${key}`).remove();
+  if (fs) await deleteDoc('trabajadores', key);
+  else await db.ref(`trabajadores/${key}`).remove();
   showToast('Trabajador eliminado', 'tr');
 }
 
-function registrarGastoTrab() {
+async function registrarGastoTrab() {
   const trabKey = document.getElementById('gasto_trab_sel').value;
   if (!trabKey) {
     showToast('Selecciona un trabajador', 'ta');
@@ -514,7 +570,7 @@ function registrarGastoTrab() {
     showToast('Ingresa el monto', 'ta');
     return;
   }
-  db.ref('gastosTrab').push({
+  const data = scopedPayload({
     trabajadorKey: trabKey,
     concepto: document.getElementById('gasto_concepto').value.trim(),
     monto,
@@ -525,19 +581,23 @@ function registrarGastoTrab() {
     notas: document.getElementById('gasto_notas').value.trim(),
     ts: Date.now()
   });
+  if (fs) await saveDoc('gastosTrab', newDocId('gasto_trab', `${trabKey}_${Date.now()}`), data);
+  else await db.ref('gastosTrab').push(data);
   ['gasto_concepto', 'gasto_monto', 'gasto_notas'].forEach((id) => { document.getElementById(id).value = ''; });
   document.getElementById('gasto_trab_sel').value = '';
   showToast('Pago registrado', 'tg');
 }
 
-function marcarGastoPagado(key) {
-  db.ref(`gastosTrab/${key}/metodo`).set('efectivo');
+async function marcarGastoPagado(key) {
+  if (fs) await updateDoc('gastosTrab', key, { metodo: 'efectivo' });
+  else await db.ref(`gastosTrab/${key}/metodo`).set('efectivo');
   showToast('Marcado como pagado', 'tg');
 }
 
-function deleteGastoTrab(key) {
+async function deleteGastoTrab(key) {
   if (!confirm('¿Eliminar este registro de pago?')) return;
-  db.ref(`gastosTrab/${key}`).remove();
+  if (fs) await deleteDoc('gastosTrab', key);
+  else await db.ref(`gastosTrab/${key}`).remove();
   showToast('Registro eliminado', 'tr');
 }
 
