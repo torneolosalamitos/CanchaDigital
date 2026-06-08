@@ -1937,9 +1937,44 @@ function onAuthChange(user){
     return; // registrarUsuario handles the flow
   }
 
+  const applyUserProfile = (userData = {}) => {
+    const role = isOwner ? 'admin' : (userData.role||'viewer');
+    isAdmin = (role === 'admin');
+    const normalizedScope = normalizeAdminScope(userData.adminScope || {});
+    adminScope = isOwner
+      ? normalizeAdminScope(buildFullAdminScope())
+      : (role === 'admin' && !Object.keys(normalizedScope).length ? normalizeAdminScope(buildFullAdminScope()) : normalizedScope);
+    const capFlag = (role === 'captain');
+    const capKey  = userData.equipoKey || null;
+    updateAdminUI(isAdmin, isOwner, capFlag, capKey);
+  };
+  if(fs){
+    const ref = fs.collection('usuarios').doc(uid);
+    ref.get().then(async snap=>{
+      if(!snap.exists){
+        const nombre = user.displayName || user.email.split('@')[0];
+        const data = {
+          email: user.email, nombre,
+          role: isOwner ? 'admin' : 'viewer',
+          adminScope: isOwner ? buildFullAdminScope() : {},
+          creadoAt: Date.now(), uid,
+          lastLogin: Date.now(),
+          creadoEn: firestoreServerTimestamp(),
+          actualizadoEn: firestoreServerTimestamp()
+        };
+        await ref.set(data, { merge:true });
+        applyUserProfile(data);
+      } else {
+        const patch = { lastLogin: Date.now(), actualizadoEn: firestoreServerTimestamp() };
+        if(isOwner) patch.role = 'admin';
+        await ref.set(patch, { merge:true });
+        applyUserProfile({ ...(snap.data() || {}), ...patch });
+      }
+    }).catch(()=>{ updateAdminUI(false, isOwner, false, null); });
+    return;
+  }
   db.ref('usuarios/'+uid).once('value').then(snap=>{
     if(!snap.exists()){
-      // Google sign-in new user (not from registrarUsuario form)
       const nombre = user.displayName || user.email.split('@')[0];
       db.ref('usuarios/'+uid).set({
         email: user.email, nombre,
@@ -1951,19 +1986,7 @@ function onAuthChange(user){
       db.ref('usuarios/'+uid+'/lastLogin').set(Date.now()).catch(()=>{});
       if(isOwner) db.ref('usuarios/'+uid+'/role').set('admin').catch(()=>{});
     }
-    // Read role and launch
-    db.ref('usuarios/'+uid).once('value').then(rSnap=>{
-      const userData = rSnap.val() || {};
-      const role = isOwner ? 'admin' : (userData.role||'viewer');
-      isAdmin = (role === 'admin');
-      const normalizedScope = normalizeAdminScope(userData.adminScope || {});
-      adminScope = isOwner
-        ? normalizeAdminScope(buildFullAdminScope())
-        : (role === 'admin' && !Object.keys(normalizedScope).length ? normalizeAdminScope(buildFullAdminScope()) : normalizedScope);
-      const capFlag = (role === 'captain');
-      const capKey  = userData.equipoKey || null;
-      updateAdminUI(isAdmin, isOwner, capFlag, capKey);
-    }).catch(()=>{ updateAdminUI(false, isOwner, false, null); });
+    db.ref('usuarios/'+uid).once('value').then(rSnap=>applyUserProfile(rSnap.val() || {})).catch(()=>{ updateAdminUI(false, isOwner, false, null); });
   }).catch(()=>{ updateAdminUI(false, isOwner, false, null); });
 }
 
@@ -2051,7 +2074,7 @@ function openJoinRequest(){
   openModal('modalJoinRequest');
 }
 
-function sendJoinRequest(){
+async function sendJoinRequest(){
   const equipoKey = document.getElementById('jr_equipo_sel').value;
   const msg = document.getElementById('jr_mensaje').value.trim();
   if(!equipoKey){ showToast('Selecciona un equipo','ta'); return; }
@@ -2061,15 +2084,23 @@ function sendJoinRequest(){
   // Check if already has pending request
   const existing = Object.values(C.solicitudes||{}).find(s=>s.uid===uid&&s.status==='pending');
   if(existing){ showToast('Ya tienes una solicitud pendiente','ta'); return; }
-  db.ref('solicitudes').push({
+  const equipo = C.equipos[equipoKey] || {};
+  const requestData = scopedPayload({
     uid, nombre:userData.nombre||'', email:userData.email||'',
-    equipoKey, equipoNombre:(C.equipos[equipoKey]||{}).nombre||'',
-    mensaje:msg, status:'pending', fecha:Date.now()
-  }).then(()=>{
+    equipoKey, equipoNombre:equipo.nombre||'',
+    mensaje:msg, status:'pending', fecha:Date.now(),
+    torneo: equipo.torneo || currentTorneo,
+    cat: equipo.cat || currentCat
+  });
+  try{
+    if(fs) await saveDoc('solicitudes', null, requestData);
+    else await db.ref('solicitudes').push(requestData);
     closeModal('modalJoinRequest');
     showToast('Solicitud enviada — el capitán o admin la revisará','tg');
     renderViewerProfile();
-  }).catch(e=>showToast('Error: '+e.message,'tr'));
+  }catch(e){
+    showToast('Error: '+e.message,'tr');
+  }
 }
 
 function renderViewerProfile(){
@@ -2104,7 +2135,21 @@ function renderViewerProfile(){
     <button class="btn btn-out btn-sm btn-full" onclick="signOut()" style="margin-top:10px">🚪 Cerrar sesión</button>`;
 }
 
-function seedProducts(){
+async function seedProducts(){
+  if(fs){
+    const snap = await fs.collection('productos').limit(1).get();
+    if(!snap.empty) return;
+    const batch = fs.batch();
+    DEFAULT_PRODUCTS.forEach(p=>{
+      batch.set(fs.collection('productos').doc(newDocId('producto', p.nombre)), {
+        ...p,
+        creadoEn: firestoreServerTimestamp(),
+        actualizadoEn: firestoreServerTimestamp()
+      }, { merge:true });
+    });
+    await batch.commit();
+    return;
+  }
   db.ref('productos').once('value', snap=>{
     if(snap.exists()){
       // Migration: fix any product with broken/light emoji named "Medias"
@@ -2120,8 +2165,23 @@ function seedProducts(){
   });
 }
 
-function resetProductos(){
+async function resetProductos(){
   if(!confirm('¿Resetear productos a la lista oficial de 25 productos? Se eliminarán todos los productos actuales.'))return;
+  if(fs){
+    const snap = await fs.collection('productos').get();
+    const batch = fs.batch();
+    snap.forEach(doc=>batch.delete(doc.ref));
+    DEFAULT_PRODUCTS.forEach(p=>{
+      batch.set(fs.collection('productos').doc(newDocId('producto', p.nombre)), {
+        ...p,
+        creadoEn: firestoreServerTimestamp(),
+        actualizadoEn: firestoreServerTimestamp()
+      }, { merge:true });
+    });
+    await batch.commit();
+    showToast('✅ Productos actualizados a la lista oficial','tg');
+    return;
+  }
   db.ref('productos').remove().then(()=>{
     DEFAULT_PRODUCTS.forEach(p=>db.ref('productos').push(p));
     showToast('✅ Productos actualizados a la lista oficial','tg');
@@ -2239,9 +2299,38 @@ async function enviarResultadoAMake(data){
 }
 
 async function reservarEnvioResultado(partidoKey, signature){
-  if(!db || !partidoKey || !signature) return null;
+  if((!db && !fs) || !partidoKey || !signature) return null;
   const reservationId = `${Date.now()}_${Math.random().toString(36).slice(2,10)}`;
   try{
+    if(fs){
+      const ref = fs.collection('partidos').doc(partidoKey);
+      const reserved = await fs.runTransaction(async transaction=>{
+        const snap = await transaction.get(ref);
+        const data = snap.exists ? (snap.data() || {}) : {};
+        const current = data.makeSync && typeof data.makeSync === 'object' ? data.makeSync : {};
+        const now = Date.now();
+        const alreadySent = current.lastSignature === signature && current.status === 'sent';
+        const samePendingActive = current.pendingSignature === signature && current.status === 'sending' && (now - (current.updatedAt || 0) < MAKE_RESULT_STALE_MS);
+        if(alreadySent || samePendingActive) return false;
+        transaction.set(ref, {
+          makeSync:{
+            ...current,
+            status:'sending',
+            pendingSignature:signature,
+            pendingBy:reservationId,
+            updatedAt:now,
+            error:null
+          },
+          actualizadoEn: firestoreServerTimestamp()
+        }, { merge:true });
+        return true;
+      });
+      if(!reserved){
+        console.log('[Make] Resultado omitido por duplicado o envío ya reservado', { partidoKey, signature });
+        return null;
+      }
+      return { reservationId, ref, firestore:true };
+    }
     const tx = await db.ref(`partidos/${partidoKey}/makeSync`).transaction(current=>{
       const now = Date.now();
       const next = current && typeof current === 'object' ? current : {};
@@ -2273,6 +2362,23 @@ async function reservarEnvioResultado(partidoKey, signature){
 async function finalizarEnvioResultado(syncRef, signature, reservationId, patch){
   if(!syncRef || !signature || !reservationId) return false;
   try{
+    if(syncRef.firestore || typeof syncRef.get === 'function'){
+      return await fs.runTransaction(async transaction=>{
+        const snap = await transaction.get(syncRef);
+        const data = snap.exists ? (snap.data() || {}) : {};
+        const current = data.makeSync && typeof data.makeSync === 'object' ? data.makeSync : {};
+        if(current.pendingSignature !== signature || current.pendingBy !== reservationId) return false;
+        transaction.set(syncRef, {
+          makeSync:{
+            ...current,
+            ...patch,
+            updatedAt:Date.now()
+          },
+          actualizadoEn: firestoreServerTimestamp()
+        }, { merge:true });
+        return true;
+      });
+    }
     const tx = await syncRef.transaction(current=>{
       const next = current && typeof current === 'object' ? current : {};
       if(next.pendingSignature !== signature || next.pendingBy !== reservationId) return;
@@ -2464,7 +2570,7 @@ function openResetModal(tipo){
   openModal('modalReset');
 }
 
-function confirmarReset(){
+async function confirmarReset(){
   const tipo=document.getElementById('reset_tipo').value;
   const desdeFecha=document.getElementById('reset_desde_fecha').value;
   const hastaFecha=document.getElementById('reset_hasta_fecha').value;
@@ -2523,6 +2629,49 @@ function confirmarReset(){
     });
   }
 
+  if(fs){
+    const firestoreBatch = fs.batch();
+    let count = 0;
+    if(tipo==='ventas'||tipo==='todo'){
+      getVentas().filter(v=>inRango(v.ts, null)).forEach(v=>{
+        lastResetBackup.data[`ventas/${v._key}`]=v;
+        firestoreBatch.delete(fs.collection('ventas').doc(v._key));
+        count++;
+      });
+    }
+    if(tipo==='partidos'||tipo==='todo'){
+      getParts().filter(p=>inRango(p.creadoAt,p.fecha)).forEach(p=>{
+        lastResetBackup.data[`partidos/${p._key}`]=p;
+        firestoreBatch.delete(fs.collection('partidos').doc(p._key));
+        count++;
+      });
+    }
+    if(tipo==='inscripciones'||tipo==='todo'){
+      Object.entries(C.pagos || {}).map(([k,v])=>({ ...v, _key:k })).filter(p=>!p.cancelado && inRango(p.ts,p.fecha)).forEach(p=>{
+        lastResetBackup.data[`pagos/${p._key}`]=p;
+        firestoreBatch.set(fs.collection('pagos').doc(p._key), { cancelado:true, canceladoEn:firestoreServerTimestamp(), actualizadoEn:firestoreServerTimestamp() }, { merge:true });
+        count++;
+      });
+    }
+    if(tipo==='arbitrajes'||tipo==='todo'){
+      getParts().filter(p=>inRango(p.creadoAt,p.fecha)).forEach(p=>{
+        lastResetBackup.data[`partidos/${p._key}/arbPago`]=p.arbPago||{};
+        firestoreBatch.set(fs.collection('partidos').doc(p._key), {
+          arbPago:{local:{ef:0,tr:0,pp:0},visita:{ef:0,tr:0,pp:0}},
+          arbPagado:false,
+          actualizadoEn:firestoreServerTimestamp()
+        }, { merge:true });
+        count++;
+      });
+    }
+    if(!count){showToast('No hay registros en ese rango','ta');return;}
+    await firestoreBatch.commit();
+    closeModal('modalReset');
+    showToast(`✅ ${count} registros eliminados`,'tg');
+    document.getElementById('undoResetBtn').style.display='block';
+    renderResumen();
+    return;
+  }
   const count=Object.keys(batch).length;
   if(!count){showToast('No hay registros en ese rango','ta');return;}
 
@@ -2534,8 +2683,26 @@ function confirmarReset(){
   });
 }
 
-function deshacerReset(){
+async function deshacerReset(){
   if(!lastResetBackup){showToast('No hay acción para deshacer','ta');return;}
+  if(fs){
+    const firestoreBatch = fs.batch();
+    Object.entries(lastResetBackup.data).forEach(([path,val])=>{
+      const [collection, id, child] = path.split('/');
+      if(collection==='partidos' && child==='arbPago'){
+        firestoreBatch.set(fs.collection('partidos').doc(id), { arbPago:val, arbPagado:false, actualizadoEn:firestoreServerTimestamp() }, { merge:true });
+      }else if(collection && id){
+        const payload = collection==='pagos' ? { ...val, cancelado:false, actualizadoEn:firestoreServerTimestamp() } : { ...val, actualizadoEn:firestoreServerTimestamp() };
+        firestoreBatch.set(fs.collection(collection).doc(id), payload, { merge:true });
+      }
+    });
+    await firestoreBatch.commit();
+    showToast('↩️ Acción deshecha correctamente','tb');
+    lastResetBackup=null;
+    closeModal('modalReset');
+    renderResumen();
+    return;
+  }
   const batch={};
   Object.entries(lastResetBackup.data).forEach(([path,val])=>{batch[path]=val;});
   db.ref().update(batch).then(()=>{
@@ -2640,7 +2807,7 @@ function registrarUsuario(){
     if(pass !== pass2){ showErr('Las contraseñas no coinciden'); return; }
 
     if(!auth){ showErr('Firebase no está listo — recarga la página'); return; }
-    if(!db)  { showErr('Base de datos no disponible — recarga la página'); return; }
+    if(!db && !fs)  { showErr('Base de datos no disponible — recarga la página'); return; }
 
     const btn = document.getElementById('btnRegistrar');
     if(btn){ btn.textContent='Creando cuenta...'; btn.disabled=true; }
@@ -2650,9 +2817,9 @@ function registrarUsuario(){
     auth.createUserWithEmailAndPassword(email, pass)
       .then(cred => {
         createdUid = cred.user.uid;
-        return db.ref('usuarios/'+createdUid).set({
-          email, nombre, role:'viewer', creadoAt:Date.now(), uid:createdUid
-        });
+        const data = { email, nombre, role:'viewer', creadoAt:Date.now(), uid:createdUid };
+        if(fs) return saveDoc('usuarios', createdUid, data);
+        return db.ref('usuarios/'+createdUid).set(data);
       })
       .then(() => auth.signOut())
       .then(() => {
@@ -2742,7 +2909,7 @@ function filterUsuarios(q){
   renderUsuariosPanel(q);
 }
 
-function setUserRole(uid, role){
+async function setUserRole(uid, role){
   if(role === 'admin' && !isOwner){
     showToast('Solo el propietario puede hacer administradores','tr');
     return;
@@ -2752,12 +2919,14 @@ function setUserRole(uid, role){
     updates.equipoKey = null;
     updates.adminScope = null;
   }
-  db.ref('usuarios/'+uid).update(updates)
-    .then(()=>{
-      showToast(role==='admin'?'✅ Usuario promovido a Admin':'Usuario cambiado a Espectador','tg');
-      renderUsuariosPanel();
-    })
-    .catch(e=>showToast('Error: '+e.message,'tr'));
+  try{
+    if(fs) await updateDoc('usuarios', uid, updates);
+    else await db.ref('usuarios/'+uid).update(updates);
+    showToast(role==='admin'?'✅ Usuario promovido a Admin':'Usuario cambiado a Espectador','tg');
+    renderUsuariosPanel();
+  }catch(e){
+    showToast('Error: '+e.message,'tr');
+  }
 }
 
 function formatUserAdminScope(scopeRaw){
@@ -2804,7 +2973,7 @@ function renderAdminCatPermissions(){
     </label>`).join('');
 }
 
-function saveAdminRole(){
+async function saveAdminRole(){
   if(!isOwner){
     showToast('Solo el propietario puede guardar estos permisos','tr');
     return;
@@ -2816,13 +2985,16 @@ function saveAdminRole(){
     showToast('Selecciona torneo y al menos una categoria','ta');
     return;
   }
-  db.ref('usuarios/'+uid).update({ role:'admin', equipoKey:null, adminScope:buildSingleAdminScope(torneo, cats) })
-    .then(()=>{
-      closeModal('modalSetAdmin');
-      showToast('Permisos de administrador guardados','tg');
-      renderUsuariosPanel();
-    })
-    .catch(e=>showToast('Error: '+e.message,'tr'));
+  try{
+    const patch = { role:'admin', equipoKey:null, adminScope:buildSingleAdminScope(torneo, cats) };
+    if(fs) await updateDoc('usuarios', uid, patch);
+    else await db.ref('usuarios/'+uid).update(patch);
+    closeModal('modalSetAdmin');
+    showToast('Permisos de administrador guardados','tg');
+    renderUsuariosPanel();
+  }catch(e){
+    showToast('Error: '+e.message,'tr');
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -2846,7 +3018,7 @@ function openSetCaptain(uid){
   openModal('modalSetCaptain');
 }
 
-function saveCaptain(){
+async function saveCaptain(){
   const uid = document.getElementById('sc_uid').value;
   const equipoKey = document.getElementById('sc_equipo').value;
   if(!uid || !equipoKey){ showToast('Selecciona un equipo','ta'); return; }
@@ -2860,38 +3032,55 @@ function saveCaptain(){
     showToast('No tienes permiso para ese equipo','tr');
     return;
   }
-  db.ref('usuarios/'+uid).update({ role:'captain', equipoKey, adminScope:null })
-    .then(()=>{
-      showToast('⚽ Capitán asignado','tg');
-      closeModal('modalSetCaptain');
-      renderUsuariosPanel();
-    })
-    .catch(e=>showToast('Error: '+e.message,'tr'));
+  try{
+    const patch = { role:'captain', equipoKey, adminScope:null };
+    if(fs) await updateDoc('usuarios', uid, patch);
+    else await db.ref('usuarios/'+uid).update(patch);
+    showToast('⚽ Capitán asignado','tg');
+    closeModal('modalSetCaptain');
+    renderUsuariosPanel();
+  }catch(e){
+    showToast('Error: '+e.message,'tr');
+  }
 }
 
 
 // ══════════════════════════════════════════════
 //  SOLICITUDES — accept/reject
 // ══════════════════════════════════════════════
-function aceptarSolicitud(solId, equipoKey){
+async function aceptarSolicitud(solId, equipoKey){
   const sol = C.solicitudes[solId]; if(!sol) return;
   const e = C.equipos[equipoKey]; if(!e) return;
   const aline = [...(e.alineacion||[])];
   if(!aline.includes(sol.nombre)) aline.push(sol.nombre);
-  const updates = {};
-  updates['solicitudes/'+solId+'/status'] = 'accepted';
-  updates['equipos/'+equipoKey+'/alineacion'] = aline;
-  // If user has a uid, update their equipoKey so captain can manage them
-  if(sol.uid) updates['usuarios/'+sol.uid+'/equipoKey'] = equipoKey;
-  db.ref().update(updates).then(()=>{
+  try{
+    if(fs){
+      const batch = fs.batch();
+      batch.set(fs.collection('solicitudes').doc(solId), { status:'accepted', actualizadoEn:firestoreServerTimestamp() }, { merge:true });
+      batch.set(fs.collection('equipos').doc(equipoKey), { alineacion:aline, actualizadoEn:firestoreServerTimestamp() }, { merge:true });
+      if(sol.uid) batch.set(fs.collection('usuarios').doc(sol.uid), { equipoKey, actualizadoEn:firestoreServerTimestamp() }, { merge:true });
+      await batch.commit();
+    }else{
+      const updates = {};
+      updates['solicitudes/'+solId+'/status'] = 'accepted';
+      updates['equipos/'+equipoKey+'/alineacion'] = aline;
+      if(sol.uid) updates['usuarios/'+sol.uid+'/equipoKey'] = equipoKey;
+      await db.ref().update(updates);
+    }
     showToast(sol.nombre+' agregado al equipo ✅','tg');
-  }).catch(e=>showToast('Error: '+e.message,'tr'));
+  }catch(e){
+    showToast('Error: '+e.message,'tr');
+  }
 }
 
-function rechazarSolicitud(solId){
-  db.ref('solicitudes/'+solId+'/status').set('rejected')
-    .then(()=>showToast('Solicitud rechazada','ta'))
-    .catch(e=>showToast('Error: '+e.message,'tr'));
+async function rechazarSolicitud(solId){
+  try{
+    if(fs) await updateDoc('solicitudes', solId, { status:'rejected' });
+    else await db.ref('solicitudes/'+solId+'/status').set('rejected');
+    showToast('Solicitud rechazada','ta');
+  }catch(e){
+    showToast('Error: '+e.message,'tr');
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
