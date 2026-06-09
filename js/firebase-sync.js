@@ -184,6 +184,11 @@ function setupLegacyRealtimeCoreFallbackListeners() {
 }
 
 function normalizeFirestoreDoc(collectionName, id, data = {}) {
+  const plainCollections = new Set([
+    'categorias',
+    'usuarios_autorizados',
+    'bot_sessions'
+  ]);
   const scopedCollections = new Set([
     'partidos',
     'ventas',
@@ -203,6 +208,7 @@ function normalizeFirestoreDoc(collectionName, id, data = {}) {
       cancelado: !!data.cancelado
     };
   }
+  if (plainCollections.has(collectionName)) return { ...data, _key: id };
   const base = scopedCollections.has(collectionName) || data.torneo || data.cat || data.torneoId || data.categoriaId
     ? normalizeScopedRecord(data)
     : data;
@@ -288,33 +294,38 @@ let firestoreAllListenersReady = false;
 function setupFirestoreAllListeners() {
   if (!fs || firestoreAllListenersReady) return;
   firestoreAllListenersReady = true;
-  const collectionMap = {
-    equipos: C.equipos,
-    inscripciones: C.inscripciones,
-    pagos: C.pagos,
-    partidos: C.partidos,
-    productos: C.productos,
-    ventas: C.ventas,
-    gastosTienda: C.gastosTienda,
-    turnos: C.turnos,
-    arbitros: C.arbitros,
-    trabajadores: C.trabajadores,
-    gastosTrab: C.gastosTrab,
-    usuarios: C.usuarios,
-    solicitudes: C.solicitudes,
-    mercadotecnia: C.mercadotecnia,
-    temporadas: C.temporadas,
-    categorias: C.categorias,
-    usuarios_autorizados: C.usuarios_autorizados,
-    bot_sessions: C.bot_sessions
-  };
+  const firestoreCollections = [
+    'equipos',
+    'inscripciones',
+    'pagos',
+    'partidos',
+    'productos',
+    'ventas',
+    'gastosTienda',
+    'turnos',
+    'arbitros',
+    'trabajadores',
+    'gastosTrab',
+    'usuarios',
+    'solicitudes',
+    'mercadotecnia',
+    'temporadas',
+    'categorias',
+    'usuarios_autorizados',
+    'bot_sessions'
+  ];
 
-  Object.entries(collectionMap).forEach(([collectionName, target]) => {
+  firestoreCollections.forEach((collectionName) => {
+    if (!C[collectionName]) C[collectionName] = {};
+
     fs.collection(collectionName).onSnapshot((snapshot) => {
       if (collectionName === 'equipos') clearObj(firestoreCoreCache.equipos);
       else if (collectionName === 'inscripciones') clearObj(firestoreCoreCache.inscripciones);
       else if (collectionName === 'pagos') clearObj(firestoreCoreCache.pagos);
-      else clearObj(target);
+      else {
+        if (!C[collectionName]) C[collectionName] = {};
+        clearObj(C[collectionName]);
+      }
 
       snapshot.forEach((doc) => {
         const data = doc.data() || {};
@@ -322,7 +333,10 @@ function setupFirestoreAllListeners() {
         if (collectionName === 'equipos') firestoreCoreCache.equipos[doc.id] = record;
         else if (collectionName === 'inscripciones') firestoreCoreCache.inscripciones[doc.id] = record;
         else if (collectionName === 'pagos') firestoreCoreCache.pagos[doc.id] = record;
-        else target[doc.id] = record;
+        else {
+          if (!C[collectionName]) C[collectionName] = {};
+          C[collectionName][doc.id] = record;
+        }
       });
 
       if (collectionName === 'pagos') {
