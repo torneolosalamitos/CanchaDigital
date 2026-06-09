@@ -11,11 +11,11 @@ function setResumenPeriodo(periodo, btn) {
 
   const titles = {
     dia: '📋 Resumen del Día',
-    semana: '📆 Resumen Semanal',
-    mes: '🗓️ Resumen Mensual',
-    anual: '📊 Resumen Anual',
-    general: '🌐 Resumen General',
-    custom: '📆 Rango Personalizado'
+    semana: '📆 Esta semana',
+    mes: '🗓️ Este mes',
+    anual: '📊 Este año',
+    general: '🌐 Todo el torneo seleccionado',
+    custom: '📆 Personalizado'
   };
   const title = document.getElementById('resumenPeriodoTitle');
   if (title) title.textContent = titles[periodo] || '📋 Resumen';
@@ -64,19 +64,19 @@ function getResumenPeriodInfo() {
     const d = new Date();
     d.setDate(d.getDate() - 7);
     const from = d.toISOString().split('T')[0];
-    return { from, to: today, tsFrom: new Date(from + 'T00:00:00').getTime(), tsTo: Date.now(), label: 'Semana' };
+    return { from, to: today, tsFrom: new Date(from + 'T00:00:00').getTime(), tsTo: Date.now(), label: 'Esta semana' };
   }
   if (resumenPeriodo === 'mes') {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
     const from = d.toISOString().split('T')[0];
-    return { from, to: today, tsFrom: new Date(from + 'T00:00:00').getTime(), tsTo: Date.now(), label: 'Mes' };
+    return { from, to: today, tsFrom: new Date(from + 'T00:00:00').getTime(), tsTo: Date.now(), label: 'Este mes' };
   }
   if (resumenPeriodo === 'anual') {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 1);
     const from = d.toISOString().split('T')[0];
-    return { from, to: today, tsFrom: new Date(from + 'T00:00:00').getTime(), tsTo: Date.now(), label: 'Año' };
+    return { from, to: today, tsFrom: new Date(from + 'T00:00:00').getTime(), tsTo: Date.now(), label: 'Este año' };
   }
   if (resumenPeriodo === 'custom') {
     seedResumenCustomRange();
@@ -92,7 +92,7 @@ function getResumenPeriodInfo() {
       label: `${from} → ${to}`
     };
   }
-  return { from: '0000-01-01', to: '9999-12-31', tsFrom: 0, tsTo: Number.MAX_SAFE_INTEGER, label: 'General' };
+  return { from: '0000-01-01', to: '9999-12-31', tsFrom: 0, tsTo: Number.MAX_SAFE_INTEGER, label: 'Todo el torneo seleccionado' };
 }
 
 function resumenDateInPeriod(date, period) {
@@ -249,9 +249,9 @@ function getResumenData() {
 }
 
 function buildResumenScopeLabel(selectedCats) {
-  if (resumenScope === 'actual') return CAT_NAMES[selectedCats[0]] || 'Categoría actual';
+  if (resumenScope === 'actual') return 'Categoría seleccionada';
   if (resumenScope === 'custom') return selectedCats.map((key) => CAT_NAMES[key] || key).join(' + ');
-  return 'Todas las categorías del torneo seleccionado';
+  return 'Todas las categorías';
 }
 
 function renderResumenFilters(selectedCats) {
