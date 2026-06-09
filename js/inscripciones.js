@@ -1,23 +1,87 @@
 let inscScope = 'actual';
 let inscSelectedCats = [];
 
+function normalizePaymentDate(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') {
+    try {
+      return new Date(value).toISOString().split('T')[0];
+    } catch (_err) {
+      return '';
+    }
+  }
+  if (value instanceof Date) {
+    try {
+      return value.toISOString().split('T')[0];
+    } catch (_err) {
+      return '';
+    }
+  }
+  if (typeof value === 'object') {
+    if (typeof value.toDate === 'function') {
+      try {
+        return value.toDate().toISOString().split('T')[0];
+      } catch (_err) {
+        return '';
+      }
+    }
+    if (value.seconds) {
+      try {
+        return new Date(value.seconds * 1000).toISOString().split('T')[0];
+      } catch (_err) {
+        return '';
+      }
+    }
+  }
+  return String(value || '');
+}
+
+function paymentSortValue(abono) {
+  const raw = abono?.fechaTexto || abono?.fecha || abono?.creadoEn || abono?.ts || abono?.createdAt || '';
+  if (typeof raw === 'number') return raw;
+  if (raw instanceof Date) return raw.getTime();
+  if (raw && typeof raw === 'object') {
+    if (typeof raw.toDate === 'function') {
+      try { return raw.toDate().getTime(); } catch (_err) {}
+    }
+    if (raw.seconds) return raw.seconds * 1000;
+  }
+  const normalized = normalizePaymentDate(raw);
+  const parsed = normalized ? new Date(normalized + 'T00:00:00').getTime() : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function getInscAbonos(inscripcion) {
-  const legacy = Object.entries(inscripcion?.abonos || {}).map(([key, abono]) => ({
-    ...abono,
-    _key: abono?._key || key,
-    pagoId: abono?.pagoId || key
-  }));
+  const legacy = Object.entries(inscripcion?.abonos || {}).map(([key, abono]) => {
+    const fecha = normalizePaymentDate(abono?.fechaTexto || abono?.fecha || abono?.creadoEn || abono?.ts);
+    return {
+      ...abono,
+      _key: abono?._key || key,
+      pagoId: abono?.pagoId || key,
+      fecha,
+      fechaTexto: fecha,
+      notas: abono?.nota || abono?.notas || ''
+    };
+  });
   const inscKey = inscripcion?._key;
   const firestorePagos = Object.entries(C.pagos || {})
     .filter(([, pago]) => !pago.cancelado && inscKey && pago.inscripcionId === inscKey)
-    .map(([key, pago]) => ({
-      ...pago,
-      _key: key,
-      pagoId: key,
-      fecha: pago.fechaTexto || pago.fecha || '',
-      notas: pago.nota || pago.notas || ''
-    }));
-  return [...legacy, ...firestorePagos];
+    .map(([key, pago]) => {
+      const fecha = normalizePaymentDate(pago.fechaTexto || pago.fecha || pago.creadoEn || pago.ts);
+      return {
+        ...pago,
+        _key: key,
+        pagoId: key,
+        fecha,
+        fechaTexto: fecha,
+        notas: pago.nota || pago.notas || ''
+      };
+    });
+  return [...legacy, ...firestorePagos].filter((abono, index, arr) => {
+    const id = abono.pagoId || abono._key || `${abono.fecha}_${abono.monto}_${index}`;
+    return arr.findIndex((x) => (x.pagoId || x._key || `${x.fecha}_${x.monto}_${index}`) === id) === index;
+  });
 }
 
 function getInscPaid(inscripcion) {
@@ -210,10 +274,10 @@ function renderInscCard(inscripcion) {
   const pct = total > 0 ? Math.min(100, Math.round((pagado / total) * 100)) : 0;
   const estado = inscripcion.estado || getInscStatus(total, pagado);
   const abonosHtml = abonos
-    .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
+    .sort((a, b) => paymentSortValue(b) - paymentSortValue(a))
     .map((abono) => `
       <div class="abono-row">
-        <div class="abono-fecha">📅 ${fmtDate(abono.fecha) || '—'}</div>
+        <div class="abono-fecha">📅 ${fmtDate(normalizePaymentDate(abono.fechaTexto || abono.fecha || abono.ts)) || '—'}</div>
         <span class="abono-method am-${abono.metodo === 'transferencia' ? 'tr' : abono.metodo === 'prepago' ? 'pp' : 'ef'}">${abono.metodo === 'transferencia' ? 'Transf.' : abono.metodo === 'prepago' ? 'Prepago' : 'Efectivo'}</span>
         <div class="abono-monto">$${abono.monto}</div>
         ${fs && abono.pagoId && isAdmin ? `<button class="btn btn-r btn-sm" onclick="cancelarPagoFirestore('${abono.pagoId}')">Cancelar</button>` : ''}
