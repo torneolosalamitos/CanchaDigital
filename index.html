@@ -1077,11 +1077,11 @@
     <div class="resumen-toolbar-title">Periodo</div>
     <div class="resumen-pills">
       <button class="btn btn-g btn-sm" onclick="setResumenPeriodo('dia',this)" id="resPer_dia">📅 Hoy</button>
-      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('semana',this)" id="resPer_semana">📆 Semana</button>
-      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('mes',this)" id="resPer_mes">🗓️ Mes</button>
-      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('anual',this)" id="resPer_anual">📊 Anual</button>
-      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('general',this)" id="resPer_general">🌐 General</button>
-      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('custom',this)" id="resPer_custom">📆 Rango</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('semana',this)" id="resPer_semana">📆 Esta semana</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('mes',this)" id="resPer_mes">🗓️ Este mes</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('anual',this)" id="resPer_anual">📊 Este año</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('general',this)" id="resPer_general">🌐 Todo el torneo seleccionado</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('custom',this)" id="resPer_custom">📆 Personalizado</button>
     </div>
   </div>
 
@@ -1100,9 +1100,9 @@
   <div class="resumen-toolbar">
     <div class="resumen-toolbar-title">Categorías</div>
     <div class="resumen-pills" id="resumenScopePills">
-      <button class="btn btn-g btn-sm" onclick="setResumenScope('torneo')" id="resScope_torneo">Este torneo</button>
-      <button class="btn btn-out btn-sm" onclick="setResumenScope('actual')" id="resScope_actual">Actual</button>
-      <button class="btn btn-out btn-sm" onclick="setResumenScope('custom')" id="resScope_custom">Periodo por categorías</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenScope('actual')" id="resScope_actual">Categoría seleccionada</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenScope('custom')" id="resScope_custom">Seleccionar categorías</button>
+      <button class="btn btn-g btn-sm" onclick="setResumenScope('torneo')" id="resScope_torneo">Todas las categorías</button>
     </div>
   </div>
   <div class="resumen-filter-card" id="resumenCategoryFilters" style="display:none"></div>
