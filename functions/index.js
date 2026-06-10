@@ -12,11 +12,15 @@ function normalizePhone(value) {
 }
 
 function normalizeWhatsAppTo(phone) {
-  const digits = String(phone || '').replace(/\D/g, '');
-  if (digits.startsWith('521') && digits.length === 13) {
-    return '52' + digits.slice(3);
+  let clean = String(phone || "").replace(/\D/g, "");
+
+  // Meta/WhatsApp a veces entrega números mexicanos como 521 + 10 dígitos.
+  // Para enviar mensajes por Cloud API debe usarse 52 + 10 dígitos.
+  if (clean.startsWith("521") && clean.length === 13) {
+    clean = "52" + clean.slice(3);
   }
-  return digits;
+
+  return clean;
 }
 
 function normalizeText(value) {
@@ -60,9 +64,10 @@ async function sendWhatsAppText(to, body) {
   }
 
   const url = `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`;
+  const normalizedTo = normalizeWhatsAppTo(to);
   const payload = {
     messaging_product: 'whatsapp',
-    to: normalizeWhatsAppTo(to),
+    to: normalizedTo,
     type: 'text',
     text: { body }
   };
