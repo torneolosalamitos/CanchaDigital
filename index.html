@@ -1,0 +1,1873 @@
+﻿<!DOCTYPE html>
+<html lang="es" id="html" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>CanchaDigital</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="js/ui-core.js"></script>
+<script src="js/tournament-config.js"></script>
+<script src="js/firebase-boot.js"></script>
+<script src="js/app-state.js"></script>
+<script src="js/firebase-sync.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/categories-rules.js"></script>
+<script src="js/equipos.js"></script>
+<script src="js/tienda.js"></script>
+<script src="js/inscripciones.js"></script>
+<script src="js/capital-humano.js"></script>
+<script src="js/resumen.js"></script>
+<script src="js/stats-leaders.js"></script>
+<script src="js/partidos.js"></script>
+<script src="js/tabla.js"></script>
+<link rel="stylesheet" href="css/styles.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ═══ LOADING ═══ -->
+<div id="loadingScreen">
+  <div class="ld-ball">⚽</div>
+  <div class="ld-txt" id="ldTxt">CanchaDigital</div>
+  <div class="ld-sub">Panel profesional de torneos</div>
+</div>
+
+<!-- === SPLASH === -->
+<div id="splash">
+  <!-- Floating decorations -->
+  
+
+  <!-- Brand -->
+  <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:16px;position:relative;z-index:1">
+    <img src="/CanchaDigital/img/logo-cancha-splash.png" alt="CanchaDigital" style="width:280px;max-width:85vw;height:auto;margin-bottom:8px;display:block;"/>
+    <div style="font-size:9px;font-weight:700;letter-spacing:4px;color:rgba(26,58,138,.4);text-transform:uppercase;margin-bottom:0">Gestión y Visualización de Torneos</div>
+
+  </div>
+
+  <!-- Divider -->
+  <div style="width:80px;height:2px;background:linear-gradient(90deg,transparent,rgba(46,168,60,.6),transparent);margin:0 auto 20px"></div>
+  <div style="font-size:10px;font-weight:800;letter-spacing:4px;color:rgba(26,58,138,0.35);text-transform:uppercase;text-align:center;margin-bottom:16px">ELIGE TU TORNEO</div>
+
+  <!-- Tournament cards -->
+  <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px">
+    <div onclick="selectTorneo('lombardo_toledano')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
+      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-lombardo-toledano.png" alt="TORNEO LOMBARDO TOLEDANO" style="width:60px;height:60px;object-fit:contain;"/></div>
+      <div style="flex:1">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO LOMBARDO TOLEDANO</div>
+        <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">LIBRE VARONIL Y FEMENIL</div>
+      </div>
+      <div style="font-size:18px;color:rgba(46,168,60,.8);font-weight:700">&#8250;</div>
+    </div>
+    <div onclick="selectTorneo('nuevos_valores')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
+      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-nuevos-valores.png" alt="TORNEO NUEVOS VALORES" style="width:60px;height:60px;object-fit:contain;"/></div>
+      <div style="flex:1">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO NUEVOS VALORES</div>
+        <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">INFANTIL, OSOS Y JUVENIL</div>
+      </div>
+      <div style="font-size:22px;color:rgba(46,168,60,.6);font-weight:700">&#8250;</div>
+    </div>
+  </div>
+
+  <div class="sp-admin-link" onclick="openLoginModal()" style="margin-top:22px">🔐 Acceso administrador</div>
+</div>
+
+<!-- ═══ LOGIN MODAL ═══ -->
+<div id="loginModal">
+  <div class="lm-box">
+    <!-- Tabs -->
+    <div class="lm-tabs">
+      <button class="reg-tab active" id="tabLogin" onclick="switchAuthTab('login')">Entrar</button>
+      <button class="reg-tab" id="tabReg" onclick="switchAuthTab('registro')">Registrarse</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="formLogin">
+      <button class="g-btn" onclick="loginGoogle()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Entrar con Google
+      </button>
+      <div style="text-align:center;font-size:10px;color:var(--muted);margin:6px 0;font-weight:600;">— o con correo —</div>
+      <input class="lfi" id="l_email" type="email" placeholder="correo@gmail.com"/>
+      <input class="lfi" id="l_pass" type="password" placeholder="Contraseña"/>
+      <button class="btn btn-g btn-full" onclick="loginEmail()">Entrar</button>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="formReg" style="display:none">
+      <input class="lfi" id="r_nombre" type="text" placeholder="Tu nombre"/>
+      <input class="lfi" id="r_email" type="email" placeholder="correo@gmail.com"/>
+      <input class="lfi" id="r_pass" type="password" placeholder="Contraseña (mín. 6 caracteres)"/>
+      <input class="lfi" id="r_pass2" type="password" placeholder="Confirmar contraseña"/>
+      <button class="btn btn-g btn-full" id="btnRegistrar" onclick="registrarUsuario()">Crear cuenta</button>
+    </div>
+
+    <!-- REGISTRATION SUCCESS -->
+    <div id="formRegSuccess" style="display:none;text-align:center;padding:10px 0">
+      <div style="font-size:36px;margin-bottom:10px">✅</div>
+      <div style="font-size:15px;font-weight:800;color:var(--acc);margin-bottom:8px">¡Cuenta creada!</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.6;margin-bottom:16px">
+        Tu perfil fue registrado.<br/>
+        Espera a que el administrador te asigne un rol.<br/>
+        Ya puedes iniciar sesión con tu correo.
+      </div>
+      <button class="btn btn-g btn-full" onclick="irALogin()">→ Iniciar Sesión</button>
+    </div>
+
+    <div class="lm-err" id="lmerr" style="display:none"></div>
+    <button class="btn btn-out btn-full" style="margin-top:8px" onclick="closeLoginModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="appShell" style="display:none">
+
+<div class="header">
+  <div class="hdr-top">
+    <!-- Logos izquierda: CanchaDigital + Torneo activo -->
+    <div class="hdr-logos">
+      <div class="hdr-shield">
+        <img src="/CanchaDigital/img/logo-cancha-shield.png" style="height:36px;width:auto;object-fit:contain;display:block;"/>
+      </div>
+      <div class="hdr-torneo-logo" id="hdrTorneoWrap">
+        <img id="hdrTorneoLogo" style="height:40px;width:auto;max-width:80px;object-fit:contain;display:block;" src="" alt=""/>
+      </div>
+    </div>
+    <!-- Brand: torneo nombre + info -->
+    <div class="hdr-brand">
+      <div class="hdr-name" id="hdrName">LIGADIGITAL</div>
+      <div class="hdr-cat" id="hdrCat">Jesus "Navo" · 667 452 5663 📱</div>
+    </div>
+    <!-- Controles -->
+    <div class="hdr-right">
+      <span id="adminBadge" style="display:none;background:var(--acc);color:#fff;font-size:9px;font-weight:800;letter-spacing:1px;padding:3px 8px;border-radius:4px;">ADMIN</span>
+      <button id="homeBtn" class="ico-btn" onclick="cambiarTorneo()" title="Elegir torneo">&#127968;</button>
+      <button id="loginBtn" class="ico-btn" onclick="openLoginModal()" title="Admin">🔐</button>
+      <button id="usersBtn" class="ico-btn owner-only" onclick="openModal('modalUsuarios');renderUsuariosPanel()" style="display:none" title="Gestión usuarios">👥</button>
+      <span id="userChip" class="user-chip"><span class="user-dot"></span><span id="userChipName" class="user-name">Conectado</span></span>
+      <button id="logoutBtn" class="ico-btn" style="display:none" onclick="signOut()">🚪</button>
+      <div class="live-badge"><div class="ldot"></div>En Vivo</div>
+    </div>
+  </div>
+  <!-- Category tabs -->
+  <div class="cat-tabs" id="catTabsContainer">
+    <button class="cat-tab active" onclick="selectCat('cat_libre_varonil',this)">CATEGORÍA LIBRE VARONIL</button>
+    <button class="cat-tab" onclick="selectCat('cat_libre_femenil',this)">CATEGORÍA LIBRE FEMENIL</button>
+    <button class="cat-tab" onclick="selectCat('cat_infantil',this)">CATEGORÍA INFANTIL</button>
+    <button class="cat-tab" onclick="selectCat('cat_osos',this)">CATEGORÍA OSOS</button>
+    <button class="cat-tab" onclick="selectCat('cat_juvenil',this)">CATEGORÍA JUVENIL</button>
+    <button id="catAddBtn" onclick="openAddCatInline()" style="display:none;background:none;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,.5);padding:0 12px;cursor:pointer;font-size:18px;flex-shrink:0;line-height:36px" title="Agregar categoría">＋</button>
+  </div>
+  <!-- Nav -->
+<div class="nav-tabs">
+<button class="nav-tab active" onclick="showPage('tabla',this)">📊 Tabla</button>
+<button class="nav-tab" onclick="showPage('partidos',this)">⚽ Últimos Partidos</button>
+<button class="nav-tab" onclick="showPage('equipos',this)">🏆 Equipos</button>
+<button class="nav-tab" onclick="showPage('reglamento',this)">📋 Reglamento</button>
+<button class="nav-tab" onclick="showPage('historial',this)">🏅 Historial</button>
+<button class="nav-tab admin-only" id="navTienda" onclick="showPage('tienda',this)">🛒 Tienda</button>
+<button class="nav-tab admin-only" id="navInsc" onclick="showPage('inscripciones',this)">💰 Inscripciones</button>
+<button class="nav-tab admin-only" id="navArb" onclick="showPage('arbitros',this)">👥 Capital Humano</button>
+<button class="nav-tab admin-only" id="navRes" onclick="showPage('resumen',this)">📋 Resumen</button>
+<button class="nav-tab admin-only" id="navMerca" onclick="showPage('mercadotecnia',this)">📣 Mercadotecnia</button>
+</div>
+</div>
+
+<!-- ═══════ PRÓXIMOS PARTIDOS (público) ═══════ -->
+<div class="page" id="page-proximos" style="display:none">
+  <div class="stats-row" id="proximosStats"></div>
+  <div class="sh"><div class="st">📅 Semana</div><div class="sl"></div></div>
+  <div class="week-pills" id="weekPills"></div>
+  <div class="sh">
+    <div class="st">⚽ Partidos programados</div><div class="sl"></div>
+    <button class="btn btn-out btn-sm" onclick="filterProximos(null)">Todos</button>
+  </div>
+  <div id="proximosList"></div>
+</div>
+
+<!-- ═══════ TABLA ═══════ -->
+<div class="page active" id="page-tabla">
+  <!-- Admin: category management -->
+  <div id="adminCatPanel" style="display:none;margin-bottom:12px">
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-out btn-sm" onclick="openModal('modalGestionCats')" style="border-color:rgba(77,126,245,.4);color:var(--acc)">⚙️ Gestionar Categorías</button>
+      <button class="btn btn-r btn-sm" onclick="openResetCategoria()">🔄 Reiniciar Categoría</button>
+    </div>
+    <div id="adminTiendaToggleWrap" style="display:none;margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card2);">
+      <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;">
+        <span style="font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--text2)">🛒 Habilitar sección TIENDA</span>
+        <input id="adminTiendaToggle" type="checkbox" onchange="toggleTiendaSection(this.checked)"/>
+      </label>
+    </div>
+  </div>
+  <div class="sh">
+    <div class="st">📊 Tabla de Posiciones</div>
+    <div class="sl"></div>
+    <button class="btn btn-out btn-sm" onclick="compartirTabla()" title="Compartir tabla">📤</button>
+  </div>
+  <div id="vueltaInfoBanner" style="display:none;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;line-height:1.5;"></div>
+  <div class="tabla-wrap card" style="padding:0" id="tablaCaptura">
+    <table class="tabla">
+      <thead><tr>
+        <th>#</th><th class="tal">Equipo</th>
+        <th>PJ</th><th>G</th><th>E</th><th>P</th>
+        <th>GF</th><th>GC</th><th>DG</th><th>PTS</th><th>Forma</th>
+      </tr></thead>
+      <tbody id="tablaBody"><tr><td colspan="11" class="tabla-empty">Sin partidos terminados</td></tr></tbody>
+    </table>
+    <!-- Vista móvil tipo tarjetas -->
+    <div class="tm-list" id="tablaBodyMobile" style="display:none"></div>
+  </div>
+  <!-- COPA SECTION -->
+  <div id="finalissimaSection" style="display:none">
+    <div class="sh" style="margin-top:18px">
+      <div class="st">🏆 Cuadro de Copa</div>
+      <div class="sl"></div>
+      <button id="btnToggleCuadroCopa" class="btn btn-out btn-sm admin-only" onclick="toggleCuadroCopa()" title="Mostrar/ocultar al público" style="display:none;">👁️</button>
+      <button class="btn btn-out btn-sm" onclick="compartirCopa()" title="Compartir cuadro de copa">📤</button>
+    </div>
+    <div id="cuadroCopaBanner" style="display:none;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2);border-radius:10px;padding:8px 12px;font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px;">🔒 Cuadro de copa oculto al público</div>
+    <div id="finalissimaBanner"></div>
+  </div>
+  <!-- Admin: resumen automático de copa -->
+  <div id="adminFinalissimaPanel" style="display:none;margin-top:6px;margin-bottom:4px"></div>
+
+  <div class="sh" style="margin-top:18px">
+    <div class="st">🥅 Máximos Goleadores</div>
+    <div class="sl"><span style="font-size:9px;color:var(--muted);font-weight:600;margin-left:8px">Top 10</span></div>
+    <button id="btnToggleGoleadoresPublic" class="btn btn-out btn-sm admin-only" onclick="toggleGoleadoresPublic()" title="Mostrar/ocultar al público" style="display:none;">👁️</button>
+    <button class="btn btn-out btn-sm" onclick="compartirGoleadores()" title="Compartir goleadores">📤</button>
+  </div>
+  <div id="goleadoresPublicBanner" style="display:none;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2);border-radius:10px;padding:8px 12px;font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px;">🔒 Tabla de goleadores oculta al público</div>
+  <div class="ranking-container" id="goleadoresCaptura"><div id="goleadoresList"><div class="empty"><span class="empty-icon">🥅</span>Sin goles registrados</div></div></div>
+
+</div>
+
+<!-- ═══════ ÚLTIMOS PARTIDOS ═══════ -->
+<div class="page" id="page-partidos">
+  <div id="adminAddPartido" style="display:none;margin-bottom:14px">
+    <button class="btn btn-g btn-full" onclick="openModal('modalPartido');resetPartidoForm()">+ REGISTRAR PARTIDO</button>
+  </div>
+  <!-- Filters -->
+  <div class="card" style="padding:11px 13px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;white-space:nowrap">🏆 Equipo:</span>
+      <select class="fi" id="partidos_equipo_filter" style="flex:1;min-width:130px;padding:7px 10px;font-size:12px" onchange="renderPartidos()">
+        <option value="">Todos los equipos</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;white-space:nowrap">📅 Ver desde:</span>
+      <input class="fi" id="partidos_fecha_desde" type="date" style="flex:1;min-width:130px;padding:7px 10px;font-size:12px" onchange="renderPartidos()"/>
+      <button class="btn btn-out btn-sm" onclick="setFechaUltimos(3)">Últimos 3 días</button>
+      <button class="btn btn-out btn-sm" onclick="setFechaUltimos(7)">7 días</button>
+      <button class="btn btn-out btn-sm" onclick="setFechaUltimos(0)">Todos</button>
+    </div>
+  </div>
+  <div id="partidosList"></div>
+</div>
+
+<!-- ═══════ EQUIPOS ═══════ -->
+<div class="page" id="page-equipos">
+  <div id="adminAddEquipo" style="display:none;margin-bottom:14px">
+    <button class="btn btn-g btn-full" onclick="openModal('modalEquipo');resetEquipoForm()">+ REGISTRAR EQUIPO</button>
+  </div>
+  <div id="equiposView"></div>
+</div>
+
+<!-- ═══════ HISTORIAL DE TEMPORADAS ═══════ -->
+<div class="page" id="page-historial">
+  <div style="background:linear-gradient(135deg,#ca8a04,#d97706);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+    <div style="font-size:28px;margin-bottom:6px">🏆</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;color:#fff">Historial de Temporadas</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.7);font-weight:600;margin-top:3px">Campeones · Goleadores · Tablas finales</div>
+  </div>
+
+  <div id="adminAddTemporada" style="display:none;margin-bottom:14px">
+    <button class="btn btn-g btn-full" onclick="openModal('modalGuardarTemporada')">📸 GUARDAR TEMPORADA ACTUAL</button>
+  </div>
+
+  <div id="historialList"><div class="empty"><span class="empty-icon">🏆</span>Sin temporadas guardadas aún</div></div>
+</div>
+
+
+<!-- ═══════ REGLAMENTO Y PREMIOS ═══════ -->
+<div class="page" id="page-reglamento">
+
+  <!-- Hero banner -->
+  <div style="position:relative;overflow:hidden;border-radius:24px;padding:24px 20px 22px;margin-bottom:16px;background:linear-gradient(135deg,#0f172a 0%,#1a3a8a 55%,#2554d4 100%);box-shadow:0 16px 36px rgba(26,58,138,.28);">
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#ca8a04,#2ea83c,#4d7ef5);border-radius:24px 24px 0 0;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(77,126,245,.22),transparent 55%);pointer-events:none;"></div>
+    <div style="font-size:10px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:rgba(253,224,71,.9);margin-bottom:6px;position:relative;z-index:1;">⚽ Torneo Lombardo Toledano · Fútbol 7</div>
+    <div id="reglHeroTitle" style="font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:2px;color:#fff;line-height:.95;position:relative;z-index:1;">Reglamento<br>& Premios</div>
+    <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.65);margin-top:8px;line-height:1.55;position:relative;z-index:1;">Cancha Principal · Torneo Lombardo Toledano</div>
+  </div>
+
+  <!-- Placeholder para categorías sin reglamento -->
+  <div id="reglPlaceholder" style="display:none;text-align:center;padding:40px 20px;">
+    <div style="font-size:52px;margin-bottom:16px;">🚧</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--text);margin-bottom:8px;">Reglamento en construcción</div>
+    <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.65;">El reglamento de esta categoría estará disponible próximamente.</div>
+  </div>
+
+  <!-- Contenido exclusivo CATEGORÍA LIBRE VARONIL -->
+  <div id="reglContentLigaAlta">
+
+  <!-- FORMATO DE COMPETENCIA -->
+  <div class="sh"><div class="st">🏟️ Formato de Competencia</div><div class="sl"></div></div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#1a3a8a,#2554d4);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏆</div>
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text);">A) Fase de Liga</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px;">12 Jornadas · 2 Vueltas · Todos contra todos</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);font-weight:600;line-height:1.65;margin-bottom:12px;">Se disputarán <strong>12 jornadas</strong> en <strong>2 vueltas</strong> de todos contra todos (6 jornadas por vuelta). El equipo que acumule más puntos al término de las <strong>12 jornadas totales</strong> quedará <strong>Campeón de Liga</strong>. Se generará tabla individual por vuelta y tabla general.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#16a34a;line-height:1;">3</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#16a34a;margin-top:2px;">Victoria</div>
+      </div>
+      <div style="background:rgba(100,116,139,.08);border:1px solid rgba(100,116,139,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#64748b;line-height:1;">1</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-top:2px;">Empate</div>
+      </div>
+      <div style="background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#dc2626;line-height:1;">0</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#dc2626;margin-top:2px;">Derrota</div>
+      </div>
+    </div>
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:11px;color:var(--text2);font-weight:600;line-height:1.6;">
+      <strong style="color:var(--acc)">Desempate:</strong> En caso de igualdad en puntos, se aplicará en orden: diferencia de goles y mayor número de goles anotados.
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#ca8a04,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🥊</div>
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text);">B) Fase Copa (Liguilla)</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px;">6 Clasificados · Repechaje · Semis · Final</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);font-weight:600;line-height:1.65;margin-bottom:12px;">Clasifican los <strong>6 primeros equipos</strong> al término de las 2 vueltas. El <strong>1° y 2° clasificados pasan directamente a Semifinales</strong>. Los demás disputan un repechaje previo.</p>
+
+    <!-- NOTA DESTACADA: 1° y 2° directo -->
+    <div style="display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,rgba(202,138,4,.12),rgba(255,255,255,0));border:1.5px solid rgba(202,138,4,.4);border-radius:10px;padding:10px 13px;margin-bottom:10px;">
+      <span style="font-size:20px;flex-shrink:0;">🥇</span>
+      <div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#ca8a04;text-transform:uppercase;margin-bottom:2px;">1° y 2° Lugar — Pase Directo</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.5;">El primer y segundo lugar de la tabla clasifican directamente a Semifinales, <strong>sin jugar repechaje</strong>. Quedan en brackets separados.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:12px;">
+
+      <!-- REPECHAJE -->
+      <div style="background:linear-gradient(90deg,rgba(220,38,38,.08),rgba(255,255,255,0));border:1px solid rgba(220,38,38,.3);border-radius:10px;padding:9px 12px;">
+        <div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#dc2626;text-transform:uppercase;margin-bottom:6px;">🔥 Repechaje (2 Partidos)</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <!-- Rep A -->
+          <div style="background:rgba(220,38,38,.05);border:1px solid rgba(220,38,38,.15);border-radius:8px;padding:8px 10px;">
+            <div style="font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#dc2626;margin-bottom:4px;">Repechaje A → ganador va a SF1</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:11px;font-weight:900;color:var(--acc);white-space:nowrap;">4° vs 5°</span>
+              <div style="flex:1;height:1px;background:var(--border);"></div>
+              <span style="font-size:10px;color:var(--muted);font-weight:600;">Eliminación directa</span>
+            </div>
+          </div>
+          <!-- Rep B -->
+          <div style="background:rgba(220,38,38,.05);border:1px solid rgba(220,38,38,.15);border-radius:8px;padding:8px 10px;">
+            <div style="font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#dc2626;margin-bottom:4px;">Repechaje B → ganador va a SF2</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:11px;font-weight:900;color:var(--acc);white-space:nowrap;">3° vs 6°</span>
+              <div style="flex:1;height:1px;background:var(--border);"></div>
+              <span style="font-size:10px;color:var(--muted);font-weight:600;">Eliminación directa</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEMIFINALES -->
+      <div style="background:rgba(26,58,138,.04);border:1px solid var(--border);border-radius:10px;padding:9px 12px;">
+        <div style="font-size:10px;font-weight:900;letter-spacing:1px;color:var(--acc);text-transform:uppercase;margin-bottom:6px;">⚔️ Semifinales (2 Partidos)</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+              <span style="font-size:10px;font-weight:900;color:#ca8a04;background:rgba(202,138,4,.12);border:1px solid rgba(202,138,4,.3);border-radius:999px;padding:2px 7px;">1°</span>
+              <span style="font-size:10px;font-weight:700;color:var(--muted);">vs</span>
+              <span style="font-size:10px;font-weight:800;color:var(--acc);">Gan. Rep-A</span>
+            </div>
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+            <span style="font-size:9px;color:var(--muted);font-weight:600;white-space:nowrap;">Semifinal 1</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+              <span style="font-size:10px;font-weight:900;color:#94a3b8;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:999px;padding:2px 7px;">2°</span>
+              <span style="font-size:10px;font-weight:700;color:var(--muted);">vs</span>
+              <span style="font-size:10px;font-weight:800;color:var(--acc);">Gan. Rep-B</span>
+            </div>
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+            <span style="font-size:9px;color:var(--muted);font-weight:600;white-space:nowrap;">Semifinal 2</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINAL -->
+      <div style="display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,rgba(202,138,4,.08),rgba(255,255,255,0));border:1px solid rgba(202,138,4,.2);border-radius:10px;padding:9px 12px;">
+        <span style="font-size:14px;">🏆</span>
+        <span style="font-size:11px;font-weight:900;color:#ca8a04;white-space:nowrap;">Gran Final</span>
+        <div style="flex:1;height:1px;background:rgba(202,138,4,.2);"></div>
+        <span style="font-size:10px;color:var(--muted);font-weight:600;white-space:nowrap;">Ganadores de SF1 y SF2</span>
+      </div>
+
+    </div>
+
+    <!-- DIAGRAMA VISUAL DEL BRACKET -->
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 13px;margin-bottom:10px;">
+      <div style="font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">📊 Diagrama del Bracket</div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;font-size:10px;font-weight:700;">
+        <!-- Lado izquierdo -->
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.25);border-radius:8px;padding:6px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#dc2626;margin-bottom:2px;">REP. A</div>
+            <div style="color:var(--text2);">4° <span style="color:var(--muted)">vs</span> 5°</div>
+          </div>
+          <div style="display:flex;justify-content:center;"><div style="width:1px;height:10px;background:var(--border2);"></div></div>
+          <div style="background:rgba(26,58,138,.08);border:1px solid rgba(26,58,138,.2);border-radius:8px;padding:6px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:var(--acc);margin-bottom:2px;">SEMI 1</div>
+            <div style="color:var(--text2);"><span style="color:#ca8a04;font-weight:900;">1°</span> <span style="color:var(--muted)">vs</span> Gan.A</div>
+          </div>
+        </div>
+        <!-- Centro -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 4px;">
+          <div style="width:1px;flex:1;background:var(--border2);"></div>
+          <div style="background:linear-gradient(135deg,#ca8a04,#f59e0b);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 4px 10px rgba(202,138,4,.3);">🏆</div>
+          <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#ca8a04;text-transform:uppercase;white-space:nowrap;">Gran Final</div>
+          <div style="width:1px;flex:1;background:var(--border2);"></div>
+        </div>
+        <!-- Lado derecho -->
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.25);border-radius:8px;padding:6px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#dc2626;margin-bottom:2px;">REP. B</div>
+            <div style="color:var(--text2);">3° <span style="color:var(--muted)">vs</span> 6°</div>
+          </div>
+          <div style="display:flex;justify-content:center;"><div style="width:1px;height:10px;background:var(--border2);"></div></div>
+          <div style="background:rgba(26,58,138,.08);border:1px solid rgba(26,58,138,.2);border-radius:8px;padding:6px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:var(--acc);margin-bottom:2px;">SEMI 2</div>
+            <div style="color:var(--text2);"><span style="color:#94a3b8;font-weight:900;">2°</span> <span style="color:var(--muted)">vs</span> Gan.B</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:11px;color:var(--text2);font-weight:600;line-height:1.6;">
+      <strong style="color:var(--acc)">Penales:</strong> En caso de empate al término del tiempo reglamentario, el ganador se definirá mediante tanda de penales.
+    </div>
+  </div>
+
+  <!-- PARTIDOS -->
+  <div class="sh" style="margin-top:6px;"><div class="st">⚽ Reglamento de Partidos</div><div class="sl"></div></div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px;display:flex;flex-direction:column;gap:11px;">
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⏱️</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Duración del partido</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Dos tiempos de <strong>20 minutos</strong> cada uno.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🕐</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Tolerancia y default</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Tolerancia máxima de <strong>15 minutos</strong>. Si el equipo no se presenta, perderá por default con marcador oficial de <strong>3-0</strong>. Dos defaults = expulsión sin reembolso.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⚽</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Balón</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Cada equipo debe llevar balón en condiciones adecuadas. De no presentarlo al inicio del segundo tiempo, se pitará un <strong>penal en contra</strong>.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">👕</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Uniformes — OBLIGATORIO</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Medias largas y <strong>taque-tenis obligatorios</strong>. Todos los jugadores deben portar playeras del mismo color. En caso de colisión de colores, el equipo <strong>visitante</strong> realiza el cambio.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🔄</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Cambios</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Los equipos podrán realizar <strong>cambios ilimitados</strong> durante el partido.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🚫</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Conducta</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Cualquier jugador que incurra en actos de <strong>violencia o participe en una pelea</strong> será expulsado definitivamente del torneo.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🦺</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Arbitraje</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">El costo de arbitraje es de <strong>$250 por partido</strong>, pagadero al término del encuentro en efectivo.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EQUIPOS -->
+  <div class="sh" style="margin-top:6px;"><div class="st">🏆 Equipos y Jugadores</div><div class="sl"></div></div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px;display:flex;flex-direction:column;gap:11px;">
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">👥</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Jugadores en cancha</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;"><strong>7 jugadores</strong> por equipo en el terreno de juego. No hay límite máximo de jugadores registrados por plantel.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">📋</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Altas de jugadores</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Se permitirán altas de jugadores hasta la <strong>jornada 6</strong> (al término de la Vuelta 1).</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⚠️</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Jugador en dos equipos</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Ningún jugador podrá participar en más de un equipo. El incumplimiento conlleva la <strong>pérdida del partido</strong> para el equipo infractor.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">📢</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Protestas</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Se aceptarán protestas. De comprobarse alineación indebida, el equipo donde jugó el protestado <strong>perderá el partido</strong> correspondiente.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSCRIPCIÓN -->
+  <div class="sh" style="margin-top:6px;"><div class="st">💰 Inscripción y Pagos</div><div class="sl"></div></div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Costo total por equipo</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--acc);line-height:1;">$2,000</div>
+      </div>
+      <div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:12px;padding:12px 16px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#16a34a;line-height:1;">$500</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#16a34a;margin-top:2px;">Pago inicial</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;background:rgba(22,163,74,.05);border:1px solid rgba(22,163,74,.2);border-radius:10px;padding:11px 12px;">
+        <span style="font-size:16px;flex-shrink:0;">✅</span>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Para confirmar participación se requiere un pago mínimo inicial de <strong>$500</strong>.</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:11px 12px;">
+        <span style="font-size:16px;flex-shrink:0;">📅</span>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">El monto restante deberá liquidarse antes de la <strong>jornada 7</strong> (inicio de la Vuelta 2).</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;background:rgba(220,38,38,.05);border:1px solid rgba(220,38,38,.18);border-radius:10px;padding:11px 12px;">
+        <span style="font-size:16px;flex-shrink:0;">🚫</span>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">El equipo que no liquide en el plazo será dado de baja <strong>sin derecho a reembolso</strong>.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREMIACIÓN -->
+  <div class="sh" style="margin-top:6px;"><div class="st">🏅 Premiación</div><div class="sl"></div></div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px;">
+    <!-- Campeón de Liga -->
+    <div style="position:relative;overflow:hidden;border-radius:18px;padding:16px;background:linear-gradient(135deg,rgba(202,138,4,.15),rgba(245,158,11,.08) 60%,rgba(255,255,255,0));border:1.5px solid rgba(202,138,4,.4);box-shadow:0 8px 22px rgba(202,138,4,.12);">
+      <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:52px;opacity:.12;pointer-events:none;">🏆</div>
+      <div style="font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#ca8a04;margin-bottom:4px;">1er lugar</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;color:#92400e;margin-bottom:8px;line-height:1;">Campeón de Liga</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(202,138,4,.12);border:1px solid rgba(202,138,4,.28);border-radius:999px;padding:5px 12px;width:fit-content;">
+          <span style="font-size:14px;">🏆</span><span style="font-size:11px;font-weight:800;color:#92400e;">Trofeo</span>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(202,138,4,.12);border:1px solid rgba(202,138,4,.28);border-radius:999px;padding:5px 12px;width:fit-content;">
+          <span style="font-size:14px;">🥩</span><span style="font-size:11px;font-weight:800;color:#92400e;">5 kg de carne asada</span>
+        </div>
+      </div>
+    </div>
+    <!-- Campeón de Copa -->
+    <div style="position:relative;overflow:hidden;border-radius:18px;padding:16px;background:linear-gradient(135deg,rgba(249,115,22,.12),rgba(255,255,255,0));border:1.5px solid rgba(249,115,22,.35);box-shadow:0 8px 22px rgba(249,115,22,.1);">
+      <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:52px;opacity:.12;pointer-events:none;">🥊</div>
+      <div style="font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#ea580c;margin-bottom:4px;">Copa</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;color:#c2410c;margin-bottom:8px;line-height:1;">Campeón de Copa</div>
+      <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.28);border-radius:999px;padding:5px 12px;width:fit-content;">
+        <span style="font-size:14px;">🏆</span><span style="font-size:11px;font-weight:800;color:#c2410c;">Trofeo</span>
+      </div>
+    </div>
+    <!-- Reconocimientos individuales -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="border-radius:18px;padding:14px;background:linear-gradient(135deg,rgba(37,99,235,.1),rgba(255,255,255,0));border:1.5px solid rgba(37,99,235,.25);text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">🥅</div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#1d4ed8;margin-bottom:4px;">Máx. Goleador</div>
+        <div style="display:inline-flex;align-items:center;gap:5px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.22);border-radius:999px;padding:4px 10px;">
+          <span style="font-size:12px;">🏆</span><span style="font-size:10px;font-weight:800;color:#1d4ed8;">Trofeo</span>
+        </div>
+      </div>
+      <div style="border-radius:18px;padding:14px;background:linear-gradient(135deg,rgba(13,148,136,.1),rgba(255,255,255,0));border:1.5px solid rgba(13,148,136,.25);text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">🧤</div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#0d9488;margin-bottom:4px;">Mejor Portero</div>
+        <div style="display:inline-flex;align-items:center;gap:5px;background:rgba(13,148,136,.1);border:1px solid rgba(13,148,136,.22);border-radius:999px;padding:4px 10px;">
+          <span style="font-size:12px;">🏆</span><span style="font-size:10px;font-weight:800;color:#0d9488;">Trofeo</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESPONSABILIDAD -->
+  <div class="sh" style="margin-top:6px;"><div class="st">⚠️ Responsabilidad</div><div class="sl"></div></div>
+  <div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.28);border-radius:16px;padding:16px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px;">
+    <span style="font-size:22px;flex-shrink:0;margin-top:1px;">⚠️</span>
+    <p style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.65;">Todos los participantes juegan <strong>bajo su propio riesgo</strong>, deslindando a la organización de cualquier responsabilidad por lesiones o accidentes ocurridos durante el torneo.</p>
+  </div>
+
+  </div><!-- /reglContentLigaAlta -->
+
+  <!-- Contenido exclusivo CATEGORÍA LIBRE FEMENIL -->
+  <div id="reglContentFemenil" style="display:none;">
+
+  <!-- FORMATO DE COMPETENCIA -->
+  <div class="sh"><div class="st">🏟️ Formato de Competencia</div><div class="sl"></div></div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏆</div>
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text);">Fase de Liga — Todos Contra Todos</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px;">4 Equipos · 2 Vueltas · 6 Jornadas Totales</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);font-weight:600;line-height:1.65;margin-bottom:12px;">Los <strong>4 equipos</strong> del torneo se enfrentarán entre sí <strong>2 veces cada uno</strong> (ida y vuelta), completando un total de <strong>6 jornadas</strong>. Al terminar esa fase regular, la tabla definirá los cruces de la <strong>fase final</strong>: <strong>1° vs 4°</strong> y <strong>2° vs 3°</strong> en semifinales; las ganadoras avanzan a la <strong>Gran Final</strong>.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#16a34a;line-height:1;">3</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#16a34a;margin-top:2px;">Victoria</div>
+      </div>
+      <div style="background:rgba(100,116,139,.08);border:1px solid rgba(100,116,139,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#64748b;line-height:1;">1</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-top:2px;">Empate</div>
+      </div>
+      <div style="background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#dc2626;line-height:1;">0</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#dc2626;margin-top:2px;">Derrota</div>
+      </div>
+    </div>
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:11px;color:var(--text2);font-weight:600;line-height:1.6;">
+      <strong style="color:#7c3aed">Desempate:</strong> En caso de igualdad en puntos, se aplicará en orden: diferencia de goles y mayor número de goles anotados.
+    </div>
+  </div>
+
+  <!-- FASE FINAL -->
+  <div class="card" style="margin-bottom:10px;padding:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#ca8a04,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🥊</div>
+      <div>
+        <div style="font-size:13px;font-weight:900;color:var(--text);">Fase Final</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px;">Semifinales + Gran Final al término de las 6 Jornadas</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);font-weight:600;line-height:1.65;margin-bottom:12px;">Al concluir las <strong>6 jornadas</strong> de la fase regular, los <strong>4 equipos</strong> entran a liguilla. La tabla acomoda el camino así: <strong>1° vs 4°</strong> y <strong>2° vs 3°</strong> en semifinales. Las ganadoras disputan un partido único por la <strong>Gran Final</strong>.</p>
+
+    <!-- NOTA DESTACADA -->
+    <div style="display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,rgba(202,138,4,.12),rgba(255,255,255,0));border:1.5px solid rgba(202,138,4,.4);border-radius:10px;padding:10px 13px;margin-bottom:12px;">
+      <span style="font-size:20px;flex-shrink:0;">🥇</span>
+      <div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#ca8a04;text-transform:uppercase;margin-bottom:2px;">Tabla define cruces — 1° vs 4° y 2° vs 3°</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.5;">Las <strong>semifinales</strong> se juegan según la posición final de la tabla. Las vencedoras avanzan a la <strong>Gran Final</strong>.</div>
+      </div>
+    </div>
+
+    <!-- DIAGRAMA VISUAL -->
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 13px;margin-bottom:10px;">
+      <div style="font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">📊 Diagrama del Torneo</div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;font-size:10px;font-weight:700;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:8px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#7c3aed;margin-bottom:2px;">SEMIFINAL 1</div>
+            <div style="color:var(--text2);"><span style="color:#ca8a04;font-weight:900;">1°</span> <span style="color:var(--muted)">vs</span> 4°</div>
+          </div>
+          <div style="display:flex;justify-content:center;"><div style="width:1px;height:10px;background:var(--border2);"></div></div>
+          <div style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:8px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#7c3aed;margin-bottom:2px;">SEMIFINAL 2</div>
+            <div style="color:var(--text2);"><span style="color:#94a3b8;font-weight:900;">2°</span> <span style="color:var(--muted)">vs</span> 3°</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 4px;">
+          <div style="width:1px;flex:1;background:var(--border2);"></div>
+          <div style="background:linear-gradient(135deg,#ca8a04,#f59e0b);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 4px 10px rgba(202,138,4,.3);">🏆</div>
+          <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#ca8a04;text-transform:uppercase;white-space:nowrap;">Gran Final</div>
+          <div style="width:1px;flex:1;background:var(--border2);"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:rgba(202,138,4,.08);border:1px solid rgba(202,138,4,.3);border-radius:8px;padding:8px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#ca8a04;margin-bottom:2px;">FINAL</div>
+            <div style="color:var(--text2);font-size:9px;">Ganadora SF1 <span style="color:var(--muted)">vs</span> Ganadora SF2</div>
+          </div>
+          <div style="display:flex;justify-content:center;"><div style="width:1px;height:10px;background:var(--border2);"></div></div>
+          <div style="background:rgba(202,138,4,.08);border:1px solid rgba(202,138,4,.3);border-radius:8px;padding:6px 9px;text-align:center;">
+            <div style="font-size:8px;font-weight:900;letter-spacing:1px;color:#ca8a04;margin-bottom:2px;">CAMPEONAS</div>
+            <div style="color:var(--text2);font-size:9px;">👑 Ganadora de la Final</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:11px;color:var(--text2);font-weight:600;line-height:1.6;">
+      <strong style="color:#7c3aed">Penales:</strong> En caso de empate al término del tiempo reglamentario, tanto en <strong>semifinales</strong> como en la <strong>Gran Final</strong>, el ganador se definirá mediante tanda de penales.
+    </div>
+  </div>
+
+  <!-- PARTIDOS -->
+  <div class="sh" style="margin-top:6px;"><div class="st">⚽ Reglamento de Partidos</div><div class="sl"></div></div>
+
+  <div class="card" style="margin-bottom:10px;padding:16px;display:flex;flex-direction:column;gap:11px;">
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⏱️</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Duración del partido</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Dos tiempos de <strong>20 minutos</strong> cada uno.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🕐</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Tolerancia y default</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Tolerancia máxima de <strong>15 minutos</strong>. Si el equipo no se presenta, perderá por default con marcador oficial de <strong>3-0</strong>. Dos defaults = expulsión sin reembolso.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⚽</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Balón</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Cada equipo debe llevar balón en condiciones adecuadas. De no presentarlo al inicio del segundo tiempo, se pitará un <strong>penal en contra</strong>.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">👕</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Uniformes — OBLIGATORIO</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Medias largas y <strong>taque-tenis obligatorios</strong>. Todas las jugadoras deben portar playeras del mismo color. En caso de colisión de colores, el equipo <strong>visitante</strong> realiza el cambio.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🔄</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Cambios</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Los equipos podrán realizar <strong>cambios ilimitados</strong> durante el partido.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🚫</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Conducta</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Cualquier jugadora que incurra en actos de <strong>violencia o participe en una pelea</strong> será expulsada definitivamente del torneo.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">🦺</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Arbitraje</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">El costo de arbitraje es de <strong>$250 por partido</strong>, pagadero al término del encuentro en efectivo.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">⚠️</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Jugadora en dos equipos</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Ninguna jugadora podrá participar en más de un equipo. El incumplimiento conlleva la <strong>pérdida del partido</strong> para el equipo infractor.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;">
+      <span style="font-size:20px;flex-shrink:0;margin-top:1px;">📢</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:3px;">Protestas</div>
+        <div style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.55;">Se aceptarán protestas. De comprobarse alineación indebida, el equipo donde jugó la protestada <strong>perderá el partido</strong> correspondiente.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREMIACIÓN -->
+  <div class="sh" style="margin-top:6px;"><div class="st">🏅 Premiación</div><div class="sl"></div></div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px;">
+    <!-- Campeón -->
+    <div style="position:relative;overflow:hidden;border-radius:18px;padding:16px;background:linear-gradient(135deg,rgba(202,138,4,.15),rgba(245,158,11,.08) 60%,rgba(255,255,255,0));border:1.5px solid rgba(202,138,4,.4);box-shadow:0 8px 22px rgba(202,138,4,.12);">
+      <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:52px;opacity:.12;pointer-events:none;">🏆</div>
+      <div style="font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#ca8a04;margin-bottom:4px;">Ganador de la Gran Final</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;color:#92400e;margin-bottom:8px;line-height:1;">Campeón Femenil Libre</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(202,138,4,.12);border:1px solid rgba(202,138,4,.28);border-radius:999px;padding:5px 12px;width:fit-content;">
+          <span style="font-size:14px;">🏆</span><span style="font-size:11px;font-weight:800;color:#92400e;">Trofeo</span>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(202,138,4,.12);border:1px solid rgba(202,138,4,.28);border-radius:999px;padding:5px 12px;width:fit-content;">
+          <span style="font-size:14px;">🥩</span><span style="font-size:11px;font-weight:800;color:#92400e;">Carne asada</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESPONSABILIDAD -->
+  <div class="sh" style="margin-top:6px;"><div class="st">⚠️ Responsabilidad</div><div class="sl"></div></div>
+  <div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.28);border-radius:16px;padding:16px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px;">
+    <span style="font-size:22px;flex-shrink:0;margin-top:1px;">⚠️</span>
+    <p style="font-size:11px;color:var(--text2);font-weight:600;line-height:1.65;">Todas las participantes juegan <strong>bajo su propio riesgo</strong>, deslindando a la organización de cualquier responsabilidad por lesiones o accidentes ocurridos durante el torneo.</p>
+  </div>
+
+  </div><!-- /reglContentFemenil -->
+
+</div>
+<!-- FIN REGLAMENTO -->
+<!-- ═══════ TIENDA ═══════ -->
+<div class="page" id="page-tienda">
+
+  <!-- TURNO BANNER -->
+  <div id="turnoBanner" style="margin-bottom:12px"></div>
+
+  <div class="stats-row" id="tiendaStats"></div>
+
+  <!-- ABRIR/CERRAR TIENDA -->
+  <div class="card" style="margin-bottom:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Estado del turno</div>
+      <div id="turnoStatus" style="font-size:13px;font-weight:700;color:var(--muted);">Tienda cerrada</div>
+    </div>
+    <button id="btnAbrirTienda" class="btn btn-g btn-sm" onclick="abrirTurno()" style="white-space:nowrap;">🟢 Abrir Tienda</button>
+    <button id="btnCerrarTienda" class="btn btn-r btn-sm" onclick="cerrarTurno()" style="display:none;white-space:nowrap;">🔴 Cerrar Turno</button>
+  </div>
+
+  <div class="sh"><div class="st">🛒 Punto de Venta</div><div class="sl"></div></div>
+  <div class="pos-grid" id="posGrid"></div>
+  <div class="card card-g">
+    <div class="ticket-hdr"><div class="ticket-title">— Ticket —</div><button class="btn btn-out btn-sm" onclick="clearCart()">Limpiar</button></div>
+    <div id="cartItems"><div class="cart-empty-msg">Toca un producto para agregarlo</div></div>
+    <div class="cart-total-row"><span class="ct-lbl">Total</span><span class="ct-num" id="cartTotal">$0</span></div>
+    <button class="btn btn-g btn-full" onclick="cobrar()">💵 COBRAR</button>
+  </div>
+
+  <!-- GASTOS TIENDA -->
+  <div class="sh" style="margin-top:16px">
+    <div class="st">💸 Gastos / Retiros</div><div class="sl"></div>
+    <button class="btn btn-out btn-sm" onclick="openModal('modalGastoTienda')">+ Registrar</button>
+  </div>
+  <div class="card"><div id="gastosTiendaList"><div class="empty"><span class="empty-icon">💸</span>Sin retiros registrados</div></div></div>
+
+  <div class="sh" style="margin-top:16px">
+    <div class="st">📦 Inventario</div><div class="sl"></div>
+    <button class="btn btn-out btn-sm" onclick="openModal('modalAddProd')">+ Agregar</button>
+    <button class="btn btn-out btn-sm" onclick="resetProductos()" style="margin-left:4px">🔄 Reset</button>
+  </div>
+  <div class="card"><div id="inventarioList"></div></div>
+  <div class="sh" style="margin-top:16px"><div class="st">🕓 Historial de Ventas</div><div class="sl"></div></div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px">
+    <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🔍 Filtrar por fecha y hora</div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Desde</label><input class="fi" id="vt_desde_fecha" type="date" onchange="renderHistorialVentas()"/></div>
+      <div class="fg"><label class="fl">Hasta</label><input class="fi" id="vt_hasta_fecha" type="date" onchange="renderHistorialVentas()"/></div>
+    </div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Hora inicio (opcional)</label><input class="fi" id="vt_desde_hora" type="time" onchange="renderHistorialVentas()"/></div>
+      <div class="fg"><label class="fl">Hora fin (opcional)</label><input class="fi" id="vt_hasta_hora" type="time" onchange="renderHistorialVentas()"/></div>
+    </div>
+    <button class="btn btn-out btn-sm" onclick="resetVentasFilter()" style="margin-top:4px;font-size:10px">↺ Últimos 3 días</button>
+  </div>
+  <div class="card"><div id="historialVentas"><div class="empty"><span class="empty-icon">🧾</span>Sin ventas aún</div></div></div>
+</div>
+
+<!-- ═══════ INSCRIPCIONES ═══════ -->
+<div class="page" id="page-inscripciones">
+  <div class="sh">
+    <div class="st">💰 Inscripciones</div><div class="sl"></div>
+    <button class="btn btn-g btn-sm" onclick="resetInscForm();openModal('modalInscEquipo')">+ Equipo</button>
+  </div>
+  <div class="stats-row" id="inscStats"></div>
+  <div id="inscScopeControls"></div>
+  <div id="inscList"></div>
+</div>
+
+<!-- ═══════ CAPITAL HUMANO ═══════ -->
+<div class="page" id="page-arbitros">
+
+  <!-- Header con tabs internos -->
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn btn-g btn-sm" id="chTab_arb" onclick="switchCHTab('arb')" style="flex:1;padding:10px">🦺 Árbitros</button>
+    <button class="btn btn-out btn-sm" id="chTab_trab" onclick="switchCHTab('trab')" style="flex:1;padding:10px">👷 Trabajadores</button>
+  </div>
+
+  <!-- SECCIÓN ÁRBITROS -->
+  <div id="ch_arb_section">
+    <button class="btn btn-g btn-full" style="margin-bottom:14px" onclick="openModal('modalNuevoArb')">+ REGISTRAR ÁRBITRO</button>
+    <div id="arbitrosList"></div>
+
+    <div class="sh" style="margin-top:14px"><div class="st">🏟️ Asignar árbitro a partido</div><div class="sl"></div></div>
+    <div class="card"><div id="asignacionArb"></div></div>
+
+    <div class="sh" style="margin-top:14px"><div class="st">💰 Cobros registrados</div><div class="sl"></div></div>
+    <div class="card" style="padding:10px 13px;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">📅 Ver período</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-out btn-sm" onclick="setArbPeriodo('hoy')" id="arbBtn_hoy">Hoy</button>
+        <button class="btn btn-g btn-sm" onclick="setArbPeriodo('3dias')" id="arbBtn_3dias">Últimos 3 días</button>
+        <button class="btn btn-out btn-sm" onclick="setArbPeriodo('semana')" id="arbBtn_semana">Esta semana</button>
+        <button class="btn btn-out btn-sm" onclick="setArbPeriodo('mes')" id="arbBtn_mes">Este mes</button>
+        <button class="btn btn-out btn-sm" onclick="setArbPeriodo('todo')" id="arbBtn_todo">Todo</button>
+      </div>
+    </div>
+    <div class="card" id="cobrosDelDia"></div>
+
+    <div class="sh" style="margin-top:14px"><div class="st">💳 Pagos pendientes</div><div class="sl"></div></div>
+    <div class="card"><div id="pagosPend"></div></div>
+
+    <div class="sh" style="margin-top:14px"><div class="st">✏️ Editar cobros individuales</div><div class="sl"></div></div>
+    <div class="card"><div id="editCobrosArb"></div></div>
+  </div>
+
+  <!-- SECCIÓN TRABAJADORES -->
+  <div id="ch_trab_section" style="display:none">
+    <button class="btn btn-g btn-full" style="margin-bottom:14px" onclick="openModal('modalNuevoTrab')">+ REGISTRAR TRABAJADOR</button>
+    <div id="trabajadoresList"></div>
+
+    <div class="sh" style="margin-top:14px"><div class="st">📋 Registro de pagos a trabajadores</div><div class="sl"></div></div>
+    <div class="card" style="padding:10px 13px;margin-bottom:10px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-out btn-sm" onclick="setTrabPeriodo('hoy')" id="trabBtn_hoy">Hoy</button>
+        <button class="btn btn-g btn-sm" onclick="setTrabPeriodo('3dias')" id="trabBtn_3dias">3 días</button>
+        <button class="btn btn-out btn-sm" onclick="setTrabPeriodo('semana')" id="trabBtn_semana">Semana</button>
+        <button class="btn btn-out btn-sm" onclick="setTrabPeriodo('mes')" id="trabBtn_mes">Mes</button>
+        <button class="btn btn-out btn-sm" onclick="setTrabPeriodo('anual')" id="trabBtn_anual">Año</button>
+        <button class="btn btn-out btn-sm" onclick="setTrabPeriodo('todo')" id="trabBtn_todo">Todo</button>
+      </div>
+    </div>
+    <div class="card" id="resumenTrabajadores"></div>
+
+    <div class="sh" style="margin-top:14px"><div class="st">➕ Registrar gasto / pago</div><div class="sl"></div></div>
+    <div class="card">
+      <div class="fg"><label class="fl">Trabajador</label>
+        <select class="fi" id="gasto_trab_sel"><option value="">— Seleccionar —</option></select>
+      </div>
+      <div class="fg"><label class="fl">Concepto</label><input class="fi" id="gasto_concepto" placeholder="Ej: Reparación de cancha, turno domingo..."/></div>
+      <div class="form-2">
+        <div class="fg"><label class="fl">Monto $</label><input class="fi" id="gasto_monto" type="number" min="0" placeholder="0"/></div>
+        <div class="fg"><label class="fl">Fecha</label><input class="fi" id="gasto_fecha" type="date"/></div>
+      </div>
+      <div class="fg"><label class="fl">Método de pago</label>
+        <select class="fi" id="gasto_metodo">
+          <option value="efectivo">💵 Efectivo</option>
+          <option value="transferencia">📱 Transferencia</option>
+          <option value="pendiente">⏳ Pendiente</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Notas</label><input class="fi" id="gasto_notas" placeholder="Notas adicionales..."/></div>
+      <button class="btn btn-g btn-full" onclick="registrarGastoTrab()">💾 Registrar pago</button>
+    </div>
+
+    <div class="sh" style="margin-top:14px"><div class="st">🕓 Historial de pagos</div><div class="sl"></div></div>
+    <div class="card"><div id="historialGastosTrab"></div></div>
+  </div>
+</div>
+
+<!-- ═══════ MERCADOTECNIA ═══════ -->
+<div class="page" id="page-mercadotecnia">
+  <div class="marketing-hero">
+    <div class="marketing-kicker">Community Manager</div>
+    <div class="marketing-title">MERCADOTECNIA</div>
+    <div class="marketing-sub">Ideas, calendario editorial, publicaciones automáticas y seguimiento de actividad para hacer crecer las redes con el tono auténtico del torneo.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;position:relative;z-index:1">
+      <button class="btn btn-g btn-sm" id="mercaIdeasBtn" onclick="generarIdeasMerca()">💡 Actualizar ideas</button>
+      <button class="btn btn-out btn-sm" onclick="renderMercadotecnia()">🔄 Actualizar panel</button>
+    </div>
+  </div>
+
+  <div class="sh" style="margin-top:18px"><div class="st">📈 Panel de Actividad</div><div class="sl"></div></div>
+  <div id="mercaDashboard"></div>
+
+  <div class="sh" style="margin-top:18px"><div class="st">📡 Redes Conectadas</div><div class="sl"></div></div>
+  <div class="card">
+    <div class="marketing-network-grid">
+      <div class="marketing-network-card">
+        <div class="marketing-platform">Instagram</div>
+        <div class="fg"><label class="fl">Handle</label><input class="fi" id="mk_ig_handle" placeholder="@canchadigital"/></div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Seguidores</label><input class="fi" id="mk_ig_followers" type="number" min="0" placeholder="0"/></div>
+          <div class="fg"><label class="fl">Alcance prom.</label><input class="fi" id="mk_ig_reach" type="number" min="0" placeholder="0"/></div>
+        </div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Engagement %</label><input class="fi" id="mk_ig_eng" type="number" min="0" step="0.1" placeholder="0"/></div>
+          <div class="fg"><label class="fl">Meta semanal</label><input class="fi" id="mk_ig_goal" type="number" min="0" placeholder="3"/></div>
+        </div>
+      </div>
+      <div class="marketing-network-card">
+        <div class="marketing-platform">TikTok</div>
+        <div class="fg"><label class="fl">Handle</label><input class="fi" id="mk_tt_handle" placeholder="@canchadigital"/></div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Seguidores</label><input class="fi" id="mk_tt_followers" type="number" min="0" placeholder="0"/></div>
+          <div class="fg"><label class="fl">Alcance prom.</label><input class="fi" id="mk_tt_reach" type="number" min="0" placeholder="0"/></div>
+        </div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Engagement %</label><input class="fi" id="mk_tt_eng" type="number" min="0" step="0.1" placeholder="0"/></div>
+          <div class="fg"><label class="fl">Meta semanal</label><input class="fi" id="mk_tt_goal" type="number" min="0" placeholder="2"/></div>
+        </div>
+      </div>
+      <div class="marketing-network-card">
+        <div class="marketing-platform">Facebook</div>
+        <div class="fg"><label class="fl">Handle o página</label><input class="fi" id="mk_fb_handle" placeholder="CanchaDigital"/></div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Seguidores</label><input class="fi" id="mk_fb_followers" type="number" min="0" placeholder="0"/></div>
+          <div class="fg"><label class="fl">Alcance prom.</label><input class="fi" id="mk_fb_reach" type="number" min="0" placeholder="0"/></div>
+        </div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Engagement %</label><input class="fi" id="mk_fb_eng" type="number" min="0" step="0.1" placeholder="0"/></div>
+          <div class="fg"><label class="fl">Meta semanal</label><input class="fi" id="mk_fb_goal" type="number" min="0" placeholder="2"/></div>
+        </div>
+      </div>
+    </div>
+    <div class="info-box" style="margin-top:12px">Este panel ya queda listo para trabajar con datos del torneo. Para conectar métricas reales de redes y autopublicación segura, la integración final debe hacerse desde un backend con tus APIs.</div>
+    <button class="btn btn-g btn-full" style="margin-top:10px" onclick="saveMarketingNetworks()">💾 Guardar datos de redes</button>
+  </div>
+
+  <div class="sh" style="margin-top:18px"><div class="st">🗓️ Calendario Editorial</div><div class="sl"></div></div>
+  <div class="card"><div id="mercaCalendar"><div class="empty"><span class="empty-icon">🗓️</span>Preparando calendario...</div></div></div>
+
+  <div class="sh" style="margin-top:18px"><div class="st">🤖 Ideas del Community Manager</div><div class="sl"></div></div>
+  <div class="marketing-ai-box"><div id="mercaIdeasOutput">Cargando ideas automáticas...</div></div>
+
+  <div class="sh" style="margin-top:18px"><div class="st">📣 Publicaciones Automáticas</div><div class="sl"></div></div>
+  <div id="mercaPosts"><div class="empty"><span class="empty-icon">📣</span>Generando publicaciones...</div></div>
+</div>
+
+<!-- ═══════ RESUMEN ═══════ -->
+<div class="page" id="page-resumen">
+  <div class="resumen-dash-hero">
+    <div>
+      <div class="resumen-kicker">Resumen del torneo</div>
+      <div class="resumen-title" id="resumenTorneoTitle">CanchaDigital</div>
+      <div class="resumen-subtitle" id="resumenScopeLabel">Categorías del torneo seleccionado</div>
+    </div>
+    <div class="resumen-logo-stack">
+      <img src="/CanchaDigital/img/logo-cancha-shield.png" alt="CanchaDigital"/>
+      <img id="resumenTorneoLogo" src="" alt="Torneo"/>
+    </div>
+  </div>
+
+  <div class="resumen-toolbar">
+    <div class="resumen-toolbar-title">Periodo</div>
+    <div class="resumen-pills">
+      <button class="btn btn-g btn-sm" onclick="setResumenPeriodo('dia',this)" id="resPer_dia">📅 Hoy</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('semana',this)" id="resPer_semana">📆 Esta semana</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('mes',this)" id="resPer_mes">🗓️ Este mes</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('anual',this)" id="resPer_anual">📊 Este año</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('general',this)" id="resPer_general">🌐 Todo el torneo seleccionado</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenPeriodo('custom',this)" id="resPer_custom">📆 Personalizado</button>
+    </div>
+  </div>
+
+  <div id="customRangePanel" class="resumen-filter-card" style="display:none">
+    <div class="resumen-filter-title">📆 Selecciona rango de fechas</div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Desde fecha</label><input class="fi" id="res_desde_fecha" type="date" onchange="renderResumen()"/></div>
+      <div class="fg"><label class="fl">Hasta fecha</label><input class="fi" id="res_hasta_fecha" type="date" onchange="renderResumen()"/></div>
+    </div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Desde hora (opcional)</label><input class="fi" id="res_desde_hora" type="time" onchange="renderResumen()"/></div>
+      <div class="fg"><label class="fl">Hasta hora (opcional)</label><input class="fi" id="res_hasta_hora" type="time" onchange="renderResumen()"/></div>
+    </div>
+  </div>
+
+  <div class="resumen-toolbar">
+    <div class="resumen-toolbar-title">Categorías</div>
+    <div class="resumen-pills" id="resumenScopePills">
+      <button class="btn btn-out btn-sm" onclick="setResumenScope('actual')" id="resScope_actual">Categoría seleccionada</button>
+      <button class="btn btn-out btn-sm" onclick="setResumenScope('custom')" id="resScope_custom">Seleccionar categorías</button>
+      <button class="btn btn-g btn-sm" onclick="setResumenScope('torneo')" id="resScope_torneo">Todas las categorías</button>
+    </div>
+  </div>
+  <div class="resumen-filter-card" id="resumenCategoryFilters" style="display:none"></div>
+
+  <div class="sh"><div class="st" id="resumenPeriodoTitle">📋 Resumen del Día</div><div class="sl"></div></div>
+  <div class="res-grid" id="resumenGrid"></div>
+
+  <div class="resumen-dashboard-grid" id="resumenDashboards"></div>
+
+  <div id="resumenCategoryBreakdown"></div>
+
+  <div class="resumen-section" id="resumenInscSection">
+    <div class="sh"><div class="st">💰 Inscripciones</div><div class="sl"></div></div>
+    <div class="card"><div id="resInsc"></div></div>
+  </div>
+
+  <div class="resumen-section" id="resumenDeudasSection">
+    <div class="sh"><div class="st">⚠️ Deudas por Cobrar</div><div class="sl"></div></div>
+    <div class="card"><div id="resDeudas"><div class="empty"><span class="empty-icon">⚠️</span>Calculando...</div></div></div>
+  </div>
+
+  <div class="resumen-section" id="resumenVentasSection">
+    <div class="sh"><div class="st">🛒 Tienda / Top Ventas</div><div class="sl"></div></div>
+    <div class="card"><div id="resVentas"></div></div>
+  </div>
+
+  <div class="resumen-section" id="resumenArbSection">
+    <div class="sh"><div class="st">🦺 Arbitrajes — Desglose</div><div class="sl"></div></div>
+    <div class="card"><div id="resArb"></div></div>
+  </div>
+
+  <div class="resumen-section" id="resumenCapHumSection">
+    <div class="sh"><div class="st">👥 Capital Humano</div><div class="sl"></div></div>
+    <div class="card"><div id="resCapHum"></div></div>
+  </div>
+
+  <div class="resumen-section">
+    <div class="sh"><div class="st">💡 Lectura rápida</div><div class="sl"></div></div>
+    <div id="finInsights"></div>
+  </div>
+
+  <!-- REINICIAR ESTADÍSTICAS -->
+  <div class="sh" style="margin-top:18px"><div class="st">🗑️ Reiniciar Estadísticas</div><div class="sl"></div></div>
+  <div class="card card-r">
+    <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:12px">⚠️ Estas acciones eliminan datos. Usa con cuidado.</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-r btn-full" onclick="openResetModal('ventas')">🗑️ Reiniciar ventas de Tienda</button>
+      <button class="btn btn-r btn-full" onclick="openResetModal('partidos')">🗑️ Reiniciar partidos / resultados</button>
+      <button class="btn btn-r btn-full" onclick="openResetModal('inscripciones')">🗑️ Reiniciar inscripciones</button>
+      <button class="btn btn-r btn-full" onclick="openResetModal('arbitrajes')">🗑️ Reiniciar cobros de arbitraje</button>
+      <button class="btn btn-r btn-full" onclick="openResetModal('todo')">⚠️ Reiniciar TODO</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reiniciar Estadísticas -->
+<div class="modal-overlay" id="modalReset">
+  <div class="modal" style="border-top-color:var(--red)">
+    <div class="modal-head"><div class="modal-title" style="color:var(--red)" id="resetModalTitle">⚠️ Reiniciar</div><button class="modal-close" onclick="closeModal('modalReset')">✕</button></div>
+    <input type="hidden" id="reset_tipo"/>
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px" id="resetModalDesc"></div>
+    <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:12px">Puedes filtrar por rango de fechas y horas para borrar solo un período:</div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Desde fecha</label><input class="fi" id="reset_desde_fecha" type="date"/></div>
+      <div class="fg"><label class="fl">Hasta fecha</label><input class="fi" id="reset_hasta_fecha" type="date"/></div>
+    </div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Desde hora</label><input class="fi" id="reset_desde_hora" type="time"/></div>
+      <div class="fg"><label class="fl">Hasta hora</label><input class="fi" id="reset_hasta_hora" type="time"/></div>
+    </div>
+    <div class="warn-box" style="margin-bottom:12px">Si dejas las fechas vacías, se eliminarán <strong>TODOS</strong> los registros de esa sección.</div>
+    <div id="resetPreviewInfo" style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-r btn-full" onclick="confirmarReset()">🗑️ Confirmar eliminación</button>
+      <button class="btn btn-out btn-sm" onclick="closeModal('modalReset')" style="flex-shrink:0">Cancelar</button>
+    </div>
+    <div id="undoResetBtn" style="display:none;margin-top:8px">
+      <button class="btn btn-b btn-full" onclick="deshacerReset()">↩️ DESHACER último reset</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /appShell -->
+
+<!-- ═══════════ MODALS ═══════════ -->
+
+<!-- Registrar/Editar Partido -->
+<div class="modal-overlay" id="modalPartido">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="mpModalTitle">Registrar Partido</div><button class="modal-close" onclick="closeModal('modalPartido')">✕</button></div>
+    <input type="hidden" id="mp_key"/>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Torneo</label>
+        <select class="fi" id="mp_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors(); updateMPEquipos();">
+          <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Categoría</label>
+        <select class="fi" id="mp_cat" onchange="updateMPEquipos()">
+          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+          <option value="cat_osos">CATEGORÍA OSOS</option>
+          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Cancha</label>
+        <select class="fi" id="mp_cancha">
+          <option value="Cancha Principal">Cancha Principal</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Árbitro</label>
+        <select class="fi" id="mp_arbitro"><option value="">Sin árbitro</option></select>
+      </div>
+    </div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Equipo Local</label>
+        <select class="fi" id="mp_local" onchange="syncPartidoPorteroDefaults(true);syncLineupFromTeam('local')"><option value="">Seleccionar...</option></select>
+      </div>
+      <div class="fg"><label class="fl">Equipo Visitante</label>
+        <select class="fi" id="mp_visita" onchange="syncPartidoPorteroDefaults(true);syncLineupFromTeam('visita')"><option value="">Seleccionar...</option></select>
+      </div>
+    </div>
+    <!-- DEFAULT WIN SECTION -->
+    <div id="mp_default_section" style="background:rgba(220,38,38,.06);border:1.5px solid rgba(220,38,38,.22);border-radius:10px;padding:12px;margin-bottom:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:var(--red);text-transform:uppercase">⚠️ Victoria por Default</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">El equipo que no se presentó pierde 2-0. No se registran goleadores.</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+          <input type="checkbox" id="mp_is_default" onchange="toggleDefaultMode()" style="width:16px;height:16px;accent-color:var(--red);cursor:pointer"/>
+          <span style="font-size:11px;font-weight:800;color:var(--red)">Activar</span>
+        </label>
+      </div>
+      <div id="mp_default_options" style="display:none;margin-top:10px">
+        <label class="fl">¿Quién NO se presentó? (pierde 2-0)</label>
+        <select class="fi" id="mp_default_loser" style="border-color:rgba(220,38,38,.4)">
+          <option value="">Seleccionar equipo...</option>
+          <option value="local">Local</option>
+          <option value="visita">Visitante</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Fecha</label><input class="fi" id="mp_fecha" type="date"/></div>
+      <div class="fg"><label class="fl">Hora inicio</label><input class="fi" id="mp_hora_ini" type="time"/></div>
+    </div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Hora término</label><input class="fi" id="mp_hora_fin" type="time"/></div>
+      <div class="fg"><label class="fl">Costo arbitraje/eq $</label><input class="fi" id="mp_costo" type="number" value="250" min="0"/></div>
+    </div>
+    <div id="mp_marcador_section">
+    <div class="divider"></div>
+    <div style="font-size:10px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">ALINEACIONES (opcional)</div>
+    <div class="form-2">
+      <div>
+        <label class="fl">Jugadores Local</label>
+        <div id="lineup_local_roster"></div>
+        <div id="lineup_local"></div>
+        <button class="btn btn-out btn-sm btn-full" style="margin-top:5px" onclick="addPlayer('local')">+ Jugador manual</button>
+      </div>
+      <div>
+        <label class="fl">Jugadores Visita</label>
+        <div id="lineup_visita_roster"></div>
+        <div id="lineup_visita"></div>
+        <button class="btn btn-out btn-sm btn-full" style="margin-top:5px" onclick="addPlayer('visita')">+ Jugador manual</button>
+      </div>
+    </div>
+    <div class="form-2" style="margin-top:10px">
+      <div class="fg"><label class="fl">🧤 Portero Local</label><input class="fi" id="mp_portero_local" placeholder="Nombre del portero local"/></div>
+      <div class="fg"><label class="fl">🧤 Portero Visita</label><input class="fi" id="mp_portero_visita" placeholder="Nombre del portero visita"/></div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:10px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">MARCADOR (si ya terminó)</div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Goles Local</label><input class="fi" id="mp_gL" type="number" value="0" min="0"/></div>
+      <div class="fg"><label class="fl">Goles Visita</label><input class="fi" id="mp_gV" type="number" value="0" min="0"/></div>
+    </div>
+    <div class="fg"><label class="fl">Estado</label>
+      <select class="fi" id="mp_status">
+        <option value="pendiente">Pendiente</option>
+        <option value="jugando">En juego</option>
+        <option value="terminado">Terminado</option>
+      </select>
+    </div>
+    </div><!-- end mp_marcador_section -->
+    <button class="btn btn-g btn-full" onclick="savePartido()">💾 Guardar Partido</button>
+  </div>
+</div>
+
+<!-- Ver/Editar Partido (detail modal with crono + goles) -->
+<div class="modal-overlay" id="modalPartidoDetail">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="pdTitle">Partido</div><button class="modal-close" onclick="closeModal('modalPartidoDetail')">✕</button></div>
+    <div id="modalPartidoContent"></div>
+  </div>
+</div>
+
+<!-- Registrar Gol -->
+<div class="modal-overlay" id="modalGol">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="golModalTitle">⚽ Registrar Gol</div><button class="modal-close" onclick="closeModal('modalGol')">✕</button></div>
+    <input type="hidden" id="gol_equipo"/>
+    <div class="fg"><label class="fl">Jugador (de la alineación)</label><select class="fi" id="gol_jugador"></select></div>
+    <div class="fg"><label class="fl">O escribe el nombre</label><input class="fi" id="gol_manual" placeholder="Nombre del jugador"/></div>
+    <button class="btn btn-g btn-full" onclick="confirmGol()">✅ Confirmar Gol</button>
+  </div>
+</div>
+
+<!-- Pagos Arbitraje (dentro de partido) -->
+<div class="modal-overlay" id="modalPagoArb">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">💰 Pago de Arbitraje</div><button class="modal-close" onclick="closeModal('modalPagoArb')">✕</button></div>
+    <input type="hidden" id="pa_key"/>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;font-weight:600">Arbitraje: <strong style="color:var(--acc)">$250 por equipo</strong></div>
+    <div class="pay-box">
+      <div class="pay-box-title" id="pa_local_title">🏠 Equipo Local</div>
+      <div class="pay-method-grid">
+        <div class="pmo" id="btn_l_ef" onclick="setPM('local','ef')">💵 Efectivo</div>
+        <div class="pmo" id="btn_l_tr" onclick="setPM('local','tr')">📱 Transf.</div>
+        <div class="pmo" id="btn_l_pp" onclick="setPM('local','pp')">✅ Prepago</div>
+        <div class="pmo" id="btn_l_mx" onclick="setPM('local','mx')">🔀 Mixto</div>
+        <div class="pmo" id="btn_l_nd" onclick="setPM('local','nd')" style="grid-column:1/-1;border-color:rgba(220,38,38,.3);color:var(--red)">❌ No pagó arbitraje</div>
+      </div>
+      <div id="pa_l_amounts" style="display:none" class="form-3">
+        <div class="fg"><label class="fl">Efectivo</label><input class="fi" id="l_ef_a" type="number" placeholder="0" min="0"/></div>
+        <div class="fg"><label class="fl">Transf.</label><input class="fi" id="l_tr_a" type="number" placeholder="0" min="0"/></div>
+        <div class="fg"><label class="fl">Prepago</label><input class="fi" id="l_pp_a" type="number" placeholder="0" min="0"/></div>
+      </div>
+      <div id="pa_l_status" style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px"></div>
+    </div>
+    <div class="pay-box">
+      <div class="pay-box-title" id="pa_visita_title">✈️ Equipo Visitante</div>
+      <div class="pay-method-grid">
+        <div class="pmo" id="btn_v_ef" onclick="setPM('visita','ef')">💵 Efectivo</div>
+        <div class="pmo" id="btn_v_tr" onclick="setPM('visita','tr')">📱 Transf.</div>
+        <div class="pmo" id="btn_v_pp" onclick="setPM('visita','pp')">✅ Prepago</div>
+        <div class="pmo" id="btn_v_mx" onclick="setPM('visita','mx')">🔀 Mixto</div>
+        <div class="pmo" id="btn_v_nd" onclick="setPM('visita','nd')" style="grid-column:1/-1;border-color:rgba(220,38,38,.3);color:var(--red)">❌ No pagó arbitraje</div>
+      </div>
+      <div id="pa_v_amounts" style="display:none" class="form-3">
+        <div class="fg"><label class="fl">Efectivo</label><input class="fi" id="v_ef_a" type="number" placeholder="0" min="0"/></div>
+        <div class="fg"><label class="fl">Transf.</label><input class="fi" id="v_tr_a" type="number" placeholder="0" min="0"/></div>
+        <div class="fg"><label class="fl">Prepago</label><input class="fi" id="v_pp_a" type="number" placeholder="0" min="0"/></div>
+      </div>
+      <div id="pa_v_status" style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px"></div>
+    </div>
+    <button class="btn btn-g btn-full" onclick="guardarPagoArb()">💾 Guardar Pagos</button>
+  </div>
+</div>
+
+<!-- Equipo -->
+<div class="modal-overlay" id="modalEquipo">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="eqModalTitle">Registrar Equipo</div><button class="modal-close" onclick="closeModal('modalEquipo')">✕</button></div>
+    <input type="hidden" id="eq_key"/>
+    <div class="fg" style="text-align:center">
+      <label class="fl" style="text-align:left">Logo del equipo</label>
+      <div class="img-upload" onclick="uploadImg('eq_logo','eq_logo_prev','eq_logo_lbl',100)">
+        <img id="eq_logo_prev" class="img-pr" style="display:none"/>
+        <div id="eq_logo_lbl" class="img-ul">📷 Subir logo</div>
+      </div>
+      <input type="hidden" id="eq_logo"/>
+    </div>
+    <div class="fg"><label class="fl">Nombre del equipo</label><input class="fi" id="eq_nombre" placeholder="Los Toros FC"/></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Torneo</label>
+        <select class="fi" id="eq_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
+          <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Categoría</label>
+        <select class="fi" id="eq_cat">
+          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+          <option value="cat_osos">CATEGORÍA OSOS</option>
+          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Color</label><input class="fi" id="eq_color" type="color" value="#1a3a8a"/></div>
+      <div class="fg"><label class="fl">Contacto</label><input class="fi" id="eq_tel" type="tel" placeholder="667-000-0000"/></div>
+    </div>
+    <div class="fg"><label class="fl">Portero asignado</label><input class="fi" id="eq_portero" placeholder="Nombre del portero titular"/></div>
+
+    <div class="divider"></div>
+    <div style="font-size:10px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px">👕 Alineación del Equipo (opcional)</div>
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:10px">Registra los jugadores del equipo. Se usarán al registrar goles en los partidos.</div>
+    <div id="eq_lineup_list"></div>
+    <button class="btn btn-out btn-sm btn-full" style="margin-bottom:4px" onclick="addEqPlayer()">+ Agregar Jugador</button>
+
+    <button class="btn btn-g btn-full" style="margin-top:8px" onclick="saveEquipo()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Equipo Detail (public view) -->
+<div class="modal-overlay" id="modalEquipoDetail">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="edTitle">Equipo</div><button class="modal-close" onclick="closeModal('modalEquipoDetail')">✕</button></div>
+    <div id="equipoDetailContent"></div>
+  </div>
+</div>
+
+<!-- Agregar Producto -->
+<div class="modal-overlay" id="modalAddProd">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="prodModalTitle">Nuevo Producto</div><button class="modal-close" onclick="closeModal('modalAddProd')">✕</button></div>
+    <input type="hidden" id="prod_key"/>
+    <div class="fg" style="text-align:center">
+      <div class="img-upload" onclick="uploadImg('prod_img','prod_img_prev','prod_img_lbl',120)">
+        <img id="prod_img_prev" class="img-pr" style="display:none"/>
+        <div id="prod_img_lbl" class="img-ul">📷 Imagen (opcional)</div>
+      </div>
+      <input type="hidden" id="prod_img"/>
+    </div>
+    <div class="fg"><label class="fl">Emoji (si no subiste imagen)</label><input class="fi" id="prod_emoji" placeholder="💧" maxlength="2"/></div>
+    <div class="form-2">
+      <div class="fg" style="grid-column:1/-1"><label class="fl">Nombre</label><input class="fi" id="prod_nombre" placeholder="Agua 600ml"/></div>
+      <div class="fg"><label class="fl">Precio $</label><input class="fi" id="prod_precio" type="number" min="1"/></div>
+      <div class="fg"><label class="fl">Stock</label><input class="fi" id="prod_stock" type="number" min="0" value="0"/></div>
+    </div>
+    <button class="btn btn-g btn-full" onclick="saveProd()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Editar Venta -->
+<div class="modal-overlay" id="modalEditVenta">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">✏️ Editar Venta</div><button class="modal-close" onclick="closeModal('modalEditVenta')">✕</button></div>
+    <input type="hidden" id="ev_key"/>
+    <div class="fg"><label class="fl">Total $</label><input class="fi" id="ev_total" type="number" min="0"/></div>
+    <div class="fg"><label class="fl">Nota / descripción</label><input class="fi" id="ev_nota" placeholder="Descripción de la venta..."/></div>
+    <button class="btn btn-g btn-full" onclick="saveEditVenta()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Inscripciones - Nuevo Equipo -->
+<div class="modal-overlay" id="modalInscEquipo">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="ieModalTitle">Nuevo Equipo — Inscripción</div><button class="modal-close" onclick="closeModal('modalInscEquipo')">✕</button></div>
+    <input type="hidden" id="ie_key"/>
+    <div class="fg" style="text-align:center">
+      <div class="img-upload" onclick="uploadImg('ie_logo','ie_logo_prev','ie_logo_lbl',100)">
+        <img id="ie_logo_prev" class="img-pr" style="display:none"/>
+        <div id="ie_logo_lbl" class="img-ul">📷 Logo del equipo</div>
+      </div>
+      <input type="hidden" id="ie_logo"/>
+    </div>
+    <div class="fg"><label class="fl">Equipo registrado</label>
+      <select class="fi" id="ie_equipo" onchange="applyInscEquipoSelection()">
+        <option value="">Selecciona torneo y categoría</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Nombre del equipo</label><input class="fi" id="ie_nombre" placeholder="Los Toros FC"/></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Torneo</label>
+        <select class="fi" id="ie_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();if(typeof syncInscEquipoOptions==='function')syncInscEquipoOptions();">
+          <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Categoría</label>
+        <select class="fi" id="ie_cat" onchange="if(typeof syncInscEquipoOptions==='function')syncInscEquipoOptions();">
+          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+          <option value="cat_osos">CATEGORÍA OSOS</option>
+          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Monto total de inscripción $</label><input class="fi" id="ie_monto" type="number" min="0" placeholder="0"/></div>
+    <button class="btn btn-g btn-full" onclick="saveInscEquipo()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Inscripción - Agregar Abono -->
+<div class="modal-overlay" id="modalAbono">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">➕ Registrar Abono</div><button class="modal-close" onclick="closeModal('modalAbono')">✕</button></div>
+    <input type="hidden" id="ab_insc_key"/>
+    <div class="fg"><label class="fl">Monto $</label><input class="fi" id="ab_monto" type="number" min="1" placeholder="0"/></div>
+    <div class="fg"><label class="fl">Fecha</label><input class="fi" id="ab_fecha" type="date"/></div>
+    <div class="fg"><label class="fl">Método de pago</label>
+      <select class="fi" id="ab_metodo">
+        <option value="efectivo">💵 Efectivo</option>
+        <option value="transferencia">📱 Transferencia</option>
+        <option value="prepago">✅ Prepago</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Notas</label><input class="fi" id="ab_notas" placeholder="Notas adicionales..."/></div>
+    <button class="btn btn-g btn-full" onclick="saveAbono()">💾 Guardar Abono</button>
+  </div>
+</div>
+
+<!-- Árbitro -->
+<div class="modal-overlay" id="modalNuevoArb">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="arbModalTitle">Nuevo Árbitro</div><button class="modal-close" onclick="closeModal('modalNuevoArb')">✕</button></div>
+    <div class="fg"><label class="fl">Nombre</label><input class="fi" id="na_n" placeholder="Juan García"/></div>
+    <div class="fg"><label class="fl">Teléfono</label><input class="fi" id="na_t" type="tel" placeholder="667-000-0000"/></div>
+    <div class="fg"><label class="fl">Tarifa por partido $</label><input class="fi" id="na_f" type="number" placeholder="250" min="0"/></div>
+    <button class="btn btn-g btn-full" onclick="saveArbitro()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Editar cobro de arbitraje de un partido -->
+<div class="modal-overlay" id="modalEditArbPago">
+  <div class="modal" style="border-top-color:var(--amber)">
+    <div class="modal-head"><div class="modal-title" style="color:var(--amber)">✏️ Editar Cobro de Arbitraje</div><button class="modal-close" onclick="closeModal('modalEditArbPago')">✕</button></div>
+    <input type="hidden" id="eap_key"/>
+    <div id="eap_info" style="background:var(--card2);border-radius:9px;padding:11px;margin-bottom:12px;font-size:13px;font-weight:600;"></div>
+
+    <!-- Opción sin arbitraje -->
+    <div style="background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:9px;padding:11px;margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="eap_sin_arb" style="width:18px;height:18px;accent-color:var(--red)" onchange="toggleSinArb()"/>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--red)">🚫 Sin cobro de arbitraje</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600">Este partido no generó cobro (cortesía, cancelado, etc.)</div>
+        </div>
+      </label>
+    </div>
+
+    <div id="eap_form">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px">COSTO POR EQUIPO $</div>
+      <div class="form-2">
+        <div class="fg"><label class="fl">Costo local $</label><input class="fi" id="eap_costo_l" type="number" min="0" value="250"/></div>
+        <div class="fg"><label class="fl">Costo visita $</label><input class="fi" id="eap_costo_v" type="number" min="0" value="250"/></div>
+      </div>
+      <div class="pay-box">
+        <div class="pay-box-title" id="eap_local_title">🏠 Pago Equipo Local</div>
+        <div class="pay-method-grid">
+          <div class="pmo" id="eap_btn_l_ef" onclick="setEapPM('local','ef')">💵 Efectivo</div>
+          <div class="pmo" id="eap_btn_l_tr" onclick="setEapPM('local','tr')">📱 Transf.</div>
+          <div class="pmo" id="eap_btn_l_pp" onclick="setEapPM('local','pp')">✅ Prepago</div>
+          <div class="pmo" id="eap_btn_l_nd" onclick="setEapPM('local','nd')">❌ No pagó</div>
+        </div>
+        <div id="eap_l_mix" style="display:none" class="form-3">
+          <div class="fg"><label class="fl">Efectivo</label><input class="fi" id="eap_l_ef_a" type="number" placeholder="0" min="0"/></div>
+          <div class="fg"><label class="fl">Transf.</label><input class="fi" id="eap_l_tr_a" type="number" placeholder="0" min="0"/></div>
+          <div class="fg"><label class="fl">Notas</label><input class="fi" id="eap_l_nota" placeholder="..."/></div>
+        </div>
+      </div>
+      <div class="pay-box">
+        <div class="pay-box-title" id="eap_visita_title">✈️ Pago Equipo Visitante</div>
+        <div class="pay-method-grid">
+          <div class="pmo" id="eap_btn_v_ef" onclick="setEapPM('visita','ef')">💵 Efectivo</div>
+          <div class="pmo" id="eap_btn_v_tr" onclick="setEapPM('visita','tr')">📱 Transf.</div>
+          <div class="pmo" id="eap_btn_v_pp" onclick="setEapPM('visita','pp')">✅ Prepago</div>
+          <div class="pmo" id="eap_btn_v_nd" onclick="setEapPM('visita','nd')">❌ No pagó</div>
+        </div>
+        <div id="eap_v_mix" style="display:none" class="form-3">
+          <div class="fg"><label class="fl">Efectivo</label><input class="fi" id="eap_v_ef_a" type="number" placeholder="0" min="0"/></div>
+          <div class="fg"><label class="fl">Transf.</label><input class="fi" id="eap_v_tr_a" type="number" placeholder="0" min="0"/></div>
+          <div class="fg"><label class="fl">Notas</label><input class="fi" id="eap_v_nota" placeholder="..."/></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-g btn-full" onclick="guardarEditArbPago()">💾 Guardar Cambios</button>
+    <button class="btn btn-r btn-full" style="margin-top:8px" onclick="eliminarCobroArb()">🗑️ Eliminar cobro completo</button>
+  </div>
+</div>
+
+<!-- Trabajador -->
+<div class="modal-overlay" id="modalNuevoTrab">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="trabModalTitle">👷 Nuevo Trabajador</div><button class="modal-close" onclick="closeModal('modalNuevoTrab')">✕</button></div>
+    <input type="hidden" id="nt_key"/>
+    <div class="fg"><label class="fl">Nombre</label><input class="fi" id="nt_nombre" placeholder="Juan Pérez"/></div>
+    <div class="fg"><label class="fl">Rol / Puesto</label>
+      <select class="fi" id="nt_rol">
+        <option value="tienda">🛒 Tiendita</option>
+        <option value="herrero">🔧 Herrero</option>
+        <option value="electricista">⚡ Electricista</option>
+        <option value="limpieza">🧹 Limpieza</option>
+        <option value="seguridad">🔒 Seguridad</option>
+        <option value="otro">📋 Otro</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Descripción / Notas</label><input class="fi" id="nt_desc" placeholder="Ej: Trabaja domingos en la tienda..."/></div>
+    <div class="fg"><label class="fl">Teléfono (opcional)</label><input class="fi" id="nt_tel" type="tel" placeholder="667-000-0000"/></div>
+    <div class="fg"><label class="fl">Pago fijo por jornada $ (opcional)</label><input class="fi" id="nt_pago" type="number" min="0" placeholder="0"/></div>
+    <button class="btn btn-g btn-full" onclick="saveTrabajador()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Modal Guardar Temporada -->
+<div class="modal-overlay" id="modalGuardarTemporada">
+  <div class="modal" style="border-top-color:var(--gold)">
+    <div class="modal-head"><div class="modal-title" style="color:var(--gold)">🏆 Guardar Temporada</div><button class="modal-close" onclick="closeModal('modalGuardarTemporada')">✕</button></div>
+    <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:14px">Guarda una foto permanente de esta temporada.</div>
+    <div class="fg"><label class="fl">Nombre de la temporada</label><input class="fi" id="temp_nombre" placeholder="Ej: Torneo Lombardo Toledano 2026 — Libre Varonil"/></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Torneo</label>
+        <select class="fi" id="temp_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
+          <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+          <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Categoría</label>
+        <select class="fi" id="temp_cat">
+          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+          <option value="cat_osos">CATEGORÍA OSOS</option>
+          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">🥇 Campeón</label><input class="fi" id="temp_campeon" placeholder="Nombre del equipo campeón"/></div>
+    <div class="fg"><label class="fl">🥈 Subcampeón</label><input class="fi" id="temp_subcampeon" placeholder="Nombre del subcampeón"/></div>
+    <div class="fg"><label class="fl">⚽ Goleador del torneo</label><input class="fi" id="temp_goleador" placeholder="Jugador · Equipo · Goles"/></div>
+    <div class="fg"><label class="fl">Notas</label><input class="fi" id="temp_notas" placeholder="Ej: 7 equipos, 12 jornadas, 2 vueltas..."/></div>
+    <button class="btn btn-g btn-full" onclick="guardarTemporada()">💾 Guardar temporada</button>
+  </div>
+</div>
+
+<!-- Modal Compartir -->
+<div class="modal-overlay" id="modalCompartir">
+  <div class="modal" style="border-top-color:var(--blue)">
+    <div class="modal-head"><div class="modal-title" style="color:var(--blue)" id="compartirTitle">📤 Compartir</div><button class="modal-close" onclick="closeModal('modalCompartir')">✕</button></div>
+    <div id="compartirPreview" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;max-height:260px;overflow-y:auto;font-size:11px;white-space:pre-wrap;font-family:monospace;line-height:1.6"></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-full" onclick="compartirWhatsApp()" style="background:#25D366;color:#fff;border:none;border-radius:10px;padding:12px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer">📱 Enviar por WhatsApp</button>
+      <button class="btn btn-full" onclick="copiarTextoCompartir()" style="background:var(--blue);color:#fff;border:none;border-radius:10px;padding:12px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer">📋 Copiar texto</button>
+      <button class="btn btn-out btn-full" onclick="closeModal('modalCompartir')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Compartir Visual -->
+<div class="modal-overlay" id="modalVisualShare">
+  <div class="modal" style="border-top-color:var(--emerald)">
+    <div class="modal-head"><div class="modal-title" style="color:var(--emerald)" id="visualShareTitle">📤 Compartir Visual</div><button class="modal-close" onclick="closeModal('modalVisualShare')">✕</button></div>
+    <div class="visual-share-shell">
+      <div class="visual-share-scale-wrap" id="visualShareScaleWrap">
+        <div class="visual-share-scale" id="visualShareScaleEl">
+          <div id="visualSharePreview"></div>
+        </div>
+      </div>
+    </div>
+    <div class="visual-share-admin" id="visualShareAdminControls" style="display:none">
+      <div class="visual-share-admin-row">
+        <div class="visual-share-admin-copy">
+          <div class="visual-share-admin-title">Mostrar métricas inferiores de la tabla</div>
+          <div class="visual-share-admin-sub">Solo administradores pueden decidir si se ven equipos, partidos cerrados y goles anotados en el visual.</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="visualShareShowStats" onchange="setVisualShareTablaStats(this.checked)"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="visual-share-caption" id="visualShareCaptionWrap">
+      <label class="fl">Texto para caption / WhatsApp</label>
+      <textarea class="fi" id="visualShareCaption" readonly></textarea>
+    </div>
+    <div id="visualShareActions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+      <button class="btn btn-g btn-full" id="visualShareBtnPng" onclick="downloadVisualShare('png')">🖼️ Descargar PNG</button>
+      <button class="btn btn-b btn-full" id="visualShareBtnPdf" onclick="downloadVisualShare('pdf')">📄 Descargar PDF</button>
+      <button class="btn btn-out btn-full" id="visualShareBtnShare" onclick="shareVisualAsset()">📲 Compartir</button>
+      <button class="btn btn-out btn-full" id="visualShareBtnCopy" onclick="copyVisualShareCaption()">📋 Copiar texto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Gasto / Retiro Tienda -->
+<div class="modal-overlay" id="modalGastoTienda">
+  <div class="modal" style="border-top-color:var(--amber)">
+    <div class="modal-head"><div class="modal-title" style="color:var(--amber)" id="gtModalTitle">💸 Gasto / Retiro</div><button class="modal-close" onclick="closeModal('modalGastoTienda')">✕</button></div>
+    <input type="hidden" id="gt_key"/>
+    <div class="fg"><label class="fl">Concepto</label><input class="fi" id="gt_concepto" placeholder="Ej: Retiro de Joel, compra de gas..."/></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Monto $</label><input class="fi" id="gt_monto" type="number" min="0" placeholder="0"/></div>
+      <div class="fg"><label class="fl">Fecha</label><input class="fi" id="gt_fecha" type="date"/></div>
+    </div>
+    <div class="fg"><label class="fl">Hora</label><input class="fi" id="gt_hora" type="time"/></div>
+    <div class="fg"><label class="fl">Notas</label><input class="fi" id="gt_notas" placeholder="Detalles adicionales..."/></div>
+    <button class="btn btn-g btn-full" onclick="saveGastoTienda()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Modal Editar Fecha Venta -->
+<div class="modal-overlay" id="modalEditVentaFecha">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">📅 Editar Fecha y Hora</div><button class="modal-close" onclick="closeModal('modalEditVentaFecha')">✕</button></div>
+    <input type="hidden" id="evf_key"/>
+    <div class="fg"><label class="fl">Total $</label><input class="fi" id="evf_total" type="number" min="0"/></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Fecha</label><input class="fi" id="evf_fecha" type="date"/></div>
+      <div class="fg"><label class="fl">Hora inicio</label><input class="fi" id="evf_hora_ini" type="time"/></div>
+    </div>
+    <div class="fg"><label class="fl">Hora fin (opcional)</label><input class="fi" id="evf_hora_fin" type="time"/></div>
+    <div class="fg"><label class="fl">Nota</label><input class="fi" id="evf_nota" placeholder="Descripción..."/></div>
+    <button class="btn btn-g btn-full" onclick="saveEditVentaFecha()">💾 Guardar</button>
+  </div>
+</div>
+
+<!-- Modal Panel Usuarios -->
+<div class="modal-overlay" id="modalUsuarios">
+  <div class="modal" style="border-top-color:var(--acc)">
+    <div class="modal-head">
+      <div class="modal-title">👥 Gestión de Usuarios</div>
+      <button class="modal-close" onclick="closeModal('modalUsuarios')">✕</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:10px">
+      Solo tú ves esta pantalla. Asigna roles a los usuarios registrados.
+    </div>
+    <div style="position:relative;margin-bottom:10px">
+      <input class="fi" id="usersSearch" placeholder="🔍 Buscar por nombre o correo..." oninput="filterUsuarios(this.value)" style="padding-left:12px"/>
+    </div>
+    <div id="usuariosList"><div class="empty"><span class="empty-icon">👥</span>Sin usuarios registrados</div></div>
+  </div>
+</div>
+
+<!-- Modal Asignar Capitán -->
+<div class="modal-overlay" id="modalSetCaptain">
+  <div class="modal" style="border-top-color:#059669">
+    <div class="modal-head">
+      <div class="modal-title" style="color:#059669">⚽ Asignar Capitán</div>
+      <button class="modal-close" onclick="closeModal('modalSetCaptain')">✕</button>
+    </div>
+    <input type="hidden" id="sc_uid"/>
+    <div id="sc_user_info" style="background:var(--card2);border-radius:9px;padding:10px;margin-bottom:12px;font-size:13px;font-weight:700;"></div>
+    <div class="fg">
+      <label class="fl">Selecciona el equipo del que es capitán</label>
+      <select class="fi" id="sc_equipo">
+        <option value="">— Seleccionar equipo —</option>
+      </select>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:12px;line-height:1.5;font-weight:600;">
+      El capitán podrá editar la alineación de su equipo y ver el estado financiero (inscripción y arbitrajes).
+    </div>
+    <button class="btn btn-full" onclick="saveCaptain()" style="background:#059669;color:#fff;border:none;border-radius:10px;padding:13px;font-weight:800;cursor:pointer;">⚽ Guardar Capitán</button>
+  </div>
+</div>
+
+<!-- Modal Asignar Administrador -->
+<div class="modal-overlay" id="modalSetAdmin">
+  <div class="modal" style="border-top-color:var(--acc)">
+    <div class="modal-head">
+      <div class="modal-title">⚙️ Permisos de Administrador</div>
+      <button class="modal-close" onclick="closeModal('modalSetAdmin')">✕</button>
+    </div>
+    <input type="hidden" id="sa_uid"/>
+    <div id="sa_user_info" style="background:var(--card2);border-radius:9px;padding:10px;margin-bottom:12px;font-size:13px;font-weight:700;"></div>
+    <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.5;margin-bottom:12px">
+      Solo el propietario puede hacer administradores. Selecciona el torneo y las categorías que este admin podrá gestionar.
+    </div>
+    <div class="fg">
+      <label class="fl">Torneo asignado</label>
+      <select class="fi" id="sa_torneo" onchange="renderAdminCatPermissions()">
+        <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+        <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
+      </select>
+    </div>
+    <div id="sa_cat_list" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px"></div>
+    <button class="btn btn-g btn-full" onclick="saveAdminRole()">💾 Guardar permisos</button>
+  </div>
+</div>
+
+<!-- Modal Gestionar Categorías -->
+<div class="modal-overlay" id="modalGestionCats">
+  <div class="modal" style="border-top-color:var(--acc)">
+    <div class="modal-head">
+      <div class="modal-title">⚙️ Gestionar Categorías</div>
+      <button class="modal-close" onclick="closeModal('modalGestionCats')">✕</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:12px">
+      Torneo: <strong id="gcTorneoLabel"></strong>
+    </div>
+    <div id="gcList"></div>
+    <hr class="divider"/>
+    <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">➕ Nueva categoría</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:8px;margin-bottom:8px">
+      <div class="fg"><label class="fl">ID (sin espacios)</label><input class="fi" id="gc_id" placeholder="ej: liga_sub20"/></div>
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" id="gc_nombre" placeholder="ej: Liga Sub-20"/></div>
+      <div class="fg"><label class="fl">Posición</label><input class="fi" id="gc_orden" type="number" min="0" value="99" placeholder="99"/></div>
+    </div>
+    <button class="btn btn-g btn-full" onclick="addCategoria()">➕ Agregar Categoría</button>
+  </div>
+</div>
+
+<!-- Modal Reiniciar Categoría -->
+<div class="modal-overlay" id="modalResetCat">
+  <div class="modal" style="border-top-color:var(--red)">
+    <div class="modal-head">
+      <div class="modal-title" style="color:var(--red)">🔄 Reiniciar Categoría</div>
+      <button class="modal-close" onclick="closeModal('modalResetCat')">✕</button>
+    </div>
+    <div style="background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:10px;padding:12px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:var(--red);margin-bottom:6px">⚠️ Esta acción es irreversible</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">
+        Se eliminarán <strong>todos los partidos, equipos e inscripciones</strong> de la categoría seleccionada. Los árbitros y trabajadores no se eliminan.
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Torneo</label>
+      <select class="fi" id="rc_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
+        <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
+        <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
+      </select>
+    </div>
+    <div class="fg" style="margin-top:8px"><label class="fl">Categoría</label>
+      <select class="fi" id="rc_cat">
+        <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
+        <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
+        <option value="cat_infantil">CATEGORÍA INFANTIL</option>
+        <option value="cat_osos">CATEGORÍA OSOS</option>
+        <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
+      </select>
+    </div>
+    <div class="fg" style="margin-top:8px">
+      <label class="fl">Escribe el nombre de la categoría para confirmar</label>
+      <input class="fi" id="rc_confirm" placeholder="Escribe aquí para confirmar..."/>
+    </div>
+    <button class="btn btn-r btn-full" style="margin-top:12px" onclick="confirmarResetCategoria()">🗑️ REINICIAR CATEGORÍA</button>
+  </div>
+</div>
+
+<!-- Viewer Profile Overlay -->
+<div id="viewerProfileOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 16px;overflow-y:auto">
+  <div style="max-width:400px;width:100%">
+    <div style="text-align:center;margin-bottom:20px">
+      <img src="" id="vpLogo" style="height:44px;object-fit:contain;margin-bottom:8px" onerror="this.style.display='none'"/>
+      <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase" id="vpTorneoName"></div>
+    </div>
+    <div id="viewerProfile"></div>
+  </div>
+</div>
+
+<!-- Join Request Modal -->
+<div class="modal-overlay" id="modalJoinRequest">
+  <div class="modal" style="border-top-color:var(--acc)">
+    <div class="modal-head">
+      <div class="modal-title">⚽ Solicitar unirse a equipo</div>
+      <button class="modal-close" onclick="closeModal('modalJoinRequest')">✕</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:12px;line-height:1.5">
+      El capitán o administrador recibirá tu solicitud y podrá agregarte a la alineación del equipo.
+    </div>
+    <div class="fg"><label class="fl">Equipo</label>
+      <select class="fi" id="jr_equipo_sel"><option value="">— Seleccionar —</option></select>
+    </div>
+    <div class="fg" style="margin-top:8px"><label class="fl">Mensaje (opcional)</label>
+      <input class="fi" id="jr_mensaje" placeholder="Ej: Soy portero, disponible fines de semana..."/>
+    </div>
+    <button class="btn btn-g btn-full" style="margin-top:12px" onclick="sendJoinRequest()">📨 Enviar Solicitud</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/app-bootstrap.js"></script>
+</body>
+</html>
+
+
+
+
+

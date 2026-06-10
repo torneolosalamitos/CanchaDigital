@@ -1,0 +1,19 @@
+{
+  "name": "canchadigital-agentbot-functions",
+  "version": "1.0.0",
+  "description": "Backend MVP del AgentBot de WhatsApp para CanchaDigital.",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.2"
+  }
+}
