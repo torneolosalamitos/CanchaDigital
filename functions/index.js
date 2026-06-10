@@ -252,6 +252,109 @@ async function getInscripcionByEquipo(equipoId, torneoId, categoriaId) {
   return { inscripcionId: doc.id, inscripcion: { _key: doc.id, ...doc.data() } };
 }
 
+function normalizeTeamKey(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[.,\-\/\\_()[\]{}:;'"!¡¿?#$%&*+=|<>~`@^]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function getInscripcionesActivas(session) {
+  const torneoActivo = session.torneoActivo || session.torneoId;
+  const categoriaActiva = session.categoriaActiva || session.categoriaId;
+  const snap = await db.collection('inscripciones')
+    .where('torneoId', '==', torneoActivo)
+    .where('categoriaId', '==', categoriaActiva)
+    .get();
+
+  return snap.docs.map((doc) => ({
+    id: doc.id,
+    _key: doc.id,
+    ...doc.data()
+  }));
+}
+
+async function getEquiposMapForInscripciones(inscripciones) {
+  const ids = [...new Set(inscripciones.map((insc) => insc.equipoId || insc.equipoKey).filter(Boolean))];
+  const entries = await Promise.all(ids.map(async (equipoId) => {
+    try {
+      const snap = await db.collection('equipos').doc(equipoId).get();
+      return snap.exists ? [equipoId, { id: snap.id, _key: snap.id, ...snap.data() }] : null;
+    } catch (_err) {
+      return null;
+    }
+  }));
+  return Object.fromEntries(entries.filter(Boolean));
+}
+
+function inscripcionSearchValues(inscripcion, equipo) {
+  const aliasRaw = inscripcion.alias || equipo?.alias || [];
+  const aliasList = Array.isArray(aliasRaw) ? aliasRaw : String(aliasRaw || '').split(',');
+  return [
+    inscripcion.equipo,
+    inscripcion.equipoNombre,
+    inscripcion.nombreEquipo,
+    inscripcion.nombre,
+    inscripcion.nombreCorto,
+    equipo?.nombre,
+    equipo?.nombreNormalizado,
+    equipo?.nombreCorto,
+    ...aliasList
+  ].map(normalizeTeamKey).filter(Boolean);
+}
+
+async function findInscripcionByInput(inputEquipo, session) {
+  const inputNormalizado = normalizeTeamKey(inputEquipo);
+  const inscripciones = await getInscripcionesActivas(session);
+  const equiposMap = await getEquiposMapForInscripciones(inscripciones);
+  const withSearch = inscripciones.map((inscripcion) => {
+    const equipoId = inscripcion.equipoId || inscripcion.equipoKey;
+    const equipo = equipoId ? equiposMap[equipoId] : null;
+    return {
+      inscripcion,
+      equipo,
+      values: inscripcionSearchValues(inscripcion, equipo)
+    };
+  });
+
+  let matches = withSearch.filter((item) => item.values.some((value) => value === inputNormalizado));
+  if (!matches.length) {
+    matches = withSearch.filter((item) => item.values.some((value) => (
+      value.includes(inputNormalizado) ||
+      inputNormalizado.includes(value) ||
+      value.split(' ').some((part) => part.length >= 4 && part === inputNormalizado)
+    )));
+  }
+
+  if (!matches.length) {
+    console.log('INSCRIPCION_NO_ENCONTRADA', {
+      inputEquipo,
+      inputNormalizado,
+      torneoActivo: session.torneoActivo || session.torneoId,
+      categoriaActiva: session.categoriaActiva || session.categoriaId,
+      inscripcionesDisponibles: inscripciones.map((i) => ({
+        id: i.id || i._key,
+        equipo: i.equipo,
+        equipoNombre: i.equipoNombre,
+        nombreEquipo: i.nombreEquipo,
+        saldo: i.saldo,
+        montoPagado: i.montoPagado
+      }))
+    });
+    return null;
+  }
+
+  const selected = matches[0];
+  return {
+    inscripcionId: selected.inscripcion.id || selected.inscripcion._key,
+    inscripcion: selected.inscripcion,
+    equipo: selected.equipo || null
+  };
+}
+
 async function getPagosByInscripcion(inscripcionId, limit = 5) {
   let docs = [];
   try {
@@ -300,17 +403,15 @@ function formatTeamSearchError(result) {
 }
 
 async function handleSaldo(command, context) {
-  const found = await findTeamByAlias(command.equipoTexto, context.torneoId, context.categoriaId);
-  if (found.status !== 'ok') return formatTeamSearchError(found);
-
-  const insc = await getInscripcionByEquipo(found.teamId, context.torneoId, context.categoriaId);
-  if (!insc) return `El equipo ${found.team.nombre} no tiene inscripción registrada.`;
+  const insc = await findInscripcionByInput(command.equipoTexto, context.session);
+  if (!insc) return `El equipo ${command.equipoTexto} no tiene inscripción registrada.`;
 
   const total = Number(insc.inscripcion.montoTotal || insc.inscripcion.monto || 0);
   const pagado = Number(insc.inscripcion.montoPagado || 0);
-  const saldo = Math.max(0, total - pagado);
+  const saldo = Number(insc.inscripcion.saldo !== undefined ? insc.inscripcion.saldo : Math.max(0, total - pagado));
+  const nombreEquipo = insc.inscripcion.equipoNombre || insc.inscripcion.nombreEquipo || insc.inscripcion.nombre || insc.equipo?.nombre || command.equipoTexto;
   return [
-    `Equipo: ${found.team.nombre}`,
+    `Equipo: ${nombreEquipo}`,
     `Total: ${money(total)}`,
     `Pagado: ${money(pagado)}`,
     `Saldo: ${money(saldo)}`,
@@ -319,18 +420,13 @@ async function handleSaldo(command, context) {
 }
 
 async function handleDeudores(context) {
-  const snap = await db.collection('inscripciones')
-    .where('torneoId', '==', context.torneoId)
-    .where('categoriaId', '==', context.categoriaId)
-    .get();
-
+  const inscripciones = await getInscripcionesActivas(context.session);
   const deudores = [];
-  snap.forEach((doc) => {
-    const insc = doc.data() || {};
+  inscripciones.forEach((insc) => {
     const total = Number(insc.montoTotal || insc.monto || 0);
     const pagado = Number(insc.montoPagado || 0);
     const saldo = Number(insc.saldo !== undefined ? insc.saldo : Math.max(0, total - pagado));
-    if (saldo > 0) deudores.push({ nombre: insc.equipoNombre || insc.nombre || 'Equipo', saldo });
+    if (saldo > 0) deudores.push({ nombre: insc.equipoNombre || insc.nombreEquipo || insc.nombre || 'Equipo', saldo });
   });
 
   deudores.sort((a, b) => b.saldo - a.saldo);
@@ -339,39 +435,36 @@ async function handleDeudores(context) {
 }
 
 async function handleHistorial(command, context) {
-  const found = await findTeamByAlias(command.equipoTexto, context.torneoId, context.categoriaId);
-  if (found.status !== 'ok') return formatTeamSearchError(found);
-
-  const insc = await getInscripcionByEquipo(found.teamId, context.torneoId, context.categoriaId);
-  if (!insc) return `El equipo ${found.team.nombre} no tiene inscripción registrada.`;
+  const insc = await findInscripcionByInput(command.equipoTexto, context.session);
+  if (!insc) return `El equipo ${command.equipoTexto} no tiene inscripción registrada.`;
 
   const pagos = await getPagosByInscripcion(insc.inscripcionId, 5);
   if (!pagos.length) return 'Sin pagos registrados.';
-  return `Últimos pagos de ${found.team.nombre}:\n` + pagos.map((pago, index) => (
+  const nombreEquipo = insc.inscripcion.equipoNombre || insc.inscripcion.nombreEquipo || insc.inscripcion.nombre || insc.equipo?.nombre || command.equipoTexto;
+  return `Últimos pagos de ${nombreEquipo}:\n` + pagos.map((pago, index) => (
     `${index + 1}. ${pago.fechaTexto || todayISO()} — ${money(pago.monto)} — ${pago.concepto || 'inscripcion'}`
   )).join('\n');
 }
 
 async function handlePago(command, context) {
   if (context.user.puedeRegistrarPagos !== true) return 'No tienes permiso para registrar pagos.';
-  const found = await findTeamByAlias(command.equipoTexto, context.torneoId, context.categoriaId);
-  if (found.status !== 'ok') return formatTeamSearchError(found);
-
-  const insc = await getInscripcionByEquipo(found.teamId, context.torneoId, context.categoriaId);
-  if (!insc) return `El equipo ${found.team.nombre} no tiene inscripción registrada.`;
+  const insc = await findInscripcionByInput(command.equipoTexto, context.session);
+  if (!insc) return `El equipo ${command.equipoTexto} no tiene inscripción registrada.`;
 
   const total = Number(insc.inscripcion.montoTotal || insc.inscripcion.monto || 0);
   const pagado = Number(insc.inscripcion.montoPagado || 0);
-  const saldoActual = Math.max(0, total - pagado);
+  const saldoActual = Number(insc.inscripcion.saldo !== undefined ? insc.inscripcion.saldo : Math.max(0, total - pagado));
   const saldoNuevo = Math.max(0, saldoActual - Number(command.monto || 0));
+  const equipoId = insc.inscripcion.equipoId || insc.inscripcion.equipoKey || insc.equipo?.id || insc.inscripcionId;
+  const nombreEquipo = insc.inscripcion.equipoNombre || insc.inscripcion.nombreEquipo || insc.inscripcion.nombre || insc.equipo?.nombre || command.equipoTexto;
 
   await db.collection('bot_pending_confirmations').doc(context.phone).set({
     telefonoWhatsapp: context.phone,
     tipo: 'pago',
     torneoId: context.torneoId,
     categoriaId: context.categoriaId,
-    equipoId: found.teamId,
-    equipoNombre: found.team.nombre,
+    equipoId,
+    equipoNombre: nombreEquipo,
     inscripcionId: insc.inscripcionId,
     monto: Number(command.monto || 0),
     concepto: command.concepto || 'inscripcion',
@@ -382,7 +475,7 @@ async function handlePago(command, context) {
   return [
     'Confirma el pago:',
     '',
-    `Equipo: ${found.team.nombre}`,
+    `Equipo: ${nombreEquipo}`,
     `Monto: ${money(command.monto)}`,
     `Concepto: ${command.concepto || 'inscripcion'}`,
     `Saldo actual: ${money(saldoActual)}`,
