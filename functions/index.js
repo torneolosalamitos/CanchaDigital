@@ -77,9 +77,9 @@ async function sendWhatsAppText(to, body) {
   } catch (error) {
     console.error('WhatsApp send error', {
       status: error.response?.status,
-      data: error.response?.data ? JSON.stringify(error.response.data) : null,
+      data: error.response?.data,
       url,
-      payload
+      payload,
     });
     throw error;
   }
