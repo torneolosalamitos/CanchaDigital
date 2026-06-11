@@ -175,6 +175,25 @@ function parseCommand(text) {
   if (normalized === '/menu') return { type: 'menu' };
   if (normalized === '/deudores') return { type: 'deudores' };
   if (normalized === '/revertir ultimo') return { type: 'revertir_ultimo' };
+  if (normalized === '/arbitrajes' || normalized === '/arbitrajes pendientes') return { type: 'arbitrajes', pendientes: true };
+  if (normalized === '/juegos' || normalized.startsWith('/juegos ')) {
+    const raw = clean.slice('/juegos'.length).trim();
+    const rawNorm = normalizeText(raw);
+    const periodos = {
+      hoy: 'hoy',
+      manana: 'manana',
+      'mañana': 'manana',
+      ayer: 'ayer',
+      semana: 'semana',
+      pasados: 'pasados'
+    };
+    if (!raw) return { type: 'juegos', periodo: 'proximos', equipoTexto: '' };
+    if (periodos[rawNorm]) return { type: 'juegos', periodo: periodos[rawNorm], equipoTexto: '' };
+    if (rawNorm.endsWith(' semana')) {
+      return { type: 'juegos', periodo: 'semana', equipoTexto: raw.replace(/\s+semana$/i, '').trim() };
+    }
+    return { type: 'juegos', periodo: 'proximos', equipoTexto: raw };
+  }
 
   if (normalized.startsWith('/saldo ')) {
     return { type: 'saldo', equipoTexto: clean.slice('/saldo '.length).trim() };
@@ -187,15 +206,75 @@ function parseCommand(text) {
     const tokens = raw.split(/\s+/).filter(Boolean);
     const amountIndex = tokens.findIndex((token) => Number.isFinite(Number(token)) && Number(token) > 0);
     if (amountIndex > 0) {
+      const details = parsePaymentDetails(tokens.slice(amountIndex + 1), { defaultConcepto: 'inscripcion', allowConcepto: true });
       return {
         type: 'pago',
         equipoTexto: tokens.slice(0, amountIndex).join(' '),
         monto: Number(tokens[amountIndex]),
-        concepto: tokens.slice(amountIndex + 1).join(' ') || 'inscripcion'
+        ...details
+      };
+    }
+  }
+  if (normalized.startsWith('/arbitraje ')) {
+    const raw = clean.slice('/arbitraje '.length).trim();
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    const amountIndex = tokens.findIndex((token) => Number.isFinite(Number(token)) && Number(token) > 0);
+    if (amountIndex > 0) {
+      const details = parsePaymentDetails(tokens.slice(amountIndex + 1), { defaultConcepto: 'arbitraje', allowConcepto: false });
+      return {
+        type: 'arbitraje_pago',
+        equipoTexto: tokens.slice(0, amountIndex).join(' '),
+        monto: Number(tokens[amountIndex]),
+        concepto: 'arbitraje',
+        ...details
       };
     }
   }
   return { type: 'unknown' };
+}
+
+function parsePaymentDetails(tokens, options = {}) {
+  const defaultConcepto = options.defaultConcepto || 'inscripcion';
+  const allowConcepto = options.allowConcepto !== false;
+  const metodoSet = new Set(['efectivo', 'transferencia']);
+  let concepto = defaultConcepto;
+  let metodoPago = 'no_especificado';
+  let recibidoPor = 'no_especificado';
+  let nota = '';
+  let i = 0;
+
+  if (allowConcepto && tokens[i] && !metodoSet.has(normalizeText(tokens[i])) && normalizeText(tokens[i]) !== 'recibido' && normalizeText(tokens[i]) !== 'nota') {
+    concepto = tokens[i];
+    i += 1;
+  }
+
+  while (i < tokens.length) {
+    const token = normalizeText(tokens[i]);
+    if (metodoSet.has(token)) {
+      metodoPago = token;
+      i += 1;
+      continue;
+    }
+    if (token === 'recibido' && normalizeText(tokens[i + 1]) === 'por') {
+      i += 2;
+      const parts = [];
+      while (i < tokens.length) {
+        const next = normalizeText(tokens[i]);
+        if (next === 'nota' || metodoSet.has(next)) break;
+        parts.push(tokens[i]);
+        i += 1;
+      }
+      recibidoPor = parts.join(' ').trim() || 'no_especificado';
+      continue;
+    }
+    if (token === 'nota') {
+      nota = tokens.slice(i + 1).join(' ').trim();
+      break;
+    }
+    i += 1;
+  }
+
+  return { concepto, metodoPago, recibidoPor, nota };
 }
 
 async function findTeamByAlias(teamText, torneoId, categoriaId) {
@@ -355,22 +434,180 @@ async function findInscripcionByInput(inputEquipo, session) {
   };
 }
 
-async function getPagosByInscripcion(inscripcionId, limit = 5) {
+function titleCase(value) {
+  const clean = String(value || '').replace(/_/g, ' ').trim();
+  if (!clean) return 'No especificado';
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
+function formatDateLabel(value) {
+  const iso = normalizeDateISO(value);
+  if (!iso) return 'Sin fecha';
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function addDaysISO(days) {
+  const date = new Date(todayISO() + 'T12:00:00');
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split('T')[0];
+}
+
+function normalizeDateISO(value) {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? trimmed : parsed.toISOString().split('T')[0];
+  }
+  if (typeof value === 'number') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+  }
+  if (value instanceof Date) return value.toISOString().split('T')[0];
+  if (typeof value === 'object') {
+    if (typeof value.toDate === 'function') return value.toDate().toISOString().split('T')[0];
+    if (value.seconds) return new Date(value.seconds * 1000).toISOString().split('T')[0];
+  }
+  return '';
+}
+
+function getPartidoFecha(partido) {
+  return normalizeDateISO(partido.fecha || partido.fechaPartido || partido.date || partido.createdAt);
+}
+
+function getPartidoHora(partido) {
+  return String(partido.hora || partido.horario || partido.horaIni || partido.horaInicio || '').trim() || 'Sin hora';
+}
+
+function getPartidoEstado(partido) {
+  return String(partido.estado || partido.status || 'pendiente').trim() || 'pendiente';
+}
+
+function getPartidoLocalName(partido) {
+  return partido.equipoLocalNombre || partido.localNombre || partido.equipoLocal || partido.local || 'Local';
+}
+
+function getPartidoVisitanteName(partido) {
+  return partido.equipoVisitanteNombre || partido.visitanteNombre || partido.visitaNombre || partido.equipoVisitante || partido.visitante || partido.visita || 'Visitante';
+}
+
+function getPartidoLocalId(partido) {
+  return partido.equipoLocalId || partido.localId || partido.local || partido.equipoLocal || '';
+}
+
+function getPartidoVisitanteId(partido) {
+  return partido.equipoVisitanteId || partido.visitanteId || partido.visitaId || partido.visitante || partido.visita || partido.equipoVisitante || '';
+}
+
+function isArbitrajePagado(partido, side) {
+  const arbitrajes = partido.arbitrajes || {};
+  if (side === 'local') {
+    return !!(
+      arbitrajes.equipoLocal?.pagado ||
+      partido.arbitrajeLocalPagado ||
+      partido.localArbitrajePagado ||
+      partido.arbPago?.local?.pagado ||
+      partido.arbPago?.local?.ef ||
+      partido.arbPago?.local?.tr ||
+      partido.arbPago?.local?.pp
+    );
+  }
+  return !!(
+    arbitrajes.equipoVisitante?.pagado ||
+    partido.arbitrajeVisitantePagado ||
+    partido.visitanteArbitrajePagado ||
+    partido.arbPago?.visita?.pagado ||
+    partido.arbPago?.visita?.ef ||
+    partido.arbPago?.visita?.tr ||
+    partido.arbPago?.visita?.pp
+  );
+}
+
+function getArbitrajeMonto(partido, side) {
+  const arbitrajes = partido.arbitrajes || {};
+  if (side === 'local') return Number(arbitrajes.equipoLocal?.monto || partido.arbitrajeLocalMonto || partido.costArb || partido.arbitrajePorEquipo || 0);
+  return Number(arbitrajes.equipoVisitante?.monto || partido.arbitrajeVisitanteMonto || partido.costArb || partido.arbitrajePorEquipo || 0);
+}
+
+function getPartidoSortValue(partido) {
+  const fecha = getPartidoFecha(partido);
+  const hora = getPartidoHora(partido).replace(/\D/g, '').padEnd(4, '0').slice(0, 4);
+  return `${fecha || '9999-99-99'}${hora}`;
+}
+
+async function getPartidosActivos(session) {
+  const torneoActivo = session.torneoActivo || session.torneoId;
+  const categoriaActiva = session.categoriaActiva || session.categoriaId;
+  const snap = await db.collection('partidos')
+    .where('torneoId', '==', torneoActivo)
+    .where('categoriaId', '==', categoriaActiva)
+    .get();
+  return snap.docs.map((doc) => ({ id: doc.id, _key: doc.id, ...doc.data() }));
+}
+
+function equipoParticipaEnPartido(partido, insc) {
+  const equipoId = insc.inscripcion.equipoId || insc.inscripcion.equipoKey || insc.equipo?.id || '';
+  const names = [
+    insc.inscripcion.equipoNombre,
+    insc.inscripcion.nombreEquipo,
+    insc.inscripcion.nombre,
+    insc.equipo?.nombre
+  ].map(normalizeTeamKey).filter(Boolean);
+  const localId = String(getPartidoLocalId(partido) || '');
+  const visitanteId = String(getPartidoVisitanteId(partido) || '');
+  if (equipoId && (localId === equipoId || visitanteId === equipoId)) return true;
+  const localName = normalizeTeamKey(getPartidoLocalName(partido));
+  const visitanteName = normalizeTeamKey(getPartidoVisitanteName(partido));
+  return names.some((name) => localName === name || visitanteName === name || localName.includes(name) || visitanteName.includes(name) || name.includes(localName) || name.includes(visitanteName));
+}
+
+function getEquipoSideInPartido(partido, insc) {
+  const equipoId = insc.inscripcion.equipoId || insc.inscripcion.equipoKey || insc.equipo?.id || '';
+  if (equipoId && String(getPartidoLocalId(partido) || '') === equipoId) return 'local';
+  if (equipoId && String(getPartidoVisitanteId(partido) || '') === equipoId) return 'visitante';
+  const names = [
+    insc.inscripcion.equipoNombre,
+    insc.inscripcion.nombreEquipo,
+    insc.inscripcion.nombre,
+    insc.equipo?.nombre
+  ].map(normalizeTeamKey).filter(Boolean);
+  const localName = normalizeTeamKey(getPartidoLocalName(partido));
+  const visitanteName = normalizeTeamKey(getPartidoVisitanteName(partido));
+  if (names.some((name) => localName === name || localName.includes(name) || name.includes(localName))) return 'local';
+  if (names.some((name) => visitanteName === name || visitanteName.includes(name) || name.includes(visitanteName))) return 'visitante';
+  return '';
+}
+
+function formatPartidoLine(partido, index) {
+  const local = getPartidoLocalName(partido);
+  const visitante = getPartidoVisitanteName(partido);
+  const localArb = isArbitrajePagado(partido, 'local') ? 'Pagado' : 'Pendiente';
+  const visitanteArb = isArbitrajePagado(partido, 'visitante') ? 'Pagado' : 'Pendiente';
+  return [
+    `${index + 1}. ${local} vs ${visitante}`,
+    `Fecha: ${formatDateLabel(getPartidoFecha(partido))}`,
+    `Hora: ${getPartidoHora(partido)}`,
+    `Estado: ${getPartidoEstado(partido)}`,
+    `Arbitraje local: ${localArb}`,
+    `Arbitraje visitante: ${visitanteArb}`
+  ].join('\n');
+}
+
+async function getPagosByInscripcion(inscripcionId, limit = 5, includeCanceled = false) {
   let docs = [];
   try {
-    const snap = await db.collection('pagos')
-      .where('inscripcionId', '==', inscripcionId)
-      .where('cancelado', '==', false)
-      .orderBy('ts', 'desc')
-      .limit(limit)
-      .get();
+    let query = db.collection('pagos').where('inscripcionId', '==', inscripcionId);
+    if (!includeCanceled) query = query.where('cancelado', '==', false);
+    const snap = await query.orderBy('ts', 'desc').limit(limit).get();
     docs = snap.docs;
   } catch (_err) {
     const snap = await db.collection('pagos')
       .where('inscripcionId', '==', inscripcionId)
       .get();
     docs = snap.docs
-      .filter((doc) => doc.data()?.cancelado !== true)
+      .filter((doc) => includeCanceled || doc.data()?.cancelado !== true)
       .sort((a, b) => Number(b.data()?.ts || 0) - Number(a.data()?.ts || 0))
       .slice(0, limit);
   }
@@ -381,15 +618,37 @@ function buildMenu() {
   return [
     'CanchaDigital Bot',
     '',
-    'Comandos:',
+    'PAGOS',
     '/pago equipo monto inscripcion',
+    '/arbitraje equipo monto',
+    '',
+    'CONSULTAS',
     '/saldo equipo',
     '/deudores',
     '/historial equipo',
+    '',
+    'JUEGOS',
+    '/juegos',
+    '/juegos hoy',
+    '/juegos mañana',
+    '/juegos ayer',
+    '/juegos semana',
+    '/juegos pasados',
+    '/juegos equipo',
+    '/juegos equipo semana',
+    '',
+    'ARBITRAJES',
+    '/arbitrajes',
+    '/arbitrajes pendientes',
+    '',
+    'CONTROL',
     '/revertir ultimo',
     '',
+    'En pagos puedes agregar: efectivo, transferencia, recibido por, nota.',
+    '',
     'Ejemplo:',
-    '/pago inter 500 inscripcion'
+    '/pago inter 500 inscripcion efectivo recibido por Edel nota abonó antes del partido',
+    '/arbitraje inter 250 transferencia recibido por Navo'
   ].join('\n');
 }
 
@@ -434,16 +693,283 @@ async function handleDeudores(context) {
   return 'Deudores:\n' + deudores.slice(0, 10).map((item, index) => `${index + 1}. ${item.nombre} — debe ${money(item.saldo)}`).join('\n');
 }
 
+function filterPartidosByPeriodo(partidos, periodo) {
+  const today = todayISO();
+  if (periodo === 'hoy') return partidos.filter((partido) => getPartidoFecha(partido) === today);
+  if (periodo === 'manana') return partidos.filter((partido) => getPartidoFecha(partido) === addDaysISO(1));
+  if (periodo === 'ayer') return partidos.filter((partido) => getPartidoFecha(partido) === addDaysISO(-1));
+  if (periodo === 'semana') {
+    const end = addDaysISO(7);
+    return partidos.filter((partido) => {
+      const fecha = getPartidoFecha(partido);
+      return fecha >= today && fecha <= end;
+    });
+  }
+  if (periodo === 'pasados') {
+    return partidos.filter((partido) => {
+      const fecha = getPartidoFecha(partido);
+      return fecha && fecha < today;
+    }).sort((a, b) => getPartidoSortValue(b).localeCompare(getPartidoSortValue(a)));
+  }
+  return partidos.filter((partido) => {
+    const fecha = getPartidoFecha(partido);
+    return !fecha || fecha >= today;
+  });
+}
+
+async function handleJuegos(command, context) {
+  const partidos = await getPartidosActivos(context.session);
+  let filtered = filterPartidosByPeriodo(partidos, command.periodo || 'proximos');
+
+  if (command.equipoTexto) {
+    const insc = await findInscripcionByInput(command.equipoTexto, context.session);
+    if (!insc) return `No encontré partidos para ${command.equipoTexto}.`;
+    filtered = filtered.filter((partido) => equipoParticipaEnPartido(partido, insc));
+  }
+
+  filtered = filtered.sort((a, b) => (
+    command.periodo === 'pasados'
+      ? getPartidoSortValue(b).localeCompare(getPartidoSortValue(a))
+      : getPartidoSortValue(a).localeCompare(getPartidoSortValue(b))
+  )).slice(0, 10);
+
+  console.log('PARTIDOS_CONSULTA', {
+    comando: command.type,
+    input: command.equipoTexto || command.periodo || '',
+    torneoActivo: context.torneoId,
+    categoriaActiva: context.categoriaId,
+    total: filtered.length
+  });
+
+  if (!filtered.length) {
+    console.log('PARTIDOS_NO_ENCONTRADOS', {
+      comando: command.type,
+      input: command.equipoTexto || command.periodo || '',
+      torneoActivo: context.torneoId,
+      categoriaActiva: context.categoriaId
+    });
+    return 'No encontré partidos para esa consulta.';
+  }
+
+  return `Partidos (${titleCase(command.periodo || 'proximos')}):\n\n` + filtered.map(formatPartidoLine).join('\n\n');
+}
+
+function getArbitrajesPendientesFromPartidos(partidos) {
+  const pendientes = [];
+  partidos.forEach((partido) => {
+    if (!isArbitrajePagado(partido, 'local')) {
+      pendientes.push({
+        partido,
+        partidoId: partido.id || partido._key,
+        side: 'local',
+        equipoId: getPartidoLocalId(partido),
+        equipoNombre: getPartidoLocalName(partido),
+        monto: getArbitrajeMonto(partido, 'local')
+      });
+    }
+    if (!isArbitrajePagado(partido, 'visitante')) {
+      pendientes.push({
+        partido,
+        partidoId: partido.id || partido._key,
+        side: 'visitante',
+        equipoId: getPartidoVisitanteId(partido),
+        equipoNombre: getPartidoVisitanteName(partido),
+        monto: getArbitrajeMonto(partido, 'visitante')
+      });
+    }
+  });
+  return pendientes.sort((a, b) => getPartidoSortValue(a.partido).localeCompare(getPartidoSortValue(b.partido)));
+}
+
+async function handleArbitrajes(context) {
+  const partidos = await getPartidosActivos(context.session);
+  const pendientes = getArbitrajesPendientesFromPartidos(partidos).slice(0, 10);
+  if (!pendientes.length) return 'No hay arbitrajes pendientes.';
+
+  return 'Arbitrajes pendientes\n\n' + pendientes.map((item, index) => {
+    const monto = Number(item.monto || 0) > 0 ? `\nMonto esperado: ${money(item.monto)}` : '';
+    return [
+      `${index + 1}. ${item.equipoNombre} - Pendiente`,
+      `Partido: ${getPartidoLocalName(item.partido)} vs ${getPartidoVisitanteName(item.partido)}`,
+      `Fecha: ${formatDateLabel(getPartidoFecha(item.partido))}`,
+      `Hora: ${getPartidoHora(item.partido)}${monto}`
+    ].join('\n');
+  }).join('\n\n');
+}
+
+async function findPendingArbitrajeMatches(command, context) {
+  const insc = await findInscripcionByInput(command.equipoTexto, context.session);
+  if (!insc) return { status: 'not_found', matches: [] };
+  const partidos = await getPartidosActivos(context.session);
+  const matches = getArbitrajesPendientesFromPartidos(partidos)
+    .filter((item) => equipoParticipaEnPartido(item.partido, insc))
+    .filter((item) => item.side === getEquipoSideInPartido(item.partido, insc));
+  return { status: matches.length ? 'ok' : 'empty', insc, matches };
+}
+
+async function savePendingArbitraje(command, context, match, insc) {
+  const equipoId = insc.inscripcion.equipoId || insc.inscripcion.equipoKey || insc.equipo?.id || match.equipoId || insc.inscripcionId;
+  const equipoNombre = insc.inscripcion.equipoNombre || insc.inscripcion.nombreEquipo || insc.inscripcion.nombre || insc.equipo?.nombre || match.equipoNombre || command.equipoTexto;
+
+  await db.collection('bot_pending_confirmations').doc(context.phone).set({
+    telefonoWhatsapp: context.phone,
+    tipo: 'arbitraje',
+    torneoId: context.torneoId,
+    categoriaId: context.categoriaId,
+    equipoId,
+    equipoNombre,
+    partidoId: match.partidoId,
+    side: match.side,
+    partidoTexto: `${getPartidoLocalName(match.partido)} vs ${getPartidoVisitanteName(match.partido)}`,
+    monto: Number(command.monto || 0),
+    concepto: 'arbitraje',
+    metodoPago: command.metodoPago || 'no_especificado',
+    recibidoPor: command.recibidoPor || 'no_especificado',
+    nota: command.nota || '',
+    creadoEn: FieldValue.serverTimestamp(),
+    expiraEnMs: Date.now() + 5 * 60 * 1000
+  }, { merge: true });
+
+  await db.collection('bot_sessions').doc(context.phone).set({
+    ultimoComando: 'arbitraje_pendiente_confirmacion',
+    ultimoEquipoId: equipoId,
+    actualizadoEn: FieldValue.serverTimestamp()
+  }, { merge: true });
+
+  console.log('PAGO_ARBITRAJE_PENDIENTE_CONFIRMACION', {
+    telefonoWhatsapp: context.phone,
+    torneoId: context.torneoId,
+    categoriaId: context.categoriaId,
+    equipoId,
+    partidoId: match.partidoId,
+    side: match.side,
+    monto: Number(command.monto || 0)
+  });
+
+  return [
+    'Confirma pago de arbitraje:',
+    '',
+    `Equipo: ${equipoNombre}`,
+    `Monto: ${money(command.monto)}`,
+    `Método: ${titleCase(command.metodoPago)}`,
+    `Recibió: ${titleCase(command.recibidoPor)}`,
+    command.nota ? `Nota: ${command.nota}` : 'Nota: Sin nota',
+    `Partido: ${getPartidoLocalName(match.partido)} vs ${getPartidoVisitanteName(match.partido)}`,
+    '',
+    'Responde:',
+    '1 para confirmar',
+    '2 para cancelar'
+  ].join('\n');
+}
+
+async function handleArbitrajePago(command, context) {
+  if (context.user.puedeRegistrarPagos !== true) return 'No tienes permiso para registrar pagos.';
+  const result = await findPendingArbitrajeMatches(command, context);
+  if (result.status === 'not_found') return `No encontré el equipo ${command.equipoTexto}.`;
+  if (!result.matches.length) return `No encontré arbitraje pendiente para ${command.equipoTexto}.`;
+
+  if (result.matches.length > 1) {
+    const opciones = result.matches.slice(0, 5).map((match) => ({
+      partidoId: match.partidoId,
+      side: match.side,
+      equipoId: result.insc.inscripcion.equipoId || result.insc.inscripcion.equipoKey || result.insc.equipo?.id || match.equipoId || result.insc.inscripcionId,
+      equipoNombre: result.insc.inscripcion.equipoNombre || result.insc.inscripcion.nombreEquipo || result.insc.inscripcion.nombre || result.insc.equipo?.nombre || match.equipoNombre,
+      partidoTexto: `${getPartidoLocalName(match.partido)} vs ${getPartidoVisitanteName(match.partido)}`,
+      fecha: getPartidoFecha(match.partido),
+      hora: getPartidoHora(match.partido),
+      montoEsperado: match.monto
+    }));
+
+    await db.collection('bot_sessions').doc(context.phone).set({
+      ultimoComando: 'seleccionar_arbitraje',
+      opcionesArbitraje: opciones,
+      comandoArbitrajePendiente: {
+        equipoTexto: command.equipoTexto,
+        monto: Number(command.monto || 0),
+        metodoPago: command.metodoPago || 'no_especificado',
+        recibidoPor: command.recibidoPor || 'no_especificado',
+        nota: command.nota || ''
+      },
+      actualizadoEn: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return 'Encontré varios partidos con arbitraje pendiente. Responde con el número:\n\n' + opciones.map((opcion, index) => (
+      `${index + 1}. ${opcion.partidoTexto}\nFecha: ${formatDateLabel(opcion.fecha)}\nHora: ${opcion.hora}`
+    )).join('\n\n');
+  }
+
+  return savePendingArbitraje(command, context, result.matches[0], result.insc);
+}
+
+async function handleSeleccionArbitraje(command, context) {
+  const opciones = Array.isArray(context.session.opcionesArbitraje) ? context.session.opcionesArbitraje : [];
+  const opcion = opciones[command.optionIndex];
+  const commandData = context.session.comandoArbitrajePendiente || {};
+  if (!opcion || !commandData.monto) return 'No encontré esa opción. Vuelve a intentar con /arbitraje equipo monto.';
+
+  const partidoSnap = await db.collection('partidos').doc(opcion.partidoId).get();
+  if (!partidoSnap.exists) return 'Ese partido ya no existe. Vuelve a intentar.';
+  const fakeInsc = {
+    inscripcionId: opcion.equipoId,
+    inscripcion: {
+      equipoId: opcion.equipoId,
+      equipoNombre: opcion.equipoNombre
+    },
+    equipo: null
+  };
+  const match = {
+    partido: { id: partidoSnap.id, _key: partidoSnap.id, ...partidoSnap.data() },
+    partidoId: partidoSnap.id,
+    side: opcion.side,
+    equipoId: opcion.equipoId,
+    equipoNombre: opcion.equipoNombre,
+    monto: opcion.montoEsperado
+  };
+  return savePendingArbitraje({
+    equipoTexto: commandData.equipoTexto || opcion.equipoNombre,
+    monto: Number(commandData.monto || 0),
+    metodoPago: commandData.metodoPago || 'no_especificado',
+    recibidoPor: commandData.recibidoPor || 'no_especificado',
+    nota: commandData.nota || ''
+  }, context, match, fakeInsc);
+}
+
 async function handleHistorial(command, context) {
   const insc = await findInscripcionByInput(command.equipoTexto, context.session);
   if (!insc) return `El equipo ${command.equipoTexto} no tiene inscripción registrada.`;
 
-  const pagos = await getPagosByInscripcion(insc.inscripcionId, 5);
+  const pagosInscripcion = await getPagosByInscripcion(insc.inscripcionId, 10, true);
+  const equipoId = insc.inscripcion.equipoId || insc.inscripcion.equipoKey || insc.equipo?.id || '';
+  let pagosArbitraje = [];
+  if (equipoId) {
+    const snap = await db.collection('pagos')
+      .where('equipoId', '==', equipoId)
+      .where('tipo', '==', 'arbitraje')
+      .get();
+    pagosArbitraje = snap.docs
+      .map((doc) => ({ pagoId: doc.id, ...doc.data() }))
+      .filter((pago) => pago.torneoId === context.torneoId && pago.categoriaId === context.categoriaId)
+      .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
+      .slice(0, 10);
+  }
+  const pagos = [...pagosInscripcion, ...pagosArbitraje]
+    .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
+    .slice(0, 10);
   if (!pagos.length) return 'Sin pagos registrados.';
   const nombreEquipo = insc.inscripcion.equipoNombre || insc.inscripcion.nombreEquipo || insc.inscripcion.nombre || insc.equipo?.nombre || command.equipoTexto;
-  return `Últimos pagos de ${nombreEquipo}:\n` + pagos.map((pago, index) => (
-    `${index + 1}. ${pago.fechaTexto || todayISO()} — ${money(pago.monto)} — ${pago.concepto || 'inscripcion'}`
-  )).join('\n');
+  return `Historial ${nombreEquipo}\n\n` + pagos.map((pago, index) => {
+    const estado = pago.cancelado ? 'Cancelado' : 'Activo';
+    const lines = [
+      `${index + 1}. ${money(pago.monto)} - ${titleCase(pago.tipo || pago.concepto || 'inscripcion')}`,
+      `Método: ${titleCase(pago.metodoPago || pago.metodo || 'no_especificado')}`,
+      `Recibió: ${titleCase(pago.recibidoPor || 'no_especificado')}`,
+      pago.nota ? `Nota: ${pago.nota}` : 'Nota: Sin nota',
+      pago.partidoTexto ? `Partido: ${pago.partidoTexto}` : '',
+      `Fecha: ${pago.fechaTexto || todayISO()}`,
+      `Estado: ${estado}`
+    ].filter(Boolean);
+    return lines.join('\n');
+  }).join('\n\n');
 }
 
 async function handlePago(command, context) {
@@ -468,16 +994,22 @@ async function handlePago(command, context) {
     inscripcionId: insc.inscripcionId,
     monto: Number(command.monto || 0),
     concepto: command.concepto || 'inscripcion',
+    metodoPago: command.metodoPago || 'no_especificado',
+    recibidoPor: command.recibidoPor || 'no_especificado',
+    nota: command.nota || '',
     creadoEn: FieldValue.serverTimestamp(),
     expiraEnMs: Date.now() + 5 * 60 * 1000
   }, { merge: true });
 
   return [
-    'Confirma el pago:',
+    'Confirma pago de inscripción:',
     '',
     `Equipo: ${nombreEquipo}`,
     `Monto: ${money(command.monto)}`,
     `Concepto: ${command.concepto || 'inscripcion'}`,
+    `Método: ${titleCase(command.metodoPago)}`,
+    `Recibió: ${titleCase(command.recibidoPor)}`,
+    command.nota ? `Nota: ${command.nota}` : 'Nota: Sin nota',
     `Saldo actual: ${money(saldoActual)}`,
     `Saldo nuevo: ${money(saldoNuevo)}`,
     '',
@@ -497,59 +1029,144 @@ async function confirmPendingOperation(context) {
     return 'La confirmación expiró.';
   }
 
-  if (pending.tipo !== 'pago') return 'No hay operación de pago pendiente.';
+  if (pending.tipo !== 'pago' && pending.tipo !== 'arbitraje') return 'No hay operación de pago pendiente.';
   const pagoId = `pago_${pending.equipoId}_${Date.now()}`;
   let saldoRestante = 0;
 
+  if (pending.tipo === 'pago') {
+    await db.runTransaction(async (transaction) => {
+      const inscRef = db.collection('inscripciones').doc(pending.inscripcionId);
+      const inscSnap = await transaction.get(inscRef);
+      if (!inscSnap.exists) throw new Error('Inscripción no encontrada');
+      const insc = inscSnap.data() || {};
+      const monto = Number(pending.monto || 0);
+      const montoTotal = Number(insc.montoTotal || insc.monto || 0);
+      const montoPagado = Number(insc.montoPagado || 0) + monto;
+      saldoRestante = Math.max(0, montoTotal - montoPagado);
+      const estado = saldoRestante === 0 ? 'liquidado' : montoPagado > 0 ? 'abonado' : 'pendiente';
+      const pagoRef = db.collection('pagos').doc(pagoId);
+
+      transaction.set(pagoRef, {
+        tipo: 'inscripcion',
+        torneoId: pending.torneoId,
+        categoriaId: pending.categoriaId,
+        equipoId: pending.equipoId,
+        equipoNombre: pending.equipoNombre,
+        inscripcionId: pending.inscripcionId,
+        concepto: pending.concepto || 'inscripcion',
+        monto,
+        metodo: 'whatsapp',
+        metodoPago: pending.metodoPago || 'no_especificado',
+        recibidoPor: pending.recibidoPor || 'no_especificado',
+        nota: pending.nota || '',
+        origen: 'whatsapp',
+        createdByPhone: context.phone,
+        registradoPor: context.phone,
+        telefonoWhatsapp: context.phone,
+        cancelado: false,
+        fechaTexto: todayISO(),
+        ts: Date.now(),
+        createdAt: FieldValue.serverTimestamp(),
+        creadoEn: FieldValue.serverTimestamp()
+      });
+      transaction.update(inscRef, {
+        montoPagado,
+        saldo: saldoRestante,
+        estado,
+        actualizadoEn: FieldValue.serverTimestamp()
+      });
+      transaction.delete(pendingRef);
+      transaction.set(db.collection('bot_sessions').doc(context.phone), {
+        ultimoComando: 'pago_confirmado',
+        ultimoEquipoId: pending.equipoId,
+        actualizadoEn: FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+
+    console.log('PAGO_INSCRIPCION_REGISTRADO', {
+      telefonoWhatsapp: context.phone,
+      torneoId: pending.torneoId,
+      categoriaId: pending.categoriaId,
+      equipoId: pending.equipoId,
+      inscripcionId: pending.inscripcionId,
+      monto: Number(pending.monto || 0)
+    });
+
+    return [
+      'Pago registrado ✅',
+      `Equipo: ${pending.equipoNombre}`,
+      `Monto: ${money(pending.monto)}`,
+      `Saldo restante: ${money(saldoRestante)}`
+    ].join('\n');
+  }
+
   await db.runTransaction(async (transaction) => {
-    const inscRef = db.collection('inscripciones').doc(pending.inscripcionId);
-    const inscSnap = await transaction.get(inscRef);
-    if (!inscSnap.exists) throw new Error('Inscripción no encontrada');
-    const insc = inscSnap.data() || {};
+    const partidoRef = db.collection('partidos').doc(pending.partidoId);
+    const partidoSnap = await transaction.get(partidoRef);
+    if (!partidoSnap.exists) throw new Error('Partido no encontrado');
     const monto = Number(pending.monto || 0);
-    const montoTotal = Number(insc.montoTotal || insc.monto || 0);
-    const montoPagado = Number(insc.montoPagado || 0) + monto;
-    saldoRestante = Math.max(0, montoTotal - montoPagado);
-    const estado = saldoRestante === 0 ? 'liquidado' : montoPagado > 0 ? 'abonado' : 'pendiente';
     const pagoRef = db.collection('pagos').doc(pagoId);
+    const local = pending.side === 'local';
+    const prefix = local ? 'arbitrajes.equipoLocal' : 'arbitrajes.equipoVisitante';
 
     transaction.set(pagoRef, {
+      tipo: 'arbitraje',
       torneoId: pending.torneoId,
       categoriaId: pending.categoriaId,
       equipoId: pending.equipoId,
       equipoNombre: pending.equipoNombre,
-      inscripcionId: pending.inscripcionId,
-      concepto: pending.concepto || 'inscripcion',
+      partidoId: pending.partidoId,
+      partidoTexto: pending.partidoTexto || '',
+      side: pending.side,
       monto,
       metodo: 'whatsapp',
+      metodoPago: pending.metodoPago || 'no_especificado',
+      recibidoPor: pending.recibidoPor || 'no_especificado',
+      nota: pending.nota || '',
       origen: 'whatsapp',
+      createdByPhone: context.phone,
       registradoPor: context.phone,
       telefonoWhatsapp: context.phone,
       cancelado: false,
       fechaTexto: todayISO(),
       ts: Date.now(),
-      nota: 'Registrado desde WhatsApp',
+      createdAt: FieldValue.serverTimestamp(),
       creadoEn: FieldValue.serverTimestamp()
     });
-    transaction.update(inscRef, {
-      montoPagado,
-      saldo: saldoRestante,
-      estado,
+    transaction.update(partidoRef, {
+      [`${prefix}.pagado`]: true,
+      [`${prefix}.monto`]: monto,
+      [`${prefix}.pagoId`]: pagoId,
+      [`${prefix}.metodoPago`]: pending.metodoPago || 'no_especificado',
+      [`${prefix}.recibidoPor`]: pending.recibidoPor || 'no_especificado',
+      [`${prefix}.nota`]: pending.nota || '',
+      [local ? 'arbitrajeLocalPagado' : 'arbitrajeVisitantePagado']: true,
+      [local ? 'arbitrajeLocalMonto' : 'arbitrajeVisitanteMonto']: monto,
       actualizadoEn: FieldValue.serverTimestamp()
     });
     transaction.delete(pendingRef);
     transaction.set(db.collection('bot_sessions').doc(context.phone), {
-      ultimoComando: 'pago_confirmado',
+      ultimoComando: 'arbitraje_confirmado',
       ultimoEquipoId: pending.equipoId,
       actualizadoEn: FieldValue.serverTimestamp()
     }, { merge: true });
   });
 
+  console.log('PAGO_ARBITRAJE_REGISTRADO', {
+    telefonoWhatsapp: context.phone,
+    torneoId: pending.torneoId,
+    categoriaId: pending.categoriaId,
+    equipoId: pending.equipoId,
+    partidoId: pending.partidoId,
+    side: pending.side,
+    monto: Number(pending.monto || 0)
+  });
+
   return [
-    'Pago registrado ✅',
+    'Pago de arbitraje registrado ✅',
     `Equipo: ${pending.equipoNombre}`,
     `Monto: ${money(pending.monto)}`,
-    `Saldo restante: ${money(saldoRestante)}`
+    `Partido: ${pending.partidoTexto || pending.partidoId}`
   ].join('\n');
 }
 
@@ -563,13 +1180,16 @@ async function getLastWhatsappPayment(phone) {
   try {
     const snap = await db.collection('pagos')
       .where('origen', '==', 'whatsapp')
-      .where('registradoPor', '==', phone)
+      .where('createdByPhone', '==', phone)
       .where('cancelado', '==', false)
       .orderBy('ts', 'desc')
       .limit(1)
       .get();
     docs = snap.docs;
   } catch (_err) {
+    docs = [];
+  }
+  if (!docs.length) {
     const snap = await db.collection('pagos')
       .where('origen', '==', 'whatsapp')
       .where('registradoPor', '==', phone)
@@ -586,6 +1206,47 @@ async function handleRevertirUltimo(context) {
   if (context.user.puedeRevertirPagos !== true) return 'No tienes permiso para revertir pagos.';
   const last = await getLastWhatsappPayment(context.phone);
   if (!last) return 'No encontré pagos de WhatsApp para revertir.';
+
+  if (last.pago.tipo === 'arbitraje' || (last.pago.partidoId && !last.pago.inscripcionId)) {
+    await db.runTransaction(async (transaction) => {
+      const pagoRef = db.collection('pagos').doc(last.pagoId);
+      const partidoRef = db.collection('partidos').doc(last.pago.partidoId);
+      const partidoSnap = await transaction.get(partidoRef);
+      if (!partidoSnap.exists) throw new Error('Partido no encontrado');
+      const partido = { id: partidoSnap.id, _key: partidoSnap.id, ...partidoSnap.data() };
+      let side = last.pago.side || '';
+      if (!side) {
+        const equipoId = String(last.pago.equipoId || '');
+        if (equipoId && String(getPartidoLocalId(partido) || '') === equipoId) side = 'local';
+        if (equipoId && String(getPartidoVisitanteId(partido) || '') === equipoId) side = 'visitante';
+      }
+      if (side !== 'local' && side !== 'visitante') throw new Error('No pude identificar el lado del arbitraje');
+      const local = side === 'local';
+      const prefix = local ? 'arbitrajes.equipoLocal' : 'arbitrajes.equipoVisitante';
+
+      transaction.update(pagoRef, {
+        cancelado: true,
+        canceladoEn: FieldValue.serverTimestamp(),
+        canceladoPor: context.phone
+      });
+      transaction.update(partidoRef, {
+        [`${prefix}.pagado`]: false,
+        [`${prefix}.pagoId`]: null,
+        [`${prefix}.metodoPago`]: null,
+        [`${prefix}.recibidoPor`]: null,
+        [`${prefix}.nota`]: null,
+        [local ? 'arbitrajeLocalPagado' : 'arbitrajeVisitantePagado']: false,
+        actualizadoEn: FieldValue.serverTimestamp()
+      });
+    });
+
+    return [
+      'Último pago de arbitraje revertido ✅',
+      `Equipo: ${last.pago.equipoNombre || 'Equipo'}`,
+      `Monto cancelado: ${money(last.pago.monto)}`
+    ].join('\n');
+  }
+
   let nuevoSaldo = 0;
 
   await db.runTransaction(async (transaction) => {
@@ -640,12 +1301,19 @@ async function handleIncomingText(phone, text, messageId) {
       text,
       messageId
     };
-    const command = parseCommand(text);
+    const normalizedText = normalizeText(text);
+    const command = session.ultimoComando === 'seleccionar_arbitraje' && /^\d+$/.test(normalizedText)
+      ? { type: 'seleccionar_arbitraje', optionIndex: Number(normalizedText) - 1 }
+      : parseCommand(text);
     let response = '';
 
     if (command.type === 'menu') response = buildMenu();
     else if (command.type === 'saldo') response = await handleSaldo(command, context);
     else if (command.type === 'deudores') response = await handleDeudores(context);
+    else if (command.type === 'juegos') response = await handleJuegos(command, context);
+    else if (command.type === 'arbitrajes') response = await handleArbitrajes(context);
+    else if (command.type === 'arbitraje_pago') response = await handleArbitrajePago(command, context);
+    else if (command.type === 'seleccionar_arbitraje') response = await handleSeleccionArbitraje(command, context);
     else if (command.type === 'historial') response = await handleHistorial(command, context);
     else if (command.type === 'pago') response = await handlePago(command, context);
     else if (command.type === 'confirm') response = await confirmPendingOperation(context);
