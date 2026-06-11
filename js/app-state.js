@@ -510,6 +510,7 @@ function selectCat(cat, btn) {
   populatePartidosTeamFilter();
   renderPartidos();
   renderEquiposPage();
+  if (isPageActive('admin-arbitrajes') && typeof renderAdminArbitrajes === 'function') renderAdminArbitrajes();
   updatePorterosPublicUI();
   updateCuadroCopaUI();
   updateGoleadoresPublicUI();

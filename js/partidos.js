@@ -33,6 +33,25 @@ function populatePartidosTeamFilter() {
       .join('');
 }
 
+function buildArbitrajeMatchHtml(p) {
+  if (typeof getArbitrajeEstado !== 'function') return '';
+  const row = (role) => {
+    const name = getEquipoNombreFromPartido(p, role);
+    const estado = getArbitrajeEstado(p, role);
+    const node = getArbitrajeNode(p, role);
+    const expected = getMontoEsperadoArbitraje(p, role);
+    const paid = getMontoPagadoArbitraje(p, role);
+    const icon = estado === 'pagado' ? '✅' : estado === 'parcial' ? '⚠️' : '❌';
+    const method = node.metodoPago ? ` · ${escapeHtml(normalizePaymentMethod(node.metodoPago))}` : '';
+    const receiver = node.recibidoPor ? ` · Recibió: ${escapeHtml(node.recibidoPor)}` : '';
+    const note = node.nota ? `<div class="arb-note">Nota: ${escapeHtml(node.nota)}</div>` : '';
+    return `<div class="arb-match-row ${estado}">
+      <div><strong>${escapeHtml(name)}</strong><span>${estado.toUpperCase()} ${icon} · ${formatMoney(paid)}/${formatMoney(expected)}${method}${receiver}</span>${note}</div>
+    </div>`;
+  };
+  return `<div class="arb-match-box"><div class="arb-match-title">Arbitraje</div>${row('local')}${row('visitante')}</div>`;
+}
+
 function renderPartidos() {
   const el = document.getElementById('partidosList');
   if (!el) return;
@@ -80,6 +99,7 @@ function renderPartidos() {
         ? '🟢 En Juego'
         : '⏳ Pendiente';
       const mcCls = p.status !== 'terminado' ? 'mc-pending' : wL ? 'mc-win' : wV ? 'mc-win' : 'mc-draw';
+      const arbitrajeHtml = buildArbitrajeMatchHtml(p);
       return `<div class="match-card ${mcCls}" onclick="openPartidoDetail('${p._key}')">
       <div class="mc-top">
         <span>📅 ${fmtDate(p.fecha)} · ⏰ ${p.horaIni || '--:--'} ${p.horaFin ? '→' + p.horaFin : ''} · 🏟️ ${
@@ -99,6 +119,7 @@ function renderPartidos() {
         </div>
       </div>
       ${scorersHtml || ''}
+      ${arbitrajeHtml}
       <div class="mc-footer">
         ${p.arbitroNombre ? `<span class="mc-meta">🦺 ${p.arbitroNombre}</span>` : ''}
         ${p.cancha ? `<span class="mc-meta">🏟️ ${p.cancha}</span>` : ''}
@@ -235,6 +256,7 @@ function renderPartidoDetail() {
     findEquipoMatchRef(p.visitaNombre, p.torneo || currentTorneo, p.cat || currentCat);
   const porteroLocal = resolveMatchGoalkeeperName(p, 'local', eqL);
   const porteroVisita = resolveMatchGoalkeeperName(p, 'visita', eqV);
+  const arbitrajeHtml = buildArbitrajeMatchHtml(p);
   const lLogo = eqL?.logo ? `<img class="team-logo" src="${eqL.logo}"/>` : `<div class="team-ph">⚽</div>`;
   const vLogo = eqV?.logo ? `<img class="team-logo" src="${eqV.logo}"/>` : `<div class="team-ph">⚽</div>`;
   document.getElementById('pdTitle').textContent = `${p.localNombre || p.local} vs ${p.visitaNombre || p.visita}`;
@@ -343,6 +365,7 @@ function renderPartidoDetail() {
     </div>`
         : ''
     }
+    ${arbitrajeHtml}
     ${adminActions}
     ${
       lineup_local.length || lineup_visita.length

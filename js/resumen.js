@@ -144,6 +144,96 @@ function pct(num, den) {
   return Math.max(0, Math.min(100, Math.round((num / den) * 100)));
 }
 
+const DEFAULT_ARBITRAJE_MONTO_EQUIPO = 250;
+
+function getArbitrajeLocal(partido = {}) {
+  return partido.arbitrajes?.equipoLocal || {};
+}
+
+function getArbitrajeVisitante(partido = {}) {
+  return partido.arbitrajes?.equipoVisitante || {};
+}
+
+function getArbitrajeNode(partido = {}, role = 'local') {
+  return role === 'local' ? getArbitrajeLocal(partido) : getArbitrajeVisitante(partido);
+}
+
+function getMontoEsperadoArbitraje(partido = {}, role = 'local') {
+  const node = getArbitrajeNode(partido, role);
+  const candidates = role === 'local'
+    ? [node.montoEsperado, partido.arbitrajeLocalMontoEsperado, partido.montoArbitrajeEquipo, partido.montoArbitraje, partido.costArb]
+    : [node.montoEsperado, partido.arbitrajeVisitanteMontoEsperado, partido.montoArbitrajeEquipo, partido.montoArbitraje, partido.costArb];
+  const found = candidates.find((value) => Number(value || 0) > 0);
+  return Number(found || DEFAULT_ARBITRAJE_MONTO_EQUIPO);
+}
+
+function getMontoPagadoArbitraje(partido = {}, role = 'local') {
+  const node = getArbitrajeNode(partido, role);
+  const legacy = role === 'local' ? partido.arbPago?.local : partido.arbPago?.visita;
+  const flat = role === 'local' ? partido.arbitrajeLocalMontoPagado : partido.arbitrajeVisitanteMontoPagado;
+  const legacyTotal = legacy ? Number(legacy.ef || 0) + Number(legacy.tr || 0) + Number(legacy.pp || 0) : 0;
+  return Number(node.montoPagado ?? flat ?? legacyTotal ?? 0);
+}
+
+function getMontoPendienteArbitraje(partido = {}, role = 'local') {
+  const node = getArbitrajeNode(partido, role);
+  const flat = role === 'local' ? partido.arbitrajeLocalMontoPendiente : partido.arbitrajeVisitanteMontoPendiente;
+  const explicit = node.montoPendiente ?? flat;
+  if (explicit !== undefined && explicit !== null) return Number(explicit || 0);
+  return Math.max(getMontoEsperadoArbitraje(partido, role) - getMontoPagadoArbitraje(partido, role), 0);
+}
+
+function isArbitrajePagado(partido = {}, role = 'local') {
+  const node = getArbitrajeNode(partido, role);
+  const flat = role === 'local' ? partido.arbitrajeLocalPagado : partido.arbitrajeVisitantePagado;
+  const expected = getMontoEsperadoArbitraje(partido, role);
+  const paid = getMontoPagadoArbitraje(partido, role);
+  return node.pagado === true || flat === true || paid >= expected;
+}
+
+function getArbitrajeEstado(partido = {}, role = 'local') {
+  const paid = getMontoPagadoArbitraje(partido, role);
+  if (isArbitrajePagado(partido, role)) return 'pagado';
+  if (paid > 0) return 'parcial';
+  return 'pendiente';
+}
+
+function getPartidoDisplayName(partido = {}) {
+  return `${getEquipoNombreFromPartido(partido, 'local')} vs ${getEquipoNombreFromPartido(partido, 'visitante')}`;
+}
+
+function getEquipoNombreFromPartido(partido = {}, role = 'local') {
+  if (role === 'local') return partido.localNombre || partido.equipoLocalNombre || partido.local || partido.equipoLocal || 'Local';
+  return partido.visitaNombre || partido.visitanteNombre || partido.equipoVisitanteNombre || partido.visita || partido.visitante || partido.equipoVisitante || 'Visitante';
+}
+
+function normalizePaymentMethod(value) {
+  const method = normalizeLookupText(value || 'no_especificado');
+  if (method.includes('efectivo') || method === 'ef') return 'efectivo';
+  if (method.includes('transferencia') || method === 'tr') return 'transferencia';
+  return method || 'no_especificado';
+}
+
+function getPaymentDate(pago = {}) {
+  if (pago.fechaTexto) return String(pago.fechaTexto).slice(0, 10);
+  if (pago.fecha) return String(pago.fecha).slice(0, 10);
+  if (pago.ts) {
+    const d = new Date(Number(pago.ts));
+    if (!Number.isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  }
+  if (pago.createdAt?.toDate) return pago.createdAt.toDate().toISOString().split('T')[0];
+  if (pago.createdAt?.seconds) return new Date(pago.createdAt.seconds * 1000).toISOString().split('T')[0];
+  return '';
+}
+
+function getScopedPagos(period = null, selectedCats = null) {
+  const cats = selectedCats || [currentCat];
+  return Object.entries(C.pagos || {}).map(([key, pago]) => ({ _key: key, ...pago }))
+    .filter((pago) => resumenTournamentMatch(pago))
+    .filter((pago) => resumenCatMatch(pago, cats, false))
+    .filter((pago) => !period || resumenTsInPeriod({ ...pago, fecha: getPaymentDate(pago) }, period));
+}
+
 function getAbonosArray(inscripcion) {
   const legacy = inscripcion?.abonos ? Object.values(inscripcion.abonos) : [];
   const inscKey = inscripcion?._key;
@@ -191,16 +281,39 @@ function getInscripcionMetrics(inscripciones, period) {
   };
 }
 
-function getArbitrajeMetrics(partidos) {
-  const terminado = partidos.filter((p) => p.status === 'terminado');
-  const totalEf = terminado.reduce((sum, p) => sum + (p.arbPago?.local?.ef || 0) + (p.arbPago?.visita?.ef || 0), 0);
-  const totalTr = terminado.reduce((sum, p) => sum + (p.arbPago?.local?.tr || 0) + (p.arbPago?.visita?.tr || 0), 0);
-  const totalPp = terminado.reduce((sum, p) => sum + (p.arbPago?.local?.pp || 0) + (p.arbPago?.visita?.pp || 0), 0);
-  const pendientes = terminado.reduce((sum, p) => {
-    const costo = p.costArb || 250;
-    return sum + (p.arbPago?.local?.nd ? costo : 0) + (p.arbPago?.visita?.nd ? costo : 0);
-  }, 0);
-  return { partidos: terminado.length, totalEf, totalTr, totalPp, total: totalEf + totalTr + totalPp, pendientes };
+function getArbitrajeMetrics(partidos, pagos = []) {
+  const activeArbPayments = pagos.filter((pago) => (pago.tipo || '').toLowerCase() === 'arbitraje' && pago.cancelado !== true);
+  const canceled = pagos.filter((pago) => (pago.tipo || '').toLowerCase() === 'arbitraje' && pago.cancelado === true).length;
+  const totalEf = activeArbPayments
+    .filter((pago) => normalizePaymentMethod(pago.metodoPago || pago.metodo) === 'efectivo')
+    .reduce((sum, pago) => sum + Number(pago.monto || 0), 0);
+  const totalTr = activeArbPayments
+    .filter((pago) => normalizePaymentMethod(pago.metodoPago || pago.metodo) === 'transferencia')
+    .reduce((sum, pago) => sum + Number(pago.monto || 0), 0);
+  const totalOtro = activeArbPayments
+    .filter((pago) => !['efectivo', 'transferencia'].includes(normalizePaymentMethod(pago.metodoPago || pago.metodo)))
+    .reduce((sum, pago) => sum + Number(pago.monto || 0), 0);
+  const sides = partidos.flatMap((p) => ['local', 'visitante'].map((role) => ({
+    role,
+    estado: getArbitrajeEstado(p, role),
+    esperado: getMontoEsperadoArbitraje(p, role),
+    pagado: getMontoPagadoArbitraje(p, role),
+    pendiente: getMontoPendienteArbitraje(p, role)
+  })));
+  const pendientes = sides.filter((side) => side.estado === 'pendiente').reduce((sum, side) => sum + side.pendiente, 0);
+  const parciales = sides.filter((side) => side.estado === 'parcial').length;
+  const partidosPendientes = partidos.filter((p) => ['local', 'visitante'].some((role) => getArbitrajeEstado(p, role) !== 'pagado')).length;
+  return {
+    partidos: partidos.length,
+    totalEf,
+    totalTr,
+    totalPp: totalOtro,
+    total: totalEf + totalTr + totalOtro,
+    pendientes,
+    parciales,
+    cancelados: canceled,
+    partidosPendientes
+  };
 }
 
 function getVentasMetrics(ventas) {
@@ -231,6 +344,7 @@ function getResumenData() {
   const selectedCats = getResumenSelectedCats();
   const allInsc = getInsc().filter((i) => resumenTournamentMatch(i) && resumenCatMatch(i, selectedCats, false));
   const allParts = getParts().filter((p) => resumenTournamentMatch(p) && resumenCatMatch(p, selectedCats, false) && resumenDateInPeriod(p.fecha || '', period));
+  const allPagos = getScopedPagos(period, selectedCats);
   const allVentas = getVentas().filter((v) => resumenTournamentMatch(v) && resumenCatMatch(v, selectedCats, true) && resumenTsInPeriod(v, period));
   const allGastosTienda = (typeof getGastosTienda === 'function' ? getGastosTienda() : [])
     .filter((g) => resumenTournamentMatch(g) && resumenCatMatch(g, selectedCats, true) && resumenDateInPeriod(g.fecha || '', period));
@@ -242,6 +356,7 @@ function getResumenData() {
     selectedCats,
     inscripciones: allInsc,
     partidos: allParts,
+    pagos: allPagos,
     ventas: allVentas,
     gastosTienda: allGastosTienda,
     gastosTrab: allGastosTrab
@@ -289,13 +404,20 @@ function renderResumen() {
   const tiendaOn = !!tiendaEnabled;
   const inscData = inscOn ? data.inscripciones : [];
   const gastosTrabData = capHumOn ? data.gastosTrab : [];
+  const activePagos = data.pagos.filter((pago) => pago.cancelado !== true);
+  const pagosInsc = activePagos.filter((pago) => (pago.tipo || pago.concepto || '').toLowerCase() === 'inscripcion');
+  const pagosArb = activePagos.filter((pago) => (pago.tipo || '').toLowerCase() === 'arbitraje');
   const insc = getInscripcionMetrics(inscData, period);
-  const arb = getArbitrajeMetrics(data.partidos);
+  const arb = getArbitrajeMetrics(data.partidos, data.pagos);
   const ventas = getVentasMetrics(data.ventas);
   const gastosTrab = getGastosMetrics(gastosTrabData);
   const gastosTienda = getGastosMetrics(data.gastosTienda);
 
-  const ingresos = (tiendaOn ? ventas.total : 0) + arb.total + insc.pagadoPeriodo;
+  const inscripcionesCobradas = pagosInsc.reduce((sum, pago) => sum + Number(pago.monto || 0), 0) || insc.pagadoPeriodo;
+  const arbitrajesCobrados = pagosArb.reduce((sum, pago) => sum + Number(pago.monto || 0), 0) || arb.total;
+  const totalEfectivo = activePagos.filter((pago) => normalizePaymentMethod(pago.metodoPago || pago.metodo) === 'efectivo').reduce((sum, pago) => sum + Number(pago.monto || 0), 0);
+  const totalTransferencia = activePagos.filter((pago) => normalizePaymentMethod(pago.metodoPago || pago.metodo) === 'transferencia').reduce((sum, pago) => sum + Number(pago.monto || 0), 0);
+  const ingresos = (tiendaOn ? ventas.total : 0) + arbitrajesCobrados + inscripcionesCobradas;
   const egresos = gastosTrab.total + (tiendaOn ? gastosTienda.total : 0);
   const neto = ingresos - egresos;
 
@@ -316,6 +438,10 @@ function renderResumen() {
     rg.innerHTML = `
       <div class="res-card res-kpi-card"><div class="res-l">Equipos inscritos</div><div class="res-n">${insc.equipos}</div><div class="res-mini">Pagadas ${insc.pagadas} · Pendientes ${insc.pendientes}</div></div>
       <div class="res-card res-kpi-card"><div class="res-l">Ingresos</div><div class="res-n" style="color:var(--acc)">${formatMoney(ingresos)}</div><div class="res-mini">${period.label}</div></div>
+      <div class="res-card res-kpi-card"><div class="res-l">Inscripciones cobradas</div><div class="res-n" style="color:var(--emerald)">${formatMoney(inscripcionesCobradas)}</div><div class="res-mini">Pagos activos</div></div>
+      <div class="res-card res-kpi-card"><div class="res-l">Arbitrajes cobrados</div><div class="res-n" style="color:var(--teal)">${formatMoney(arbitrajesCobrados)}</div><div class="res-mini">${arb.parciales} parciales · ${arb.cancelados} cancelados</div></div>
+      <div class="res-card res-kpi-card"><div class="res-l">Efectivo</div><div class="res-n">${formatMoney(totalEfectivo)}</div><div class="res-mini">Todos los pagos activos</div></div>
+      <div class="res-card res-kpi-card"><div class="res-l">Transferencia</div><div class="res-n">${formatMoney(totalTransferencia)}</div><div class="res-mini">Todos los pagos activos</div></div>
       <div class="res-card res-kpi-card"><div class="res-l">Egresos</div><div class="res-n" style="color:var(--red)">${formatMoney(egresos)}</div><div class="res-mini">Gastos registrados</div></div>
       <div class="res-card res-kpi-card"><div class="res-l">Neto</div><div class="res-n" style="color:${neto >= 0 ? 'var(--emerald)' : 'var(--red)'}">${formatMoney(neto)}</div><div class="res-mini">Ingreso - egreso</div></div>`;
   }
@@ -354,7 +480,7 @@ function renderResumenDashboards(ctx) {
       <div class="resumen-bar-list">
         ${resumenBar('Efectivo', ctx.arb.totalEf, ctx.arb.total)}
         ${resumenBar('Transferencia', ctx.arb.totalTr, ctx.arb.total)}
-        ${resumenBar('Prepago', ctx.arb.totalPp, ctx.arb.total)}
+        ${resumenBar('Otros', ctx.arb.totalPp, ctx.arb.total)}
       </div>
     </div>
     ${salesCard}
@@ -385,8 +511,9 @@ function renderResumenCategoryBreakdown(data, period, tiendaOn, inscOn = true, c
     const catVentas = data.ventas.filter(match);
     const catGastosTienda = data.gastosTienda.filter(match);
     const catGastosTrab = data.gastosTrab.filter(match);
+    const catPagos = (data.pagos || []).filter(match);
     const insc = getInscripcionMetrics(catInsc, period);
-    const arb = getArbitrajeMetrics(catParts);
+    const arb = getArbitrajeMetrics(catParts, catPagos);
     const ventas = getVentasMetrics(catVentas);
     const gastos = getGastosMetrics(catGastosTrab);
     const retiros = getGastosMetrics(catGastosTienda);
@@ -466,8 +593,10 @@ function renderResumenArbitrajes(arb, period) {
     <div class="money-row"><span class="money-lbl">Partidos terminados · ${period.label}</span><span class="money-val">${arb.partidos}</span></div>
     <div class="money-row"><span class="money-lbl">💵 Efectivo</span><span class="money-val">${formatMoney(arb.totalEf)}</span></div>
     <div class="money-row"><span class="money-lbl">📱 Transferencia</span><span class="money-val">${formatMoney(arb.totalTr)}</span></div>
-    <div class="money-row"><span class="money-lbl">✅ Prepago</span><span class="money-val">${formatMoney(arb.totalPp)}</span></div>
+    <div class="money-row"><span class="money-lbl">🧾 Otros / no especificado</span><span class="money-val">${formatMoney(arb.totalPp)}</span></div>
     <div class="money-row total-row"><span class="money-lbl">Total arbitrajes</span><span class="money-val">${formatMoney(arb.total)}</span></div>
+    <div class="money-row"><span class="money-lbl">Parciales</span><span class="money-val" style="color:var(--amber)">${arb.parciales || 0}</span></div>
+    <div class="money-row"><span class="money-lbl">Pagos cancelados</span><span class="money-val" style="color:var(--muted)">${arb.cancelados || 0}</span></div>
     ${arb.pendientes ? `<div class="money-row"><span class="money-lbl">Pendiente por cobrar</span><span class="money-val" style="color:var(--red)">${formatMoney(arb.pendientes)}</span></div>` : ''}`;
 }
 
@@ -539,4 +668,199 @@ function renderResDeudas(inscripcionesArg, partidosArg) {
 
 function renderIncomeChart() {
   renderResumen();
+}
+
+function adminArbScopedParts() {
+  return getParts().filter((p) => canAccessTorneo(p.torneo || p.torneoId || currentTorneo) && canAccessCat(p.cat || p.categoriaId || currentCat, p.torneo || currentTorneo));
+}
+
+function seedAdminArbitrajesFilters() {
+  const torneoSel = document.getElementById('aa_torneo');
+  const catSel = document.getElementById('aa_cat');
+  if (torneoSel && !torneoSel.options.length) {
+    torneoSel.innerHTML = getManagedTorneos()
+      .map((key) => `<option value="${key}">${TORNEO_NAMES[key] || key}</option>`)
+      .join('');
+    torneoSel.value = currentTorneo;
+  }
+  const torneo = torneoSel?.value || currentTorneo;
+  if (catSel) {
+    const prev = catSel.value || currentCat;
+    const cats = getManagedCats(torneo);
+    catSel.innerHTML = `<option value="todas">Todas las categorías</option>` + cats
+      .map((key) => `<option value="${key}">${CAT_NAMES[key] || key}</option>`)
+      .join('');
+    catSel.value = prev && (prev === 'todas' || cats.includes(prev)) ? prev : currentCat;
+  }
+}
+
+function getAdminArbitrajesFilters() {
+  seedAdminArbitrajesFilters();
+  return {
+    torneo: document.getElementById('aa_torneo')?.value || currentTorneo,
+    cat: document.getElementById('aa_cat')?.value || currentCat,
+    desde: document.getElementById('aa_desde')?.value || '',
+    hasta: document.getElementById('aa_hasta')?.value || '',
+    equipo: normalizeLookupText(document.getElementById('aa_equipo')?.value || ''),
+    estadoArb: document.getElementById('aa_estado_arb')?.value || 'todos',
+    metodo: document.getElementById('aa_metodo')?.value || 'todos',
+    recibido: normalizeLookupText(document.getElementById('aa_recibido')?.value || ''),
+    origen: document.getElementById('aa_origen')?.value || 'todos',
+    estadoPago: document.getElementById('aa_estado_pago')?.value || 'activos'
+  };
+}
+
+function datePassesAdminFilter(date, filters) {
+  if (!date) return true;
+  if (filters.desde && date < filters.desde) return false;
+  if (filters.hasta && date > filters.hasta) return false;
+  return true;
+}
+
+function buildArbitrajeSides(partido) {
+  return ['local', 'visitante'].map((role) => {
+    const node = getArbitrajeNode(partido, role);
+    const estado = getArbitrajeEstado(partido, role);
+    return {
+      role,
+      partido,
+      partidoId: partido._key,
+      equipoNombre: getEquipoNombreFromPartido(partido, role),
+      estado,
+      esperado: getMontoEsperadoArbitraje(partido, role),
+      pagado: getMontoPagadoArbitraje(partido, role),
+      pendiente: getMontoPendienteArbitraje(partido, role),
+      metodoPago: normalizePaymentMethod(node.metodoPago || ''),
+      recibidoPor: node.recibidoPor || 'no_especificado',
+      nota: node.nota || ''
+    };
+  });
+}
+
+function adminPagoPassesFilters(pago, filters, tipo) {
+  const pagoTipo = (pago.tipo || pago.concepto || '').toLowerCase();
+  if (tipo && pagoTipo !== tipo) return false;
+  if (appTorneoId(pago.torneo || pago.torneoId || currentTorneo) !== filters.torneo) return false;
+  if (filters.cat !== 'todas' && appCatId(pago.cat || pago.categoriaId || currentCat) !== filters.cat) return false;
+  if (!datePassesAdminFilter(getPaymentDate(pago), filters)) return false;
+  if (filters.equipo && !normalizeLookupText(pago.equipoNombre || pago.equipo || pago.nombreEquipo || '').includes(filters.equipo)) return false;
+  const metodo = normalizePaymentMethod(pago.metodoPago || pago.metodo);
+  if (filters.metodo !== 'todos' && metodo !== filters.metodo) return false;
+  if (filters.recibido && !normalizeLookupText(pago.recibidoPor || '').includes(filters.recibido)) return false;
+  if (filters.origen !== 'todos' && normalizeLookupText(pago.origen || 'web') !== filters.origen) return false;
+  if (filters.estadoPago === 'activos' && pago.cancelado === true) return false;
+  if (filters.estadoPago === 'cancelados' && pago.cancelado !== true) return false;
+  return true;
+}
+
+function renderAdminArbitrajes() {
+  if (!isAdmin) return;
+  const filters = getAdminArbitrajesFilters();
+  const partidos = adminArbScopedParts().filter((p) => {
+    if (appTorneoId(p.torneo || p.torneoId || currentTorneo) !== filters.torneo) return false;
+    if (filters.cat !== 'todas' && appCatId(p.cat || p.categoriaId || currentCat) !== filters.cat) return false;
+    if (!datePassesAdminFilter(p.fecha || '', filters)) return false;
+    if (filters.equipo) {
+      const names = normalizeLookupText(`${getEquipoNombreFromPartido(p, 'local')} ${getEquipoNombreFromPartido(p, 'visitante')}`);
+      if (!names.includes(filters.equipo)) return false;
+    }
+    if (filters.estadoArb !== 'todos') {
+      const states = buildArbitrajeSides(p).map((side) => side.estado);
+      if (filters.estadoArb === 'pagados' && !states.every((state) => state === 'pagado')) return false;
+      if (filters.estadoArb === 'pendientes' && !states.includes('pendiente')) return false;
+      if (filters.estadoArb === 'parciales' && !states.includes('parcial')) return false;
+    }
+    return true;
+  });
+  const pagos = Object.entries(C.pagos || {}).map(([key, pago]) => ({ _key: key, ...pago }));
+  const pagosArb = pagos.filter((pago) => adminPagoPassesFilters(pago, filters, 'arbitraje'));
+  const pagosInsc = pagos.filter((pago) => adminPagoPassesFilters(pago, filters, 'inscripcion'));
+  const activeArb = pagosArb.filter((pago) => pago.cancelado !== true);
+  const sides = partidos.flatMap(buildArbitrajeSides);
+  const kpis = {
+    esperado: sides.reduce((sum, side) => sum + side.esperado, 0),
+    cobrado: activeArb.reduce((sum, pago) => sum + Number(pago.monto || 0), 0),
+    pendiente: sides.reduce((sum, side) => sum + side.pendiente, 0),
+    partidosPendientes: partidos.filter((p) => buildArbitrajeSides(p).some((side) => side.estado !== 'pagado')).length,
+    cancelados: pagosArb.filter((pago) => pago.cancelado === true).length,
+    efectivo: activeArb.filter((pago) => normalizePaymentMethod(pago.metodoPago || pago.metodo) === 'efectivo').reduce((sum, pago) => sum + Number(pago.monto || 0), 0),
+    transferencia: activeArb.filter((pago) => normalizePaymentMethod(pago.metodoPago || pago.metodo) === 'transferencia').reduce((sum, pago) => sum + Number(pago.monto || 0), 0)
+  };
+  renderAdminArbitrajesKpis(kpis);
+  renderAdminArbitrajesCharts(activeArb);
+  renderAdminArbitrajesPartidosTable(partidos);
+  renderAdminPagosTable('adminArbPagosTable', pagosArb, true);
+  renderAdminPagosTable('adminInscPagosTable', pagosInsc, false);
+}
+
+function renderAdminArbitrajesKpis(kpis) {
+  const el = document.getElementById('adminArbKpis');
+  if (!el) return;
+  const items = [
+    ['Total esperado', kpis.esperado, 'Esperado por equipo'],
+    ['Total cobrado', kpis.cobrado, 'Pagos activos'],
+    ['Pendiente', kpis.pendiente, 'Por cobrar'],
+    ['Partidos pendientes', kpis.partidosPendientes, 'Con arbitraje abierto'],
+    ['Pagos cancelados', kpis.cancelados, 'Histórico'],
+    ['Efectivo', kpis.efectivo, 'Cobrado activo'],
+    ['Transferencia', kpis.transferencia, 'Cobrado activo']
+  ];
+  el.innerHTML = items.map(([label, value, sub]) => `<div class="admin-kpi-card"><span>${label}</span><strong>${typeof value === 'number' && label !== 'Partidos pendientes' && label !== 'Pagos cancelados' ? formatMoney(value) : value}</strong><small>${sub}</small></div>`).join('');
+}
+
+function renderAdminArbitrajesCharts(pagosArb) {
+  const el = document.getElementById('adminArbCharts');
+  if (!el) return;
+  const byDate = {};
+  const byMethod = {};
+  const byReceiver = {};
+  pagosArb.forEach((pago) => {
+    const date = getPaymentDate(pago) || 'Sin fecha';
+    const method = normalizePaymentMethod(pago.metodoPago || pago.metodo);
+    const receiver = pago.recibidoPor || 'no_especificado';
+    byDate[date] = (byDate[date] || 0) + Number(pago.monto || 0);
+    byMethod[method] = (byMethod[method] || 0) + Number(pago.monto || 0);
+    byReceiver[receiver] = (byReceiver[receiver] || 0) + Number(pago.monto || 0);
+  });
+  el.innerHTML = [
+    adminMiniChart('Cobrado por fecha', byDate),
+    adminMiniChart('Método de pago', byMethod),
+    adminMiniChart('Recibido por', byReceiver)
+  ].join('');
+}
+
+function adminMiniChart(title, data) {
+  const entries = Object.entries(data).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const max = Math.max(...entries.map(([, value]) => value), 1);
+  return `<div class="admin-chart-card"><div class="admin-chart-title">${title}</div>${entries.length ? entries.map(([label, value]) => `<div class="admin-chart-row"><span>${escapeHtml(label)}</span><div><i style="width:${pct(value, max)}%"></i></div><b>${formatMoney(value)}</b></div>`).join('') : '<div class="empty">Sin datos</div>'}</div>`;
+}
+
+function arbStatusChip(state) {
+  const labels = { pagado: 'Pagado', pendiente: 'Pendiente', parcial: 'Parcial', cancelado: 'Cancelado' };
+  return `<span class="arb-chip arb-${state}">${labels[state] || state}</span>`;
+}
+
+function renderAdminArbitrajesPartidosTable(partidos) {
+  const el = document.getElementById('adminArbPartidosTable');
+  if (!el) return;
+  if (!partidos.length) {
+    el.innerHTML = '<tbody><tr><td>Sin partidos en este filtro</td></tr></tbody>';
+    return;
+  }
+  el.innerHTML = `<thead><tr><th>Fecha</th><th>Hora</th><th>Categoría</th><th>Partido</th><th>Local</th><th>Visitante</th></tr></thead><tbody>${partidos.map((p) => {
+    const local = buildArbitrajeSides(p)[0];
+    const visita = buildArbitrajeSides(p)[1];
+    const sideHtml = (side) => `${arbStatusChip(side.estado)}<br><small>${formatMoney(side.pagado)} / ${formatMoney(side.esperado)} · Pendiente ${formatMoney(side.pendiente)}</small><br><small>${escapeHtml(side.metodoPago)} · Recibió: ${escapeHtml(side.recibidoPor)}</small>${side.nota ? `<br><small>Nota: ${escapeHtml(side.nota)}</small>` : ''}`;
+    return `<tr><td>${fmtDate(p.fecha)}</td><td>${p.horaIni || p.hora || '--:--'}</td><td>${CAT_NAMES[p.cat] || p.cat || 'Categoría'}</td><td><strong>${escapeHtml(getPartidoDisplayName(p))}</strong><br><small>${escapeHtml(p.status || 'pendiente')}</small></td><td>${escapeHtml(local.equipoNombre)}<br>${sideHtml(local)}</td><td>${escapeHtml(visita.equipoNombre)}<br>${sideHtml(visita)}</td></tr>`;
+  }).join('')}</tbody>`;
+}
+
+function renderAdminPagosTable(id, pagos, isArbitraje) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!pagos.length) {
+    el.innerHTML = '<tbody><tr><td>Sin pagos en este filtro</td></tr></tbody>';
+    return;
+  }
+  el.innerHTML = `<thead><tr><th>Fecha</th><th>Equipo</th>${isArbitraje ? '<th>Partido</th><th>Esperado</th><th>Pendiente</th>' : ''}<th>Monto</th><th>Método</th><th>Recibió</th><th>Nota</th><th>Origen</th><th>Usuario</th><th>Estado</th></tr></thead><tbody>${pagos.sort((a, b) => (getPaymentDate(b) || '').localeCompare(getPaymentDate(a) || '')).map((pago) => `<tr><td>${fmtDate(getPaymentDate(pago)) || 'Sin fecha'}</td><td>${escapeHtml(pago.equipoNombre || pago.nombreEquipo || 'Equipo')}</td>${isArbitraje ? `<td>${escapeHtml(pago.partidoTexto || pago.partidoId || '')}</td><td>${formatMoney(pago.montoEsperado || 0)}</td><td>${formatMoney(pago.montoPendienteDespues || 0)}</td>` : ''}<td><strong>${formatMoney(pago.monto || 0)}</strong></td><td>${escapeHtml(normalizePaymentMethod(pago.metodoPago || pago.metodo))}</td><td>${escapeHtml(pago.recibidoPor || 'no_especificado')}</td><td>${escapeHtml(pago.nota || '')}</td><td>${escapeHtml(pago.origen || 'web')}</td><td>${escapeHtml(pago.createdByPhone || pago.telefonoWhatsapp || pago.registradoPor || '')}</td><td>${arbStatusChip(pago.cancelado ? 'cancelado' : 'pagado')}</td></tr>`).join('')}</tbody>`;
 }

@@ -55,6 +55,7 @@ function renderCoreDataConsumers() {
   if (typeof renderPartidos === 'function' && typeof isPageActive === 'function' && isPageActive('partidos')) renderPartidos();
   if (typeof renderInscripciones === 'function' && typeof isPageActive === 'function' && isPageActive('inscripciones')) renderInscripciones();
   if (typeof renderResumen === 'function' && typeof isPageActive === 'function' && isPageActive('resumen')) renderResumen();
+  if (typeof renderAdminArbitrajes === 'function' && typeof isPageActive === 'function' && isPageActive('admin-arbitrajes')) renderAdminArbitrajes();
 }
 
 function rebuildEquiposFromCoreSources() {
@@ -229,11 +230,13 @@ function renderAfterFirestoreCollection(collectionName) {
   if (collectionName === 'pagos') {
     rebuildInscAbonosFromPagos();
     renderCoreDataConsumers();
+    if (typeof renderAdminArbitrajes === 'function' && isAdmin && isPageActive('admin-arbitrajes')) renderAdminArbitrajes();
     return;
   }
   if (collectionName === 'partidos') {
     if (typeof renderPartidos === 'function') renderPartidos();
     if (typeof renderTabla === 'function') renderTabla();
+    if (typeof renderAdminArbitrajes === 'function' && isAdmin && isPageActive('admin-arbitrajes')) renderAdminArbitrajes();
     if (typeof renderArbitros === 'function' && isAdmin && isPageActive('arbitros')) renderArbitros();
     if (typeof renderResumen === 'function' && isAdmin && isPageActive('resumen')) renderResumen();
     if (typeof renderMercadotecnia === 'function' && isAdmin && isPageActive('mercadotecnia')) renderMercadotecnia();

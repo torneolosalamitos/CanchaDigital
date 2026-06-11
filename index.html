@@ -175,6 +175,7 @@
 <button class="nav-tab admin-only" id="navInsc" onclick="showPage('inscripciones',this)">💰 Inscripciones</button>
 <button class="nav-tab admin-only" id="navArb" onclick="showPage('arbitros',this)">👥 Capital Humano</button>
 <button class="nav-tab admin-only" id="navRes" onclick="showPage('resumen',this)">📋 Resumen</button>
+<button class="nav-tab admin-only" id="navAdminArbitrajes" onclick="showPage('admin-arbitrajes',this)">🧾 Control de Partidos</button>
 <button class="nav-tab admin-only" id="navMerca" onclick="showPage('mercadotecnia',this)">📣 Mercadotecnia</button>
 </div>
 </div>
@@ -1157,6 +1158,46 @@
     </div>
   </div>
 </div>
+
+<!-- ═══════ CONTROL DE PARTIDOS / ADMIN ARBITRAJES ═══════ -->
+<section id="page-admin-arbitrajes" class="page">
+  <div id="admin-arbitrajes-section" class="admin-arb-shell view-section">
+    <div class="admin-arb-hero">
+      <div>
+        <div class="admin-arb-kicker">Panel administrativo</div>
+        <div class="admin-arb-title">Control de Partidos</div>
+        <div class="admin-arb-sub">Pagos de arbitraje, inscripciones y registros vinculados con Firestore y WhatsApp AgentBot.</div>
+      </div>
+      <button class="btn btn-out btn-sm" onclick="renderAdminArbitrajes()">↻ Actualizar</button>
+    </div>
+    <div class="admin-arb-filters">
+      <div class="fg"><label class="fl">Torneo</label><select class="fi" id="aa_torneo" onchange="renderAdminArbitrajes()"></select></div>
+      <div class="fg"><label class="fl">Categoría</label><select class="fi" id="aa_cat" onchange="renderAdminArbitrajes()"></select></div>
+      <div class="fg"><label class="fl">Desde</label><input class="fi" id="aa_desde" type="date" onchange="renderAdminArbitrajes()"/></div>
+      <div class="fg"><label class="fl">Hasta</label><input class="fi" id="aa_hasta" type="date" onchange="renderAdminArbitrajes()"/></div>
+      <div class="fg"><label class="fl">Equipo</label><input class="fi" id="aa_equipo" placeholder="Buscar equipo" oninput="renderAdminArbitrajes()"/></div>
+      <div class="fg"><label class="fl">Estado arbitraje</label><select class="fi" id="aa_estado_arb" onchange="renderAdminArbitrajes()"><option value="todos">Todos</option><option value="pagados">Pagados</option><option value="pendientes">Pendientes</option><option value="parciales">Parciales</option></select></div>
+      <div class="fg"><label class="fl">Método</label><select class="fi" id="aa_metodo" onchange="renderAdminArbitrajes()"><option value="todos">Todos</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="no_especificado">No especificado</option></select></div>
+      <div class="fg"><label class="fl">Recibió</label><input class="fi" id="aa_recibido" placeholder="Edel, Navo..." oninput="renderAdminArbitrajes()"/></div>
+      <div class="fg"><label class="fl">Origen</label><select class="fi" id="aa_origen" onchange="renderAdminArbitrajes()"><option value="todos">Todos</option><option value="whatsapp">WhatsApp</option><option value="web">Web</option></select></div>
+      <div class="fg"><label class="fl">Estado pago</label><select class="fi" id="aa_estado_pago" onchange="renderAdminArbitrajes()"><option value="activos">Activos</option><option value="cancelados">Cancelados</option><option value="todos">Todos</option></select></div>
+    </div>
+    <div class="admin-arb-kpis" id="adminArbKpis"></div>
+    <div class="admin-arb-charts" id="adminArbCharts"></div>
+    <div class="admin-arb-block">
+      <div class="sh"><div class="st">⚽ Partidos y arbitrajes</div><div class="sl"></div></div>
+      <div class="admin-table-wrap"><table class="admin-data-table" id="adminArbPartidosTable"></table></div>
+    </div>
+    <div class="admin-arb-block">
+      <div class="sh"><div class="st">🧾 Pagos de arbitraje</div><div class="sl"></div></div>
+      <div class="admin-table-wrap"><table class="admin-data-table" id="adminArbPagosTable"></table></div>
+    </div>
+    <div class="admin-arb-block">
+      <div class="sh"><div class="st">💰 Pagos de inscripción</div><div class="sl"></div></div>
+      <div class="admin-table-wrap"><table class="admin-data-table" id="adminInscPagosTable"></table></div>
+    </div>
+  </div>
+</section>
 
 <!-- Modal Reiniciar Estadísticas -->
 <div class="modal-overlay" id="modalReset">

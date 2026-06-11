@@ -39,6 +39,7 @@ function showPage(pageKey, btn) {
     renderTrabajadores();
   }
   if (targetPage === 'resumen') renderResumen();
+  if (targetPage === 'admin-arbitrajes') renderAdminArbitrajes();
   if (targetPage === 'tabla') renderTabla();
   if (targetPage === 'equipos') renderEquiposPage();
   if (targetPage === 'historial') renderHistorial();
