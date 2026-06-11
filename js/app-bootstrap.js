@@ -3,7 +3,7 @@
 // ══════════════════════════════════════
 let db = null, auth = null, currentUser = null, isAdmin = false;
 const LS_LAST_PAGE = 'ld_last_page';
-const ADMIN_ONLY_PAGES = new Set(['tienda','inscripciones','arbitros','calendario','resumen','mercadotecnia']);
+const ADMIN_ONLY_PAGES = new Set(['tienda','inscripciones','arbitros','calendario','resumen','admin-arbitrajes','mercadotecnia']);
 const OWNER_EMAILS = ['edanchra@gmail.com','admincanchadigital@gmail.com'];
 
 // Resize handler for mobile tabla
