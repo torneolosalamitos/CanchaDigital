@@ -6,6 +6,7 @@ admin.initializeApp();
 
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
+const DEFAULT_ARBITRAJE_MONTO_EQUIPO = 250;
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '');
@@ -549,10 +550,43 @@ function isArbitrajePagado(partido, side) {
   );
 }
 
-function getArbitrajeMonto(partido, side) {
+function getMontoEsperadoArbitrajeEquipo(partido, equipoRole) {
   const arbitrajes = partido.arbitrajes || {};
-  if (side === 'local') return Number(arbitrajes.equipoLocal?.monto || partido.arbitrajeLocalMonto || partido.costArb || partido.arbitrajePorEquipo || 0);
-  return Number(arbitrajes.equipoVisitante?.monto || partido.arbitrajeVisitanteMonto || partido.costArb || partido.arbitrajePorEquipo || 0);
+  const local = equipoRole === 'local';
+  const candidates = local
+    ? [
+        { value: arbitrajes.equipoLocal?.montoEsperado, fuente: 'arbitrajes.equipoLocal.montoEsperado' },
+        { value: partido.arbitrajeLocalMontoEsperado, fuente: 'arbitrajeLocalMontoEsperado' },
+        { value: partido.montoArbitrajeEquipo, fuente: 'montoArbitrajeEquipo' },
+        { value: partido.montoArbitraje, fuente: 'montoArbitraje' }
+      ]
+    : [
+        { value: arbitrajes.equipoVisitante?.montoEsperado, fuente: 'arbitrajes.equipoVisitante.montoEsperado' },
+        { value: partido.arbitrajeVisitanteMontoEsperado, fuente: 'arbitrajeVisitanteMontoEsperado' },
+        { value: partido.montoArbitrajeEquipo, fuente: 'montoArbitrajeEquipo' },
+        { value: partido.montoArbitraje, fuente: 'montoArbitraje' }
+      ];
+  const found = candidates.find((item) => Number(item.value || 0) > 0);
+  const result = {
+    montoEsperadoEquipo: Number(found?.value || DEFAULT_ARBITRAJE_MONTO_EQUIPO),
+    fuente: found?.fuente || 'DEFAULT_ARBITRAJE_MONTO_EQUIPO'
+  };
+  console.log('ARBITRAJE_MONTO_ESPERADO_CALCULADO', {
+    partidoId: partido.id || partido._key || '',
+    equipoRole,
+    montoEsperadoEquipo: result.montoEsperadoEquipo,
+    fuente: result.fuente
+  });
+  return result;
+}
+
+function getArbitrajeMonto(partido, side) {
+  return getMontoEsperadoArbitrajeEquipo(partido, side).montoEsperadoEquipo;
+}
+
+function getMontoEsperadoPartidoTotal(partido) {
+  return getMontoEsperadoArbitrajeEquipo(partido, 'local').montoEsperadoEquipo +
+    getMontoEsperadoArbitrajeEquipo(partido, 'visitante').montoEsperadoEquipo;
 }
 
 function getPartidoSortValue(partido) {
@@ -609,13 +643,17 @@ function formatPartidoLine(partido, index) {
   const visitante = getPartidoVisitanteName(partido);
   const localArb = isArbitrajePagado(partido, 'local') ? 'Pagado' : 'Pendiente';
   const visitanteArb = isArbitrajePagado(partido, 'visitante') ? 'Pagado' : 'Pendiente';
+  const montoLocal = getMontoEsperadoArbitrajeEquipo(partido, 'local').montoEsperadoEquipo;
+  const montoVisitante = getMontoEsperadoArbitrajeEquipo(partido, 'visitante').montoEsperadoEquipo;
+  const totalEsperado = getMontoEsperadoPartidoTotal(partido);
   return [
     `${index + 1}. ${local} vs ${visitante}`,
     `Fecha: ${formatDateLabel(getPartidoFecha(partido))}`,
     `Hora: ${getPartidoHora(partido)}`,
     `Estado: ${getPartidoEstado(partido)}`,
-    `Arbitraje local: ${localArb}`,
-    `Arbitraje visitante: ${visitanteArb}`
+    `Arbitraje ${local}: ${localArb} - ${money(montoLocal)}`,
+    `Arbitraje ${visitante}: ${visitanteArb} - ${money(montoVisitante)}`,
+    `Total esperado partido: ${money(totalEsperado)}`
   ].join('\n');
 }
 
@@ -892,6 +930,9 @@ async function findPendingArbitrajeMatches(command, context) {
 async function savePendingArbitraje(command, context, match) {
   const equipoId = match.equipoId || `${match.partidoId}_${match.equipoRole || match.side || 'equipo'}`;
   const equipoNombre = match.equipoNombre || command.equipoTexto;
+  const montoEsperadoEquipo = Number(match.montoEsperado || getMontoEsperadoArbitrajeEquipo(match.partido, match.equipoRole || match.side).montoEsperadoEquipo || DEFAULT_ARBITRAJE_MONTO_EQUIPO);
+  const montoPagado = Number(command.monto || 0);
+  const montoPendienteDespues = Math.max(montoEsperadoEquipo - montoPagado, 0);
 
   await db.collection('bot_pending_confirmations').doc(context.phone).set({
     telefonoWhatsapp: context.phone,
@@ -905,7 +946,10 @@ async function savePendingArbitraje(command, context, match) {
     partidoTexto: `${match.localNombre || getPartidoLocalName(match.partido)} vs ${match.visitanteNombre || getPartidoVisitanteName(match.partido)}`,
     fecha: match.fecha || getPartidoFecha(match.partido),
     hora: match.hora || getPartidoHora(match.partido),
-    monto: Number(command.monto || 0),
+    monto: montoPagado,
+    montoPagado,
+    montoEsperado: montoEsperadoEquipo,
+    montoPendienteDespues,
     concepto: 'arbitraje',
     metodoPago: command.metodoPago || 'no_especificado',
     recibidoPor: command.recibidoPor || 'no_especificado',
@@ -930,14 +974,16 @@ async function savePendingArbitraje(command, context, match) {
     equipoId,
     partidoId: match.partidoId,
     side: match.equipoRole || match.side,
-    monto: Number(command.monto || 0)
+    monto: montoPagado
   });
 
   return [
     'Confirma pago de arbitraje:',
     '',
     `Equipo: ${equipoNombre}`,
-    `Monto: ${money(command.monto)}`,
+    `Monto pagado: ${money(montoPagado)}`,
+    `Monto esperado: ${money(montoEsperadoEquipo)}`,
+    `Monto pendiente: ${money(montoPendienteDespues)}`,
     `Método: ${titleCase(command.metodoPago)}`,
     `Recibió: ${titleCase(command.recibidoPor)}`,
     command.nota ? `Nota: ${command.nota}` : 'Nota: Sin nota',
@@ -1200,11 +1246,20 @@ async function confirmPendingOperation(context) {
     ].join('\n');
   }
 
+  let montoEsperadoRegistrado = 0;
+  let montoPendienteRegistrado = 0;
   await db.runTransaction(async (transaction) => {
     const partidoRef = db.collection('partidos').doc(pending.partidoId);
     const partidoSnap = await transaction.get(partidoRef);
     if (!partidoSnap.exists) throw new Error('Partido no encontrado');
-    const monto = Number(pending.monto || 0);
+    const partido = { id: partidoSnap.id, _key: partidoSnap.id, ...partidoSnap.data() };
+    const montoPagado = Number(pending.montoPagado || pending.monto || 0);
+    const expected = getMontoEsperadoArbitrajeEquipo(partido, pending.side);
+    const montoEsperadoEquipo = Number(pending.montoEsperado || expected.montoEsperadoEquipo || DEFAULT_ARBITRAJE_MONTO_EQUIPO);
+    const montoPendienteDespues = Math.max(montoEsperadoEquipo - montoPagado, 0);
+    const pagadoCompleto = montoPagado >= montoEsperadoEquipo;
+    montoEsperadoRegistrado = montoEsperadoEquipo;
+    montoPendienteRegistrado = montoPendienteDespues;
     const pagoRef = db.collection('pagos').doc(pagoId);
     const local = pending.side === 'local';
     const prefix = local ? 'arbitrajes.equipoLocal' : 'arbitrajes.equipoVisitante';
@@ -1218,7 +1273,10 @@ async function confirmPendingOperation(context) {
       partidoId: pending.partidoId,
       partidoTexto: pending.partidoTexto || '',
       side: pending.side,
-      monto,
+      monto: montoPagado,
+      montoPagado,
+      montoEsperado: montoEsperadoEquipo,
+      montoPendienteDespues,
       metodo: 'whatsapp',
       metodoPago: pending.metodoPago || 'no_especificado',
       recibidoPor: pending.recibidoPor || 'no_especificado',
@@ -1234,14 +1292,20 @@ async function confirmPendingOperation(context) {
       creadoEn: FieldValue.serverTimestamp()
     });
     transaction.update(partidoRef, {
-      [`${prefix}.pagado`]: true,
-      [`${prefix}.monto`]: monto,
+      [`${prefix}.pagado`]: pagadoCompleto,
+      [`${prefix}.monto`]: montoEsperadoEquipo,
+      [`${prefix}.montoPagado`]: montoPagado,
+      [`${prefix}.montoEsperado`]: montoEsperadoEquipo,
+      [`${prefix}.montoPendiente`]: montoPendienteDespues,
       [`${prefix}.pagoId`]: pagoId,
       [`${prefix}.metodoPago`]: pending.metodoPago || 'no_especificado',
       [`${prefix}.recibidoPor`]: pending.recibidoPor || 'no_especificado',
       [`${prefix}.nota`]: pending.nota || '',
-      [local ? 'arbitrajeLocalPagado' : 'arbitrajeVisitantePagado']: true,
-      [local ? 'arbitrajeLocalMonto' : 'arbitrajeVisitanteMonto']: monto,
+      [local ? 'arbitrajeLocalPagado' : 'arbitrajeVisitantePagado']: pagadoCompleto,
+      [local ? 'arbitrajeLocalMonto' : 'arbitrajeVisitanteMonto']: montoEsperadoEquipo,
+      [local ? 'arbitrajeLocalMontoPagado' : 'arbitrajeVisitanteMontoPagado']: montoPagado,
+      [local ? 'arbitrajeLocalMontoEsperado' : 'arbitrajeVisitanteMontoEsperado']: montoEsperadoEquipo,
+      [local ? 'arbitrajeLocalMontoPendiente' : 'arbitrajeVisitanteMontoPendiente']: montoPendienteDespues,
       actualizadoEn: FieldValue.serverTimestamp()
     });
     transaction.delete(pendingRef);
@@ -1261,6 +1325,8 @@ async function confirmPendingOperation(context) {
     partidoId: pending.partidoId,
     side: pending.side,
     monto: Number(pending.monto || 0),
+    montoEsperado: montoEsperadoRegistrado,
+    montoPendienteDespues: montoPendienteRegistrado,
     metodoPago: pending.metodoPago || 'no_especificado',
     recibidoPor: pending.recibidoPor || 'no_especificado'
   });
@@ -1268,7 +1334,9 @@ async function confirmPendingOperation(context) {
   return [
     'Pago de arbitraje registrado ✅',
     `Equipo: ${pending.equipoNombre}`,
-    `Monto: ${money(pending.monto)}`,
+    `Monto pagado: ${money(pending.monto)}`,
+    `Monto esperado: ${money(montoEsperadoRegistrado)}`,
+    `Monto pendiente: ${money(montoPendienteRegistrado)}`,
     `Partido: ${pending.partidoTexto || pending.partidoId}`
   ].join('\n');
 }
@@ -1326,6 +1394,8 @@ async function handleRevertirUltimo(context) {
       if (side !== 'local' && side !== 'visitante') throw new Error('No pude identificar el lado del arbitraje');
       const local = side === 'local';
       const prefix = local ? 'arbitrajes.equipoLocal' : 'arbitrajes.equipoVisitante';
+      const expected = getMontoEsperadoArbitrajeEquipo(partido, side);
+      const montoEsperadoEquipo = Number(last.pago.montoEsperado || expected.montoEsperadoEquipo || DEFAULT_ARBITRAJE_MONTO_EQUIPO);
 
       transaction.update(pagoRef, {
         cancelado: true,
@@ -1334,12 +1404,27 @@ async function handleRevertirUltimo(context) {
       });
       transaction.update(partidoRef, {
         [`${prefix}.pagado`]: false,
+        [`${prefix}.monto`]: montoEsperadoEquipo,
+        [`${prefix}.montoPagado`]: 0,
+        [`${prefix}.montoEsperado`]: montoEsperadoEquipo,
+        [`${prefix}.montoPendiente`]: montoEsperadoEquipo,
         [`${prefix}.pagoId`]: null,
         [`${prefix}.metodoPago`]: null,
         [`${prefix}.recibidoPor`]: null,
         [`${prefix}.nota`]: null,
         [local ? 'arbitrajeLocalPagado' : 'arbitrajeVisitantePagado']: false,
+        [local ? 'arbitrajeLocalMonto' : 'arbitrajeVisitanteMonto']: montoEsperadoEquipo,
+        [local ? 'arbitrajeLocalMontoPagado' : 'arbitrajeVisitanteMontoPagado']: 0,
+        [local ? 'arbitrajeLocalMontoEsperado' : 'arbitrajeVisitanteMontoEsperado']: montoEsperadoEquipo,
+        [local ? 'arbitrajeLocalMontoPendiente' : 'arbitrajeVisitanteMontoPendiente']: montoEsperadoEquipo,
         actualizadoEn: FieldValue.serverTimestamp()
+      });
+
+      console.log('ARBITRAJE_REVERTIDO', {
+        partidoId: last.pago.partidoId,
+        equipoNombre: last.pago.equipoNombre || 'Equipo',
+        montoPagadoRevertido: Number(last.pago.montoPagado || last.pago.monto || 0),
+        montoEsperadoRestaurado: montoEsperadoEquipo
       });
     });
 
