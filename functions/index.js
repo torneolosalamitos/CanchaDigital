@@ -503,7 +503,10 @@ function getPartidoFecha(partido) {
 }
 
 function getPartidoHora(partido) {
-  return String(partido.hora || partido.horario || partido.horaIni || partido.horaInicio || '').trim() || 'Sin hora';
+  const inicio = String(partido.horaIni || partido.horaInicio || partido.hora || partido.horario || '').trim();
+  const fin = String(partido.horaFin || partido.horaFinal || partido.horaTermino || '').trim();
+  if (inicio && fin) return `${inicio} - ${fin}`;
+  return inicio || fin || 'Sin hora';
 }
 
 function getPartidoEstado(partido) {
@@ -528,6 +531,9 @@ function getPartidoVisitanteId(partido) {
 
 function isArbitrajePagado(partido, side) {
   const arbitrajes = partido.arbitrajes || {};
+  const expected = getMontoEsperadoArbitrajeEquipo(partido, side).montoEsperadoEquipo;
+  const paid = getMontoPagadoArbitrajeEquipo(partido, side);
+  if (expected > 0 && paid >= expected) return true;
   if (side === 'local') {
     return !!(
       arbitrajes.equipoLocal?.pagado ||
@@ -582,6 +588,31 @@ function getMontoEsperadoArbitrajeEquipo(partido, equipoRole) {
 
 function getArbitrajeMonto(partido, side) {
   return getMontoEsperadoArbitrajeEquipo(partido, side).montoEsperadoEquipo;
+}
+
+function getLegacyArbitrajePagado(partido, side) {
+  const legacy = side === 'local' ? partido.arbPago?.local : partido.arbPago?.visita;
+  if (!legacy || typeof legacy !== 'object') return 0;
+  return ['ef', 'tr', 'pp', 'monto', 'montoPagado'].reduce((sum, key) => sum + Number(legacy[key] || 0), 0);
+}
+
+function getMontoPagadoArbitrajeEquipo(partido, side) {
+  const arbitrajes = partido.arbitrajes || {};
+  const node = side === 'local' ? arbitrajes.equipoLocal : arbitrajes.equipoVisitante;
+  const flat = side === 'local' ? partido.arbitrajeLocalMontoPagado : partido.arbitrajeVisitanteMontoPagado;
+  return Number(node?.montoPagado || flat || getLegacyArbitrajePagado(partido, side) || 0);
+}
+
+function getMontoPendienteArbitrajeEquipo(partido, side) {
+  const expected = getMontoEsperadoArbitrajeEquipo(partido, side).montoEsperadoEquipo;
+  const paid = getMontoPagadoArbitrajeEquipo(partido, side);
+  return Math.max(expected - paid, 0);
+}
+
+function getArbitrajeEstadoEquipo(partido, side) {
+  if (isArbitrajePagado(partido, side)) return 'pagado';
+  if (getMontoPagadoArbitrajeEquipo(partido, side) > 0) return 'parcial';
+  return 'pendiente';
 }
 
 function getMontoEsperadoPartidoTotal(partido) {
@@ -641,20 +672,34 @@ function getEquipoSideInPartido(partido, insc) {
 function formatPartidoLine(partido, index) {
   const local = getPartidoLocalName(partido);
   const visitante = getPartidoVisitanteName(partido);
-  const localArb = isArbitrajePagado(partido, 'local') ? 'Pagado' : 'Pendiente';
-  const visitanteArb = isArbitrajePagado(partido, 'visitante') ? 'Pagado' : 'Pendiente';
-  const montoLocal = getMontoEsperadoArbitrajeEquipo(partido, 'local').montoEsperadoEquipo;
-  const montoVisitante = getMontoEsperadoArbitrajeEquipo(partido, 'visitante').montoEsperadoEquipo;
   const totalEsperado = getMontoEsperadoPartidoTotal(partido);
+  const deudas = [
+    formatArbitrajeDeudaPartido(partido, 'local', local),
+    formatArbitrajeDeudaPartido(partido, 'visitante', visitante)
+  ].filter(Boolean);
+  const arbitrajeResumen = deudas.length
+    ? ['Deudas de arbitraje:', ...deudas]
+    : ['Arbitrajes: sin deudas pendientes'];
   return [
     `${index + 1}. ${local} vs ${visitante}`,
     `Fecha: ${formatDateLabel(getPartidoFecha(partido))}`,
     `Hora: ${getPartidoHora(partido)}`,
     `Estado: ${getPartidoEstado(partido)}`,
-    `Arbitraje ${local}: ${localArb} - ${money(montoLocal)}`,
-    `Arbitraje ${visitante}: ${visitanteArb} - ${money(montoVisitante)}`,
+    ...arbitrajeResumen,
     `Total esperado partido: ${money(totalEsperado)}`
   ].join('\n');
+}
+
+function formatArbitrajeDeudaPartido(partido, side, equipoNombre) {
+  const estado = getArbitrajeEstadoEquipo(partido, side);
+  if (estado === 'pagado') return '';
+  const expected = getMontoEsperadoArbitrajeEquipo(partido, side).montoEsperadoEquipo;
+  const paid = getMontoPagadoArbitrajeEquipo(partido, side);
+  const pending = Math.max(expected - paid, 0);
+  if (estado === 'parcial') {
+    return `- ${equipoNombre}: parcial ${money(paid)} / ${money(expected)}; debe ${money(pending)}`;
+  }
+  return `- ${equipoNombre}: pendiente; debe ${money(pending || expected)}`;
 }
 
 async function getPagosByInscripcion(inscripcionId, limit = 5, includeCanceled = false) {
@@ -819,24 +864,30 @@ async function handleJuegos(command, context) {
 function getArbitrajesPendientesFromPartidos(partidos) {
   const pendientes = [];
   partidos.forEach((partido) => {
-    if (!isArbitrajePagado(partido, 'local')) {
+    if (getArbitrajeEstadoEquipo(partido, 'local') !== 'pagado') {
       pendientes.push({
         partido,
         partidoId: partido.id || partido._key,
         side: 'local',
         equipoId: getPartidoLocalId(partido),
         equipoNombre: getPartidoLocalName(partido),
-        monto: getArbitrajeMonto(partido, 'local')
+        monto: getArbitrajeMonto(partido, 'local'),
+        montoPagado: getMontoPagadoArbitrajeEquipo(partido, 'local'),
+        montoPendiente: getMontoPendienteArbitrajeEquipo(partido, 'local'),
+        estado: getArbitrajeEstadoEquipo(partido, 'local')
       });
     }
-    if (!isArbitrajePagado(partido, 'visitante')) {
+    if (getArbitrajeEstadoEquipo(partido, 'visitante') !== 'pagado') {
       pendientes.push({
         partido,
         partidoId: partido.id || partido._key,
         side: 'visitante',
         equipoId: getPartidoVisitanteId(partido),
         equipoNombre: getPartidoVisitanteName(partido),
-        monto: getArbitrajeMonto(partido, 'visitante')
+        monto: getArbitrajeMonto(partido, 'visitante'),
+        montoPagado: getMontoPagadoArbitrajeEquipo(partido, 'visitante'),
+        montoPendiente: getMontoPendienteArbitrajeEquipo(partido, 'visitante'),
+        estado: getArbitrajeEstadoEquipo(partido, 'visitante')
       });
     }
   });
@@ -862,6 +913,9 @@ async function getArbitrajesPendientes(session) {
       fecha,
       hora,
       montoEsperado: item.monto,
+      montoPagado: item.montoPagado,
+      montoPendiente: item.montoPendiente,
+      estadoArbitraje: item.estado,
       torneoId: item.partido.torneoId || session.torneoActivo || session.torneoId,
       categoriaId: item.partido.categoriaId || session.categoriaActiva || session.categoriaId,
       pagado: false
@@ -882,9 +936,11 @@ async function handleArbitrajes(context) {
   if (!pendientes.length) return 'No hay arbitrajes pendientes.';
 
   return 'Arbitrajes pendientes\n\n' + pendientes.map((item, index) => {
-    const monto = Number(item.montoEsperado || 0) > 0 ? `\nMonto esperado: ${money(item.montoEsperado)}` : '';
+    const monto = Number(item.montoEsperado || 0) > 0
+      ? `\nMonto esperado: ${money(item.montoEsperado)}\nMonto pagado: ${money(item.montoPagado || 0)}\nMonto pendiente: ${money(item.montoPendiente || item.montoEsperado)}`
+      : '';
     return [
-      `${item.displayIndex || index + 1}. ${item.equipoNombre} - Pendiente`,
+      `${item.displayIndex || index + 1}. ${item.equipoNombre} - ${titleCase(item.estadoArbitraje || 'pendiente')}`,
       `Partido: ${item.localNombre} vs ${item.visitanteNombre}`,
       `Fecha: ${formatDateLabel(item.fecha)}`,
       `Hora: ${item.hora}${monto}`
