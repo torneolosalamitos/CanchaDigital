@@ -34,6 +34,7 @@ function populatePartidosTeamFilter() {
 }
 
 function buildArbitrajeMatchHtml(p) {
+  if (!isAdmin) return '';
   if (typeof getArbitrajeEstado !== 'function') return '';
   const row = (role) => {
     const name = getEquipoNombreFromPartido(p, role);
