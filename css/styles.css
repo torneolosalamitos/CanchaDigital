@@ -1,4 +1,4 @@
-﻿/* ═══ THEMES ═══ */
+/* ═══ THEMES ═══ */
 [data-theme="light"]{--bg:#f4f6fb;--bg2:#fff;--card:#fff;--card2:#edf1fc;--border:#d0daee;--border2:#aec0de;--text:#0d1627;--text2:#2a3f6b;--muted:#6b84aa;--hdr:#ffffff;--acc:#2554d4;--acc2:#1a3a8a;--acc3:#e8eeff;--sh:rgba(26,58,138,.14);--ico-bg:rgba(26,58,138,.09);--ico-border:rgba(26,58,138,.25);--ico-color:#1a3a8a;--ico-bg-h:rgba(26,58,138,.16);--ico-border-h:rgba(26,58,138,.5);--ico-color-h:#0a1e3d;}
 [data-theme="dark"]{--bg:#07080f;--bg2:#0d1117;--card:#131922;--card2:#1a2435;--border:#1f2d44;--border2:#2a3f5f;--text:#e6ecf8;--text2:#8ba0c4;--muted:#4a6080;--hdr:#0a0e18;--acc:#4d7ef5;--acc2:#3b6ae0;--acc3:#0d1e4a;--sh:rgba(77,126,245,.25);--ico-bg:rgba(255,255,255,.1);--ico-border:rgba(255,255,255,.2);--ico-color:#e6ecf8;--ico-bg-h:rgba(255,255,255,.2);--ico-border-h:rgba(255,255,255,.5);--ico-color-h:#fff;}
 :root{--red:#dc2626;--blue:#2563eb;--amber:#d97706;--purple:#7c3aed;--gold:#ca8a04;--teal:#0d9488;--emerald:#059669;}
@@ -1796,7 +1796,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   letter-spacing:1.5px;
 }
 
-/* Admin Arbitrajes / Control de Partidos */
+/* Admin Arbitrajes / Control de Pagos */
 .page#page-admin-arbitrajes{background:linear-gradient(180deg,rgba(37,84,212,.05),transparent 22%);border:1px solid var(--border);border-radius:14px;margin-top:10px;}
 .admin-arb-shell{display:grid;gap:14px;}
 .admin-arb-hero{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px;border:1.5px solid rgba(174,192,222,.9);border-radius:26px;background:radial-gradient(circle at top right,rgba(46,168,60,.12),transparent 34%),linear-gradient(135deg,#fff,#f5f9ff);box-shadow:0 16px 34px rgba(37,84,212,.1);position:relative;overflow:hidden;}
