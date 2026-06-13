@@ -697,6 +697,7 @@ function seedAdminArbitrajesFilters() {
 function getAdminArbitrajesFilters() {
   seedAdminArbitrajesFilters();
   return {
+    visualizacion: document.getElementById('aa_visualizacion')?.value || 'todos',
     torneo: document.getElementById('aa_torneo')?.value || currentTorneo,
     cat: document.getElementById('aa_cat')?.value || currentCat,
     desde: document.getElementById('aa_desde')?.value || '',
@@ -753,6 +754,22 @@ function adminPagoPassesFilters(pago, filters, tipo) {
   return true;
 }
 
+function setAdminArbBlockVisible(tableId, visible) {
+  const block = document.getElementById(tableId)?.closest('.admin-arb-block');
+  if (block) block.style.display = visible ? '' : 'none';
+}
+
+function applyAdminArbitrajesViewMode(mode) {
+  const showAll = mode === 'todos';
+  const kpis = document.getElementById('adminArbKpis');
+  const charts = document.getElementById('adminArbCharts');
+  if (kpis) kpis.style.display = showAll ? '' : 'none';
+  if (charts) charts.style.display = showAll ? '' : 'none';
+  setAdminArbBlockVisible('adminArbPartidosTable', showAll);
+  setAdminArbBlockVisible('adminArbPagosTable', showAll || mode === 'arbitrajes');
+  setAdminArbBlockVisible('adminInscPagosTable', showAll || mode === 'inscripcion');
+}
+
 function renderAdminArbitrajes() {
   if (!isAdmin) return;
   const filters = getAdminArbitrajesFilters();
@@ -791,6 +808,7 @@ function renderAdminArbitrajes() {
   renderAdminArbitrajesPartidosTable(partidos);
   renderAdminPagosTable('adminArbPagosTable', pagosArb, true);
   renderAdminPagosTable('adminInscPagosTable', pagosInsc, false);
+  applyAdminArbitrajesViewMode(filters.visualizacion);
 }
 
 function renderAdminArbitrajesKpis(kpis) {
