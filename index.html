@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es" id="html" data-theme="light">
 <head>
 <meta charset="UTF-8"/>
@@ -175,7 +175,7 @@
 <button class="nav-tab admin-only" id="navInsc" onclick="showPage('inscripciones',this)">💰 Inscripciones</button>
 <button class="nav-tab admin-only" id="navArb" onclick="showPage('arbitros',this)">👥 Capital Humano</button>
 <button class="nav-tab admin-only" id="navRes" onclick="showPage('resumen',this)">📋 Resumen</button>
-<button class="nav-tab admin-only" id="navAdminArbitrajes" onclick="showPage('admin-arbitrajes',this)">🧾 Control de Partidos</button>
+<button class="nav-tab admin-only" id="navAdminArbitrajes" onclick="showPage('admin-arbitrajes',this)">🧾 Control de Pagos</button>
 <button class="nav-tab admin-only" id="navMerca" onclick="showPage('mercadotecnia',this)">📣 Mercadotecnia</button>
 </div>
 </div>
@@ -1159,18 +1159,19 @@
   </div>
 </div>
 
-<!-- ═══════ CONTROL DE PARTIDOS / ADMIN ARBITRAJES ═══════ -->
+<!-- ═══════ CONTROL DE PAGOS / ADMIN ARBITRAJES ═══════ -->
 <section id="page-admin-arbitrajes" class="page">
   <div id="admin-arbitrajes-section" class="admin-arb-shell view-section">
     <div class="admin-arb-hero">
       <div>
         <div class="admin-arb-kicker">Panel administrativo</div>
-        <div class="admin-arb-title">Control de Partidos</div>
+        <div class="admin-arb-title">Control de Pagos</div>
         <div class="admin-arb-sub">Pagos de arbitraje, inscripciones y registros vinculados con Firestore y WhatsApp AgentBot.</div>
       </div>
       <button class="btn btn-out btn-sm" onclick="renderAdminArbitrajes()">↻ Actualizar</button>
     </div>
     <div class="admin-arb-filters">
+      <div class="fg"><label class="fl">Visualizar</label><select class="fi" id="aa_visualizacion" onchange="renderAdminArbitrajes()"><option value="todos">Todos</option><option value="arbitrajes">Arbitrajes</option><option value="inscripcion">Inscripción</option></select></div>
       <div class="fg"><label class="fl">Torneo</label><select class="fi" id="aa_torneo" onchange="renderAdminArbitrajes()"></select></div>
       <div class="fg"><label class="fl">Categoría</label><select class="fi" id="aa_cat" onchange="renderAdminArbitrajes()"></select></div>
       <div class="fg"><label class="fl">Desde</label><input class="fi" id="aa_desde" type="date" onchange="renderAdminArbitrajes()"/></div>
