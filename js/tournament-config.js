@@ -88,6 +88,11 @@ function applyTournamentCatalogToCategoryMap(catMap) {
 }
 
 function hydrateSplashTournamentCards() {
+  if (typeof hydrateBusinessSplashCards === 'function') {
+    hydrateBusinessSplashCards();
+    return;
+  }
+
   const cards = Array.from(document.querySelectorAll('#splash [onclick^="selectTorneo"]'));
   const visibleOrder = typeof getAllowedTorneos === 'function' ? getAllowedTorneos() : TOURNAMENT_OPTION_ORDER;
   TOURNAMENT_OPTION_ORDER.forEach((key, idx) => {

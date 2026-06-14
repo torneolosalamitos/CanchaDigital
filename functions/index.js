@@ -1639,3 +1639,458 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 
   res.status(405).send('Method Not Allowed');
 });
+
+const BOX_BUSINESS_ID = 'box-lombardo-toledano';
+const BOX_OWNER_EMAILS = new Set(['edanchra@gmail.com', 'admincanchadigital@gmail.com']);
+
+function callableAuth(context) {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Debes iniciar sesion.');
+  return context.auth;
+}
+
+async function getPlatformUser(uid) {
+  const snap = await db.collection('usuarios').doc(uid).get();
+  return snap.exists ? { id: snap.id, ...snap.data() } : { id: uid };
+}
+
+function isBoxSuperAdmin(auth) {
+  return BOX_OWNER_EMAILS.has(String(auth.token.email || '').toLowerCase());
+}
+
+function getBoxUserRole(user, businessId) {
+  const entry = user?.businessRoles?.[businessId] || user?.businessAccess?.[businessId] || null;
+  if (typeof entry === 'string') return entry;
+  return entry?.role || null;
+}
+
+async function assertBoxPermission(context, allowedRoles) {
+  const auth = callableAuth(context);
+  const user = await getPlatformUser(auth.uid);
+  if (isBoxSuperAdmin(auth)) return { auth, user, role: 'superadmin' };
+  const role = getBoxUserRole(user, BOX_BUSINESS_ID);
+  if (!allowedRoles.includes(role)) {
+    throw new functions.https.HttpsError('permission-denied', 'No tienes permiso para esta operacion del box.');
+  }
+  return { auth, user, role };
+}
+
+function assertBoxBusinessId(data) {
+  const businessId = data?.businessId || BOX_BUSINESS_ID;
+  if (businessId !== BOX_BUSINESS_ID) {
+    throw new functions.https.HttpsError('invalid-argument', 'Negocio invalido.');
+  }
+  return businessId;
+}
+
+function boxRootRef() {
+  return db.collection('businesses').doc(BOX_BUSINESS_ID);
+}
+
+async function boxAuditBackend(transaction, data) {
+  const ref = boxRootRef().collection('auditLogs').doc();
+  transaction.set(ref, {
+    businessId: BOX_BUSINESS_ID,
+    actorUserId: data.actorUserId || '',
+    actorName: data.actorName || '',
+    action: data.action,
+    entityType: data.entityType,
+    entityId: data.entityId || '',
+    previousValue: data.previousValue || null,
+    newValue: data.newValue || null,
+    reason: data.reason || '',
+    metadata: data.metadata || {},
+    createdAt: FieldValue.serverTimestamp()
+  });
+}
+
+function boxPeriodLabel(period) {
+  const [year, month] = String(period || '').split('-').map(Number);
+  if (!year || !month) return String(period || '');
+  const date = new Date(Date.UTC(year, month - 1, 1));
+  return date.toLocaleDateString('es-MX', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+function boxReceiptText({ business, payment, member, guardian, charge }) {
+  return [
+    String(business.displayName || business.name || 'BOX LOMBARDO TOLEDANO').toUpperCase(),
+    'COMPROBANTE DE PAGO',
+    '',
+    `Folio: ${payment.folio}`,
+    `Alumno: ${member.fullName || payment.memberId}`,
+    `Tutor: ${guardian?.fullName || 'No especificado'}`,
+    `Concepto: ${titleCase(payment.concept || 'monthly_fee')}`,
+    `Periodo: ${charge.periodLabel || payment.billingPeriodId || '-'}`,
+    `Monto recibido: ${money(payment.paidAmount)}`,
+    'Metodo: Efectivo',
+    `Fecha: ${payment.paymentDate || todayISO()}`,
+    `Recibido por: ${payment.receivedByName || payment.receivedByUserId || '-'}`,
+    `Saldo pendiente: ${money(payment.remainingBalance)}`,
+    '',
+    'Conserve este comprobante para cualquier aclaracion.'
+  ].join('\n');
+}
+
+exports.boxSeedBusiness = functions.https.onCall(async (data, context) => {
+  assertBoxBusinessId(data);
+  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin']);
+  const business = {
+    id: BOX_BUSINESS_ID,
+    name: 'Box Lombardo Toledano',
+    displayName: 'BOX LOMBARDO TOLEDANO',
+    type: 'boxing_gym',
+    status: 'active',
+    monthlyFee: 400,
+    currency: 'MXN',
+    timezone: 'America/Mazatlan',
+    paymentMethodsEnabled: ['cash'],
+    trialClassesAllowed: 1,
+    updatedAt: FieldValue.serverTimestamp()
+  };
+  await db.runTransaction(async (transaction) => {
+    const root = boxRootRef();
+    transaction.set(root, {
+      ...business,
+      createdAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    transaction.set(root.collection('settings').doc('expenseCategories'), {
+      values: ['Equipo deportivo', 'Guantes y material', 'Mantenimiento', 'Limpieza', 'Reparaciones', 'Publicidad', 'Servicios', 'Personal', 'Eventos', 'Otros'],
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    transaction.set(root.collection('settings').doc('paymentMethods'), {
+      enabled: ['cash'],
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    await boxAuditBackend(transaction, {
+      actorUserId: auth.uid,
+      actorName: auth.token.email || '',
+      action: 'business_seeded',
+      entityType: 'business',
+      entityId: BOX_BUSINESS_ID,
+      newValue: business
+    });
+  });
+  return { ok: true };
+});
+
+exports.boxGenerateMonthlyCharges = functions.https.onCall(async (data, context) => {
+  assertBoxBusinessId(data);
+  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin']);
+  const period = String(data.period || '').trim();
+  const dueDate = normalizeDateISO(data.dueDate);
+  if (!/^\d{4}-\d{2}$/.test(period) || !dueDate) {
+    throw new functions.https.HttpsError('invalid-argument', 'Periodo o vencimiento invalido.');
+  }
+  const root = boxRootRef();
+  const businessSnap = await root.get();
+  const business = businessSnap.exists ? businessSnap.data() || {} : {};
+  const membersSnap = await root.collection('members')
+    .where('status', 'in', ['active', 'active_with_debt', 'trial'])
+    .get();
+  let created = 0;
+  await db.runTransaction(async (transaction) => {
+    const chargeItems = [];
+    for (const memberDoc of membersSnap.docs) {
+      const member = memberDoc.data() || {};
+      const chargeRef = root.collection('charges').doc(`${period}_${memberDoc.id}`);
+      const chargeSnap = await transaction.get(chargeRef);
+      chargeItems.push({ memberDoc, member, chargeRef, exists: chargeSnap.exists });
+    }
+    transaction.set(root.collection('billingPeriods').doc(period), {
+      businessId: BOX_BUSINESS_ID,
+      period,
+      label: boxPeriodLabel(period),
+      status: 'open',
+      dueDate,
+      createdBy: auth.uid,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    for (const item of chargeItems) {
+      if (item.exists) continue;
+      const member = item.member;
+      const memberDoc = item.memberDoc;
+      const baseAmount = Number(member.monthlyFee || business.monthlyFee || 400);
+      const discountAmount = Number(member.discountAmount || 0);
+      const expectedAmount = Math.max(0, baseAmount - discountAmount);
+      transaction.set(item.chargeRef, {
+        businessId: BOX_BUSINESS_ID,
+        memberId: memberDoc.id,
+        billingPeriodId: period,
+        periodLabel: boxPeriodLabel(period),
+        concept: 'monthly_fee',
+        baseAmount,
+        discountAmount,
+        expectedAmount,
+        totalPaid: 0,
+        balance: expectedAmount,
+        dueDate,
+        status: expectedAmount === 0 ? 'scholarship' : 'pending',
+        modificationReason: '',
+        createdBy: auth.uid,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      });
+      created += 1;
+    }
+    await boxAuditBackend(transaction, {
+      actorUserId: auth.uid,
+      actorName: auth.token.email || '',
+      action: 'monthly_charges_generated',
+      entityType: 'billingPeriod',
+      entityId: period,
+      newValue: { period, dueDate, created }
+    });
+  });
+  return { ok: true, created };
+});
+
+exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
+  assertBoxBusinessId(data);
+  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin', 'trainer']);
+  const chargeId = String(data.chargeId || '').trim();
+  const paidAmount = Number(data.paidAmount || 0);
+  if (!chargeId || paidAmount <= 0) throw new functions.https.HttpsError('invalid-argument', 'Cargo y monto requeridos.');
+  const root = boxRootRef();
+  let paymentId = '';
+  let folio = '';
+  await db.runTransaction(async (transaction) => {
+    const businessSnap = await transaction.get(root);
+    const business = businessSnap.exists ? businessSnap.data() || {} : {};
+    const chargeRef = root.collection('charges').doc(chargeId);
+    const chargeSnap = await transaction.get(chargeRef);
+    if (!chargeSnap.exists) throw new functions.https.HttpsError('not-found', 'Cargo no encontrado.');
+    const charge = chargeSnap.data() || {};
+    if (charge.status === 'canceled') throw new functions.https.HttpsError('failed-precondition', 'Cargo cancelado.');
+    const balance = Number(charge.balance || 0);
+    if (balance <= 0) throw new functions.https.HttpsError('failed-precondition', 'El cargo ya esta pagado.');
+    if (paidAmount > balance) throw new functions.https.HttpsError('invalid-argument', 'El pago no puede exceder el saldo.');
+
+    const counterRef = root.collection('settings').doc('counters');
+    const counterSnap = await transaction.get(counterRef);
+    const next = Number(counterSnap.data()?.payments || 0) + 1;
+    folio = `BOX-PAG-${String(next).padStart(6, '0')}`;
+    paymentId = `payment_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+
+    const memberRef = root.collection('members').doc(charge.memberId);
+    const memberSnap = await transaction.get(memberRef);
+    const member = memberSnap.exists ? memberSnap.data() || {} : {};
+    const guardianId = Array.isArray(member.guardianIds) ? member.guardianIds[0] || '' : '';
+
+    const newPaid = Number(charge.totalPaid || 0) + paidAmount;
+    const remainingBalance = Math.max(0, balance - paidAmount);
+    const status = remainingBalance === 0 ? 'paid' : 'partial';
+    transaction.set(root.collection('payments').doc(paymentId), {
+      id: paymentId,
+      folio,
+      businessId: BOX_BUSINESS_ID,
+      memberId: charge.memberId,
+      guardianId,
+      chargeId,
+      billingPeriodId: charge.billingPeriodId,
+      concept: charge.concept || 'monthly_fee',
+      expectedAmount: Number(charge.expectedAmount || business.monthlyFee || 400),
+      paidAmount,
+      remainingBalance,
+      paymentMethod: 'cash',
+      paymentStatus: 'registered',
+      cashDeliveryStatus: 'pending_delivery',
+      receivedByUserId: auth.uid,
+      receivedByName: auth.token.name || auth.token.email || auth.uid,
+      registeredByUserId: auth.uid,
+      paymentDate: todayISO(),
+      createdAt: FieldValue.serverTimestamp(),
+      receiptStatus: 'pending',
+      notes: String(data.notes || '')
+    });
+    transaction.update(chargeRef, {
+      totalPaid: newPaid,
+      balance: remainingBalance,
+      status,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    transaction.set(counterRef, { payments: next, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    await boxAuditBackend(transaction, {
+      actorUserId: auth.uid,
+      actorName: auth.token.email || '',
+      action: 'payment_created',
+      entityType: 'payment',
+      entityId: paymentId,
+      newValue: { folio, chargeId, paidAmount, remainingBalance }
+    });
+  });
+  return { ok: true, paymentId, folio };
+});
+
+exports.boxPrepareCashDelivery = functions.https.onCall(async (data, context) => {
+  assertBoxBusinessId(data);
+  const { auth, role } = await assertBoxPermission(context, ['owner', 'box_admin', 'trainer']);
+  const paymentIds = Array.isArray(data.paymentIds) ? data.paymentIds.filter(Boolean) : [];
+  if (!paymentIds.length) throw new functions.https.HttpsError('invalid-argument', 'Selecciona pagos.');
+  const unique = [...new Set(paymentIds)];
+  if (unique.length !== paymentIds.length) throw new functions.https.HttpsError('invalid-argument', 'Hay pagos duplicados.');
+  const root = boxRootRef();
+  let deliveryId = '';
+  let folio = '';
+  await db.runTransaction(async (transaction) => {
+    const payments = [];
+    for (const id of unique) {
+      const ref = root.collection('payments').doc(id);
+      const snap = await transaction.get(ref);
+      if (!snap.exists) throw new functions.https.HttpsError('not-found', `Pago ${id} no encontrado.`);
+      const payment = snap.data() || {};
+      if (payment.cashDeliveryStatus !== 'pending_delivery') throw new functions.https.HttpsError('failed-precondition', `Pago ${payment.folio || id} no esta pendiente.`);
+      if (role === 'trainer' && payment.receivedByUserId !== auth.uid) throw new functions.https.HttpsError('permission-denied', 'El entrenador solo puede entregar pagos que recibio.');
+      payments.push({ id, ref, data: payment });
+    }
+    const expectedAmount = payments.reduce((sum, item) => sum + Number(item.data.paidAmount || 0), 0);
+    const counterRef = root.collection('settings').doc('counters');
+    const counterSnap = await transaction.get(counterRef);
+    const next = Number(counterSnap.data()?.cashDeliveries || 0) + 1;
+    folio = `BOX-ENT-${String(next).padStart(6, '0')}`;
+    deliveryId = `delivery_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const deliveryRef = root.collection('cashDeliveries').doc(deliveryId);
+    transaction.set(deliveryRef, {
+      id: deliveryId,
+      folio,
+      businessId: BOX_BUSINESS_ID,
+      deliveredByUserId: auth.uid,
+      deliveredByName: auth.token.name || auth.token.email || auth.uid,
+      receivedByUserId: '',
+      paymentIds: unique,
+      expectedAmount,
+      deliveredAmount: 0,
+      differenceAmount: 0,
+      status: 'prepared',
+      notes: String(data.notes || ''),
+      preparedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      createdBy: auth.uid
+    });
+    payments.forEach((item) => transaction.update(item.ref, { cashDeliveryStatus: 'prepared', cashDeliveryId: deliveryId, updatedAt: FieldValue.serverTimestamp() }));
+    transaction.set(counterRef, { cashDeliveries: next, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    await boxAuditBackend(transaction, {
+      actorUserId: auth.uid,
+      actorName: auth.token.email || '',
+      action: 'cash_delivery_prepared',
+      entityType: 'cashDelivery',
+      entityId: deliveryId,
+      newValue: { folio, paymentIds: unique, expectedAmount }
+    });
+  });
+  return { ok: true, deliveryId, folio };
+});
+
+exports.boxConfirmCashDelivery = functions.https.onCall(async (data, context) => {
+  assertBoxBusinessId(data);
+  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin']);
+  const deliveryId = String(data.deliveryId || '').trim();
+  const deliveredAmount = Number(data.deliveredAmount || 0);
+  if (!deliveryId || deliveredAmount < 0) throw new functions.https.HttpsError('invalid-argument', 'Entrega invalida.');
+  const root = boxRootRef();
+  await db.runTransaction(async (transaction) => {
+    const deliveryRef = root.collection('cashDeliveries').doc(deliveryId);
+    const deliverySnap = await transaction.get(deliveryRef);
+    if (!deliverySnap.exists) throw new functions.https.HttpsError('not-found', 'Entrega no encontrada.');
+    const delivery = deliverySnap.data() || {};
+    if (delivery.deliveredByUserId === auth.uid) throw new functions.https.HttpsError('failed-precondition', 'No puedes confirmar tu propia entrega.');
+    if (delivery.status === 'confirmed') throw new functions.https.HttpsError('failed-precondition', 'Entrega ya confirmada.');
+    const expectedAmount = Number(delivery.expectedAmount || 0);
+    const differenceAmount = deliveredAmount - expectedAmount;
+    const status = differenceAmount === 0 ? 'confirmed' : 'with_difference';
+    transaction.update(deliveryRef, {
+      receivedByUserId: auth.uid,
+      receivedByName: auth.token.name || auth.token.email || auth.uid,
+      deliveredAmount,
+      differenceAmount,
+      status,
+      notes: String(data.notes || delivery.notes || ''),
+      deliveredAt: FieldValue.serverTimestamp(),
+      confirmedAt: FieldValue.serverTimestamp()
+    });
+    for (const paymentId of delivery.paymentIds || []) {
+      transaction.update(root.collection('payments').doc(paymentId), {
+        cashDeliveryStatus: 'confirmed',
+        paymentStatus: 'confirmed',
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    }
+    if (differenceAmount !== 0) {
+      transaction.set(root.collection('inconsistencies').doc(), {
+        businessId: BOX_BUSINESS_ID,
+        type: 'cash_delivery_difference',
+        severity: 'critical',
+        status: 'pending',
+        title: 'Entrega de efectivo con diferencia',
+        detail: `${delivery.folio || deliveryId}: ${money(differenceAmount)}`,
+        deliveryId,
+        createdAt: FieldValue.serverTimestamp()
+      });
+    }
+    await boxAuditBackend(transaction, {
+      actorUserId: auth.uid,
+      actorName: auth.token.email || '',
+      action: 'cash_delivery_confirmed',
+      entityType: 'cashDelivery',
+      entityId: deliveryId,
+      previousValue: { status: delivery.status },
+      newValue: { deliveredAmount, differenceAmount, status },
+      reason: String(data.notes || '')
+    });
+  });
+  return { ok: true };
+});
+
+exports.boxSendPaymentReceipt = functions.https.onCall(async (data, context) => {
+  assertBoxBusinessId(data);
+  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin', 'trainer']);
+  const paymentId = String(data.paymentId || '').trim();
+  if (!paymentId) throw new functions.https.HttpsError('invalid-argument', 'Pago requerido.');
+  const root = boxRootRef();
+  const [businessSnap, paymentSnap] = await Promise.all([
+    root.get(),
+    root.collection('payments').doc(paymentId).get()
+  ]);
+  if (!paymentSnap.exists) throw new functions.https.HttpsError('not-found', 'Pago no encontrado.');
+  const business = businessSnap.exists ? businessSnap.data() || {} : {};
+  const payment = paymentSnap.data() || {};
+  const [memberSnap, chargeSnap] = await Promise.all([
+    root.collection('members').doc(payment.memberId).get(),
+    root.collection('charges').doc(payment.chargeId).get()
+  ]);
+  const member = memberSnap.exists ? memberSnap.data() || {} : {};
+  const charge = chargeSnap.exists ? chargeSnap.data() || {} : {};
+  const guardianId = payment.guardianId || (Array.isArray(member.guardianIds) ? member.guardianIds[0] : '');
+  const guardianSnap = guardianId ? await root.collection('guardians').doc(guardianId).get() : null;
+  const guardian = guardianSnap?.exists ? guardianSnap.data() || {} : null;
+  const to = normalizeWhatsAppTo(guardian?.whatsappNumber || guardian?.primaryPhone || '');
+  const body = boxReceiptText({ business, payment, member, guardian, charge });
+  let status = 'pending';
+  let messageId = '';
+  let errorText = '';
+  try {
+    if (!to) throw new Error('Tutor sin telefono WhatsApp.');
+    const result = await sendWhatsAppText(to, body);
+    status = result?.skipped ? 'pending' : 'sent';
+    messageId = result?.messages?.[0]?.id || '';
+  } catch (error) {
+    status = 'failed';
+    errorText = error.message || String(error);
+  }
+  await root.collection('notifications').add({
+    businessId: BOX_BUSINESS_ID,
+    type: 'payment_receipt',
+    paymentId,
+    to,
+    body,
+    messageId,
+    status,
+    error: errorText,
+    attempts: FieldValue.increment(1),
+    requestedByUserId: auth.uid,
+    createdAt: FieldValue.serverTimestamp()
+  });
+  await root.collection('payments').doc(paymentId).set({
+    receiptStatus: status,
+    receiptLastAttemptAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return { ok: status !== 'failed', status };
+});

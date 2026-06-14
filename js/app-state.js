@@ -367,6 +367,11 @@ hydrateSplashTournamentCards();
 
 function selectTorneo(t) {
   t = appTorneoId(t);
+  if (typeof restoreTournamentNav === 'function') restoreTournamentNav();
+  if (typeof currentBusinessId !== 'undefined') {
+    currentBusinessId = t;
+    localStorage.setItem('ld_business', t);
+  }
   currentTorneo = TORNEO_NAMES[t] ? t : 'lombardo_toledano';
   localStorage.setItem('ld_torneo', currentTorneo);
   loadCustomCats();

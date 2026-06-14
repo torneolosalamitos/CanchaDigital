@@ -1,4 +1,7 @@
 function canAccessPage(page) {
+  if (typeof isBusinessPage === 'function' && isBusinessPage(page)) {
+    return typeof canAccessBusinessPage === 'function' ? canAccessBusinessPage(page) : false;
+  }
   if (!ADMIN_ONLY_PAGES.has(page)) return true;
   return !!isAdmin;
 }
@@ -47,5 +50,8 @@ function showPage(pageKey, btn) {
   if (targetPage === 'partidos') {
     populatePartidosTeamFilter();
     renderPartidos();
+  }
+  if (typeof isBusinessPage === 'function' && isBusinessPage(targetPage) && typeof renderBoxPage === 'function') {
+    renderBoxPage(targetPage);
   }
 }

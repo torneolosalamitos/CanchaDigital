@@ -77,6 +77,7 @@ function onAuthChange(user){
   }
 
   const applyUserProfile = (userData = {}) => {
+    if (uid && C?.usuarios) C.usuarios[uid] = { ...(C.usuarios[uid] || {}), ...userData, uid };
     const role = isOwner ? 'admin' : (userData.role||'viewer');
     isAdmin = (role === 'admin');
     const normalizedScope = normalizeAdminScope(userData.adminScope || {});
