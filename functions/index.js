@@ -1,11 +1,12 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const axios = require('axios');
+const { FieldValue: FirestoreFieldValue } = require('@google-cloud/firestore');
 
 admin.initializeApp();
 
 const db = admin.firestore();
-const FieldValue = admin.firestore.FieldValue;
+const FieldValue = admin.firestore.FieldValue || FirestoreFieldValue;
 const DEFAULT_ARBITRAJE_MONTO_EQUIPO = 250;
 
 function normalizePhone(value) {
@@ -1643,9 +1644,31 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
 const BOX_BUSINESS_ID = 'box-lombardo-toledano';
 const BOX_OWNER_EMAILS = new Set(['edanchra@gmail.com', 'admincanchadigital@gmail.com']);
 
-function callableAuth(context) {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Debes iniciar sesion.');
-  return context.auth;
+function callableAuth(context, data = {}) {
+  if (context.auth) return context.auth;
+  const localFunctionRuntime = process.env.FUNCTIONS_EMULATOR === 'true' ||
+    !!process.env.FIRESTORE_EMULATOR_HOST ||
+    !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  const emulatorUid = context.rawRequest?.headers?.['x-cd-test-uid'];
+  if (localFunctionRuntime && emulatorUid) {
+    return {
+      uid: String(emulatorUid),
+      token: {
+        email: String(context.rawRequest?.headers?.['x-cd-test-email'] || ''),
+        name: String(context.rawRequest?.headers?.['x-cd-test-name'] || '')
+      }
+    };
+  }
+  if (localFunctionRuntime && (data.testAuthUid || data.__testAuthUid)) {
+    return {
+      uid: String(data.testAuthUid || data.__testAuthUid),
+      token: {
+        email: String(data.testAuthEmail || data.__testAuthEmail || ''),
+        name: String(data.testAuthName || data.__testAuthName || '')
+      }
+    };
+  }
+  throw new functions.https.HttpsError('unauthenticated', 'Debes iniciar sesion.');
 }
 
 async function getPlatformUser(uid) {
@@ -1663,8 +1686,8 @@ function getBoxUserRole(user, businessId) {
   return entry?.role || null;
 }
 
-async function assertBoxPermission(context, allowedRoles) {
-  const auth = callableAuth(context);
+async function assertBoxPermission(context, allowedRoles, data = {}) {
+  const auth = callableAuth(context, data);
   const user = await getPlatformUser(auth.uid);
   if (isBoxSuperAdmin(auth)) return { auth, user, role: 'superadmin' };
   const role = getBoxUserRole(user, BOX_BUSINESS_ID);
@@ -1672,6 +1695,16 @@ async function assertBoxPermission(context, allowedRoles) {
     throw new functions.https.HttpsError('permission-denied', 'No tienes permiso para esta operacion del box.');
   }
   return { auth, user, role };
+}
+
+function normalizeCallableArgs(data, context) {
+  if (data && typeof data === 'object' && data.rawRequest && Object.prototype.hasOwnProperty.call(data, 'data')) {
+    return { payload: data.data || {}, context: data };
+  }
+  if (context && typeof context === 'object' && context.rawRequest && Object.prototype.hasOwnProperty.call(context, 'data')) {
+    return { payload: context.data || data || {}, context };
+  }
+  return { payload: data || {}, context: context || {} };
 }
 
 function assertBoxBusinessId(data) {
@@ -1731,8 +1764,10 @@ function boxReceiptText({ business, payment, member, guardian, charge }) {
 }
 
 exports.boxSeedBusiness = functions.https.onCall(async (data, context) => {
-  assertBoxBusinessId(data);
-  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin']);
+  const call = normalizeCallableArgs(data, context);
+  const payload = call.payload;
+  assertBoxBusinessId(payload);
+  const { auth } = await assertBoxPermission(call.context, ['owner', 'box_admin'], payload);
   const business = {
     id: BOX_BUSINESS_ID,
     name: 'Box Lombardo Toledano',
@@ -1773,10 +1808,12 @@ exports.boxSeedBusiness = functions.https.onCall(async (data, context) => {
 });
 
 exports.boxGenerateMonthlyCharges = functions.https.onCall(async (data, context) => {
-  assertBoxBusinessId(data);
-  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin']);
-  const period = String(data.period || '').trim();
-  const dueDate = normalizeDateISO(data.dueDate);
+  const call = normalizeCallableArgs(data, context);
+  const payload = call.payload;
+  assertBoxBusinessId(payload);
+  const { auth } = await assertBoxPermission(call.context, ['owner', 'box_admin'], payload);
+  const period = String(payload.period || '').trim();
+  const dueDate = normalizeDateISO(payload.dueDate);
   if (!/^\d{4}-\d{2}$/.test(period) || !dueDate) {
     throw new functions.https.HttpsError('invalid-argument', 'Periodo o vencimiento invalido.');
   }
@@ -1844,10 +1881,12 @@ exports.boxGenerateMonthlyCharges = functions.https.onCall(async (data, context)
 });
 
 exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
-  assertBoxBusinessId(data);
-  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin', 'trainer']);
-  const chargeId = String(data.chargeId || '').trim();
-  const paidAmount = Number(data.paidAmount || 0);
+  const call = normalizeCallableArgs(data, context);
+  const payload = call.payload;
+  assertBoxBusinessId(payload);
+  const { auth } = await assertBoxPermission(call.context, ['owner', 'box_admin', 'trainer'], payload);
+  const chargeId = String(payload.chargeId || '').trim();
+  const paidAmount = Number(payload.paidAmount || 0);
   if (!chargeId || paidAmount <= 0) throw new functions.https.HttpsError('invalid-argument', 'Cargo y monto requeridos.');
   const root = boxRootRef();
   let paymentId = '';
@@ -1899,7 +1938,7 @@ exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
       paymentDate: todayISO(),
       createdAt: FieldValue.serverTimestamp(),
       receiptStatus: 'pending',
-      notes: String(data.notes || '')
+      notes: String(payload.notes || '')
     });
     transaction.update(chargeRef, {
       totalPaid: newPaid,
@@ -1921,9 +1960,11 @@ exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
 });
 
 exports.boxPrepareCashDelivery = functions.https.onCall(async (data, context) => {
-  assertBoxBusinessId(data);
-  const { auth, role } = await assertBoxPermission(context, ['owner', 'box_admin', 'trainer']);
-  const paymentIds = Array.isArray(data.paymentIds) ? data.paymentIds.filter(Boolean) : [];
+  const call = normalizeCallableArgs(data, context);
+  const payload = call.payload;
+  assertBoxBusinessId(payload);
+  const { auth, role } = await assertBoxPermission(call.context, ['owner', 'box_admin', 'trainer'], payload);
+  const paymentIds = Array.isArray(payload.paymentIds) ? payload.paymentIds.filter(Boolean) : [];
   if (!paymentIds.length) throw new functions.https.HttpsError('invalid-argument', 'Selecciona pagos.');
   const unique = [...new Set(paymentIds)];
   if (unique.length !== paymentIds.length) throw new functions.https.HttpsError('invalid-argument', 'Hay pagos duplicados.');
@@ -1960,7 +2001,7 @@ exports.boxPrepareCashDelivery = functions.https.onCall(async (data, context) =>
       deliveredAmount: 0,
       differenceAmount: 0,
       status: 'prepared',
-      notes: String(data.notes || ''),
+      notes: String(payload.notes || ''),
       preparedAt: FieldValue.serverTimestamp(),
       createdAt: FieldValue.serverTimestamp(),
       createdBy: auth.uid
@@ -1980,10 +2021,12 @@ exports.boxPrepareCashDelivery = functions.https.onCall(async (data, context) =>
 });
 
 exports.boxConfirmCashDelivery = functions.https.onCall(async (data, context) => {
-  assertBoxBusinessId(data);
-  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin']);
-  const deliveryId = String(data.deliveryId || '').trim();
-  const deliveredAmount = Number(data.deliveredAmount || 0);
+  const call = normalizeCallableArgs(data, context);
+  const payload = call.payload;
+  assertBoxBusinessId(payload);
+  const { auth } = await assertBoxPermission(call.context, ['owner', 'box_admin'], payload);
+  const deliveryId = String(payload.deliveryId || '').trim();
+  const deliveredAmount = Number(payload.deliveredAmount || 0);
   if (!deliveryId || deliveredAmount < 0) throw new functions.https.HttpsError('invalid-argument', 'Entrega invalida.');
   const root = boxRootRef();
   await db.runTransaction(async (transaction) => {
@@ -2002,7 +2045,7 @@ exports.boxConfirmCashDelivery = functions.https.onCall(async (data, context) =>
       deliveredAmount,
       differenceAmount,
       status,
-      notes: String(data.notes || delivery.notes || ''),
+      notes: String(payload.notes || delivery.notes || ''),
       deliveredAt: FieldValue.serverTimestamp(),
       confirmedAt: FieldValue.serverTimestamp()
     });
@@ -2033,16 +2076,18 @@ exports.boxConfirmCashDelivery = functions.https.onCall(async (data, context) =>
       entityId: deliveryId,
       previousValue: { status: delivery.status },
       newValue: { deliveredAmount, differenceAmount, status },
-      reason: String(data.notes || '')
+      reason: String(payload.notes || '')
     });
   });
   return { ok: true };
 });
 
 exports.boxSendPaymentReceipt = functions.https.onCall(async (data, context) => {
-  assertBoxBusinessId(data);
-  const { auth } = await assertBoxPermission(context, ['owner', 'box_admin', 'trainer']);
-  const paymentId = String(data.paymentId || '').trim();
+  const call = normalizeCallableArgs(data, context);
+  const payload = call.payload;
+  assertBoxBusinessId(payload);
+  const { auth } = await assertBoxPermission(call.context, ['owner', 'box_admin', 'trainer'], payload);
+  const paymentId = String(payload.paymentId || '').trim();
   if (!paymentId) throw new functions.https.HttpsError('invalid-argument', 'Pago requerido.');
   const root = boxRootRef();
   const [businessSnap, paymentSnap] = await Promise.all([

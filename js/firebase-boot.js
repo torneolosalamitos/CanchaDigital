@@ -9,6 +9,48 @@ const FB_CFG = {
 };
 
 let bootFallbackTimer = null;
+let firebaseEmulatorsConnected = false;
+
+const FIREBASE_EMULATOR_PORTS = {
+  auth: 9099,
+  firestore: 8080,
+  functions: 5001,
+  database: 9000
+};
+
+function isLocalFirebaseEnvironment() {
+  const host = window.location.hostname;
+  const params = new URLSearchParams(window.location.search || '');
+  return params.get('emulators') === '1' ||
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1';
+}
+
+function connectFirebaseEmulators({ authInstance, fsInstance, dbInstance }) {
+  if (firebaseEmulatorsConnected || !isLocalFirebaseEnvironment()) return;
+  firebaseEmulatorsConnected = true;
+  const host = '127.0.0.1';
+
+  try {
+    if (authInstance?.useEmulator) {
+      authInstance.useEmulator(`http://${host}:${FIREBASE_EMULATOR_PORTS.auth}`, { disableWarnings: true });
+    }
+    if (fsInstance?.useEmulator) {
+      fsInstance.useEmulator(host, FIREBASE_EMULATOR_PORTS.firestore);
+    }
+    if (firebase.functions) {
+      firebase.functions().useEmulator(host, FIREBASE_EMULATOR_PORTS.functions);
+    }
+    if (dbInstance?.useEmulator) {
+      dbInstance.useEmulator(host, FIREBASE_EMULATOR_PORTS.database);
+    }
+    window.__CD_USING_FIREBASE_EMULATORS__ = true;
+    console.info('[CanchaDigital] Firebase emulators conectados para entorno local.');
+  } catch (error) {
+    console.error('[CanchaDigital] No se pudieron conectar emuladores Firebase:', error);
+  }
+}
 
 function dismissInitialLoading() {
   const loader = document.getElementById('loadingScreen');
@@ -39,6 +81,7 @@ function startFirebaseBoot(options) {
     const dbInstance = firebase.database();
     const fsInstance = typeof firebase.firestore === 'function' ? firebase.firestore() : null;
     const authInstance = firebase.auth();
+    connectFirebaseEmulators({ authInstance, fsInstance, dbInstance });
 
     if (typeof setDb === 'function') setDb(dbInstance);
     if (typeof setAuth === 'function') setAuth(authInstance);
