@@ -106,10 +106,19 @@ function isBusinessPage(pageKey = '') {
 
 function canAccessBusinessPage(pageKey) {
   if (!isBusinessPage(pageKey)) return true;
-  if (pageKey === 'box-public') return true;
-  if (pageKey === 'box-dashboard') return canAccessBusinessAdmin(BOX_LOMBARDO_BUSINESS_ID);
-  if (['box-attendance', 'box-members', 'box-groups', 'box-trials', 'box-payments', 'box-cash'].includes(pageKey)) {
+  if (['box-public', 'box-public-students'].includes(pageKey)) return true;
+  if (['box-dashboard', 'box-students'].includes(pageKey)) return canAccessBusinessAdmin(BOX_LOMBARDO_BUSINESS_ID);
+  if (['box-attendance', 'box-attendance-history', 'box-attendance-trials', 'box-attendance-audits', 'box-members', 'box-prospects', 'box-guardians', 'box-groups', 'box-payments', 'box-cash'].includes(pageKey)) {
     return canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID) || getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) === 'auditor';
+  }
+  if (['box-finance', 'box-upcoming', 'box-billing', 'box-expenses', 'box-receipts'].includes(pageKey)) {
+    return canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID) || getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) === 'auditor';
+  }
+  if (['box-reports', 'box-report-debts', 'box-report-attendance', 'box-report-money', 'box-report-workers', 'box-inconsistencies'].includes(pageKey)) {
+    return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) || getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) === 'auditor';
+  }
+  if (['box-admin', 'box-permissions', 'box-audit', 'box-settings', 'box-admin-expenses', 'box-admin-folios'].includes(pageKey)) {
+    return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID);
   }
   return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) || getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) === 'auditor';
 }

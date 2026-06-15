@@ -6,6 +6,21 @@ const PROJECT_ID = process.env.GCLOUD_PROJECT || 'torneo-villa-080204';
 const AUTH_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
 const FIRESTORE_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
 const FUNCTIONS_HOST = process.env.FIREBASE_FUNCTIONS_EMULATOR_HOST || '127.0.0.1:5001';
+const VALIDATION_SUFFIX = process.env.BOX_VALIDATION_SUFFIX || String(Date.now());
+const VALIDATION_GUARDIAN_ID = `guardian-validation-${VALIDATION_SUFFIX}`;
+const VALIDATION_MEMBER_ID = `member-validation-${VALIDATION_SUFFIX}`;
+const VALIDATION_MEMBER_2_ID = `member-validation-cash-${VALIDATION_SUFFIX}`;
+const VALIDATION_MEMBER_3_ID = `member-validation-wa-${VALIDATION_SUFFIX}`;
+const VALIDATION_GROUP_ID = `group-validation-${VALIDATION_SUFFIX}`;
+const VALIDATION_ATTENDANCE_ID = `attendance-validation-${VALIDATION_SUFFIX}`;
+const VALIDATION_SESSION_ID = `session-validation-${VALIDATION_SUFFIX}`;
+const VALIDATION_TRIAL_MEMBER_ID = `member-trial-validation-${VALIDATION_SUFFIX}`;
+const VALIDATION_TRIAL_ATTENDANCE_ID = `trial-validation-${VALIDATION_SUFFIX}`;
+const VALIDATION_EXPENSE_ID = `expense-validation-${VALIDATION_SUFFIX}`;
+const VALIDATION_PERIOD = '2026-07';
+const VALIDATION_CHARGE_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_ID}`;
+const VALIDATION_CHARGE_2_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_2_ID}`;
+const VALIDATION_CHARGE_3_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_3_ID}`;
 
 const results = [];
 const tokenMeta = new Map();
@@ -177,7 +192,7 @@ async function validate() {
   });
 
   await step('Alta de tutor via reglas Firestore', async () => {
-    await fsSet(`${rootPath}/guardians/guardian-validation-1`, {
+    await fsSet(`${rootPath}/guardians/${VALIDATION_GUARDIAN_ID}`, {
       businessId: BOX_BUSINESS_ID,
       fullName: 'Tutor Validacion',
       relationship: 'Madre',
@@ -187,11 +202,11 @@ async function validate() {
       memberIds: [],
       createdBy: TEST_USERS.admin.uid
     }, adminToken);
-    return { id: 'guardian-validation-1' };
+    return { id: VALIDATION_GUARDIAN_ID };
   });
 
   await step('Alta de alumno via reglas Firestore', async () => {
-    await fsSet(`${rootPath}/members/member-validation-1`, {
+    await fsSet(`${rootPath}/members/${VALIDATION_MEMBER_ID}`, {
       businessId: BOX_BUSINESS_ID,
       folio: 'BOX-ALU-VALID-1',
       fullName: 'Alumno Validacion',
@@ -199,16 +214,31 @@ async function validate() {
       groupId: '',
       monthlyFee: 400,
       discountAmount: 0,
-      guardianIds: ['guardian-validation-1'],
+      guardianIds: [VALIDATION_GUARDIAN_ID],
       startDate: '2026-06-14',
       createdBy: TEST_USERS.admin.uid,
       updatedBy: TEST_USERS.admin.uid
     }, adminToken);
-    return { id: 'member-validation-1' };
+    for (const [id, name] of [[VALIDATION_MEMBER_2_ID, 'Alumno Validacion Entrega'], [VALIDATION_MEMBER_3_ID, 'Alumno Validacion WhatsApp']]) {
+      await fsSet(`${rootPath}/members/${id}`, {
+        businessId: BOX_BUSINESS_ID,
+        folio: `BOX-ALU-${id}`,
+        fullName: name,
+        status: 'active',
+        groupId: '',
+        monthlyFee: 400,
+        discountAmount: 0,
+        guardianIds: [VALIDATION_GUARDIAN_ID],
+        startDate: '2026-06-14',
+        createdBy: TEST_USERS.admin.uid,
+        updatedBy: TEST_USERS.admin.uid
+      }, adminToken);
+    }
+    return { id: VALIDATION_MEMBER_ID };
   });
 
   await step('Creacion de grupo via reglas Firestore', async () => {
-    await fsSet(`${rootPath}/groups/group-validation-1`, {
+    await fsSet(`${rootPath}/groups/${VALIDATION_GROUP_ID}`, {
       businessId: BOX_BUSINESS_ID,
       name: 'Grupo validacion',
       trainerIds: [TEST_USERS.trainer.uid],
@@ -218,22 +248,22 @@ async function validate() {
       capacity: 12,
       status: 'active'
     }, adminToken);
-    return { id: 'group-validation-1' };
+    return { id: VALIDATION_GROUP_ID };
   });
 
   await step('Registro de asistencia via reglas Firestore', async () => {
-    await fsSet(`${rootPath}/sessions/session-validation-1`, {
+    await fsSet(`${rootPath}/sessions/${VALIDATION_SESSION_ID}`, {
       businessId: BOX_BUSINESS_ID,
-      groupId: 'group-validation-1',
+      groupId: VALIDATION_GROUP_ID,
       date: '2026-06-14',
       status: 'closed',
       capturedBy: TEST_USERS.trainer.uid
     }, trainerToken);
-    await fsSet(`${rootPath}/attendance/session-validation-1_member-validation-1`, {
+    await fsSet(`${rootPath}/attendance/${VALIDATION_ATTENDANCE_ID}`, {
       businessId: BOX_BUSINESS_ID,
-      sessionId: 'session-validation-1',
-      groupId: 'group-validation-1',
-      memberId: 'member-validation-1',
+      sessionId: VALIDATION_SESSION_ID,
+      groupId: VALIDATION_GROUP_ID,
+      memberId: VALIDATION_MEMBER_ID,
       memberName: 'Alumno Validacion',
       date: '2026-06-14',
       status: 'present',
@@ -244,7 +274,7 @@ async function validate() {
   });
 
   await step('Clase de prueba via reglas Firestore', async () => {
-    await fsSet(`${rootPath}/members/member-trial-validation-1`, {
+    await fsSet(`${rootPath}/members/${VALIDATION_TRIAL_MEMBER_ID}`, {
       businessId: BOX_BUSINESS_ID,
       folio: 'BOX-TRI-VALID-1',
       fullName: 'Alumno Prueba Validacion',
@@ -255,9 +285,9 @@ async function validate() {
       startDate: '2026-06-14',
       createdBy: TEST_USERS.trainer.uid
     }, trainerToken);
-    await fsSet(`${rootPath}/attendance/trial-validation-1`, {
+    await fsSet(`${rootPath}/attendance/${VALIDATION_TRIAL_ATTENDANCE_ID}`, {
       businessId: BOX_BUSINESS_ID,
-      memberId: 'member-trial-validation-1',
+      memberId: VALIDATION_TRIAL_MEMBER_ID,
       memberName: 'Alumno Prueba Validacion',
       date: '2026-06-14',
       status: 'trial_class',
@@ -267,19 +297,19 @@ async function validate() {
   });
 
   await step('Generacion del cargo mensual de $400', async () => {
-    const result = await callFunction('boxGenerateMonthlyCharges', adminToken, { period: '2026-07', dueDate: '2026-07-10' });
-    const charge = await adminDoc(`${rootPath}/charges/2026-07_member-local-1`);
+    const result = await callFunction('boxGenerateMonthlyCharges', adminToken, { period: VALIDATION_PERIOD, dueDate: '2026-07-10' });
+    const charge = await adminDoc(`${rootPath}/charges/${VALIDATION_CHARGE_ID}`);
     if (charge.expectedAmount !== 400 || charge.balance !== 400) throw new Error('Cargo mensual incorrecto');
     return { created: result.created, expectedAmount: charge.expectedAmount };
   });
 
   await step('Registro de pago en efectivo y actualizacion de saldo', async () => {
     const result = await callFunction('boxCreatePayment', trainerToken, {
-      chargeId: '2026-07_member-local-1',
+      chargeId: VALIDATION_CHARGE_ID,
       paidAmount: 400,
       notes: 'Pago validacion entrenador'
     });
-    const charge = await adminDoc(`${rootPath}/charges/2026-07_member-local-1`);
+    const charge = await adminDoc(`${rootPath}/charges/${VALIDATION_CHARGE_ID}`);
     const payment = await adminDoc(`${rootPath}/payments/${result.paymentId}`);
     if (charge.balance !== 0 || charge.status !== 'paid') throw new Error(`Saldo incorrecto: ${JSON.stringify(charge)}`);
     if (payment.cashDeliveryStatus !== 'pending_delivery') throw new Error('Pago no quedo pendiente de entrega');
@@ -290,7 +320,7 @@ async function validate() {
   let deliveryId = '';
   await step('Pago pendiente y preparacion de entrega', async () => {
     const paymentResult = await callFunction('boxCreatePayment', trainerToken, {
-      chargeId: '2026-07_member-local-2',
+      chargeId: VALIDATION_CHARGE_2_ID,
       paidAmount: 400,
       notes: 'Pago para entrega'
     });
@@ -320,7 +350,7 @@ async function validate() {
   });
 
   await step('Registro de gasto via reglas Firestore', async () => {
-    await fsSet(`${rootPath}/expenses/expense-validation-1`, {
+    await fsSet(`${rootPath}/expenses/${VALIDATION_EXPENSE_ID}`, {
       businessId: BOX_BUSINESS_ID,
       folio: 'BOX-GAS-VALID-1',
       concept: 'Gasto validacion',
@@ -360,7 +390,7 @@ async function validate() {
   await step('Aislamiento de datos entre negocios', async () => {
     const invalid = await callFunction('boxCreatePayment', adminToken, {
       businessId: 'lombardo_toledano',
-      chargeId: '2026-07_member-local-3',
+      chargeId: VALIDATION_CHARGE_3_ID,
       paidAmount: 100
     }, false);
     return { rejected: invalid.error?.message || 'invalid business rejected' };
@@ -373,7 +403,7 @@ async function validate() {
 
   await step('Fallo simulado de WhatsApp sin perdida del pago', async () => {
     const paymentResult = await callFunction('boxCreatePayment', adminToken, {
-      chargeId: '2026-07_member-local-3',
+      chargeId: VALIDATION_CHARGE_3_ID,
       paidAmount: 400,
       notes: 'Pago para comprobante fallido'
     });

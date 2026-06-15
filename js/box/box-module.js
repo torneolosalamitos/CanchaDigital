@@ -1,5 +1,6 @@
-const boxState = {
+﻿const boxState = {
   listenersReady: false,
+  privateListenersReady: false,
   unsubscribers: [],
   business: null,
   members: {},
@@ -72,23 +73,91 @@ const BOX_ATTENDANCE_LABELS = {
 
 const BOX_PAGES = [
   ['box-public', 'Info publica'],
+  ['box-public-students', 'Alumnos publicos'],
   ['box-dashboard', 'Resumen'],
+  ['box-students', 'Alumnos'],
   ['box-members', 'Alumnos'],
   ['box-prospects', 'Prospectos'],
   ['box-guardians', 'Tutores'],
   ['box-groups', 'Grupos y horarios'],
   ['box-attendance', 'Asistencia'],
+  ['box-attendance-history', 'Historial asistencia'],
+  ['box-attendance-trials', 'Clases de prueba'],
+  ['box-attendance-audits', 'Auditorias fisicas'],
+  ['box-finance', 'Finanzas'],
   ['box-billing', 'Mensualidades'],
   ['box-payments', 'Pagos'],
+  ['box-upcoming', 'Proximos pagos'],
   ['box-cash', 'Entregas de efectivo'],
   ['box-expenses', 'Gastos'],
   ['box-reports', 'Cortes y reportes'],
+  ['box-report-debts', 'Adeudos'],
+  ['box-report-attendance', 'Reporte asistencia'],
+  ['box-report-money', 'Ingresos y gastos'],
+  ['box-report-workers', 'Cobros por trabajador'],
   ['box-inconsistencies', 'Inconsistencias'],
   ['box-receipts', 'Comprobantes'],
+  ['box-admin', 'Administracion'],
+  ['box-admin-expenses', 'Categorias de gastos'],
+  ['box-admin-folios', 'Folios y parametros'],
   ['box-permissions', 'Personal y permisos'],
   ['box-audit', 'Auditoria'],
   ['box-settings', 'Configuracion']
 ];
+
+const BOX_ADMIN_MAIN_NAV = [
+  ['box-dashboard', 'Inicio'],
+  ['box-students', 'Alumnos'],
+  ['box-attendance', 'Asistencia'],
+  ['box-finance', 'Mensualidades'],
+  ['box-reports', 'Dashboard'],
+  ['box-admin', 'Administracion']
+];
+
+const BOX_TRAINER_MAIN_NAV = [
+  ['box-dashboard', 'Inicio'],
+  ['box-students', 'Alumnos'],
+  ['box-attendance', 'Asistencia'],
+  ['box-finance', 'Mensualidades'],
+  ['box-upcoming', 'Proximos pagos']
+];
+
+const BOX_PUBLIC_NAV = [
+  ['box-public', 'Inicio'],
+  ['box-public-students', 'Alumnos']
+];
+
+const BOX_SECONDARY_NAV = {
+  students: [
+    ['box-members', 'Padron'],
+    ['box-guardians', 'Responsables'],
+    ['box-groups', 'Horarios']
+  ],
+  attendance: [
+    ['box-attendance', 'Lista'],
+    ['box-attendance-history', 'Progreso'],
+    ['box-attendance-trials', 'Pruebas']
+  ],
+  finance: [
+    ['box-finance', 'Mensualidades'],
+    ['box-upcoming', 'Proximos pagos'],
+    ['box-cash', 'Efectivo'],
+    ['box-expenses', 'Gastos']
+  ],
+  reports: [
+    ['box-reports', 'General'],
+    ['box-report-attendance', 'Asistencia'],
+    ['box-report-money', 'Cobranza']
+  ],
+  admin: [
+    ['box-permissions', 'Usuarios'],
+    ['box-settings', 'Box'],
+    ['box-groups', 'Horarios'],
+    ['box-audit', 'Historico'],
+    ['box-receipts', 'WhatsApp'],
+    ['box-admin-folios', 'Parametros']
+  ]
+};
 
 function boxBusinessConfig() {
   return { ...getBusinessConfig(BOX_LOMBARDO_BUSINESS_ID), ...(boxState.business || {}) };
@@ -117,6 +186,83 @@ function boxDateLabel(value) {
   return new Date(ts).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function boxDateOnly(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return boxNowISO();
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function boxMonthsAgoStart(months = 2) {
+  const now = new Date();
+  return boxDateOnly(new Date(now.getFullYear(), now.getMonth() - months, 1));
+}
+
+function boxIsWithinTrainerWindow(value) {
+  if (!boxIsTrainerOnly()) return true;
+  return String(value || '') >= boxMonthsAgoStart(2);
+}
+
+function boxCurrentPeriod() {
+  return boxNowISO().slice(0, 7);
+}
+
+function boxDateDiffDays(dateISO) {
+  if (!dateISO) return null;
+  const today = new Date(boxNowISO() + 'T00:00:00');
+  const due = new Date(String(dateISO).slice(0, 10) + 'T00:00:00');
+  if (Number.isNaN(due.getTime())) return null;
+  return Math.round((due.getTime() - today.getTime()) / 86400000);
+}
+
+function boxMemberCharges(memberId) {
+  return Object.values(boxState.charges)
+    .filter((c) => c.memberId === memberId && c.status !== 'canceled')
+    .sort((a, b) => String(b.billingPeriodId || b.period || '').localeCompare(String(a.billingPeriodId || a.period || '')));
+}
+
+function boxLatestCharge(memberId) {
+  return boxMemberCharges(memberId)[0] || null;
+}
+
+function boxMemberPaymentState(member) {
+  if (['scholarship', 'becado'].includes(member.scholarshipType) || member.status === 'scholarship') {
+    return { label: 'Becado', tone: 'success', charge: null, balance: 0, dueDate: '', days: null };
+  }
+  if (['inactive', 'permanent_leave', 'temporary_leave'].includes(member.status) || member.exemptPayment) {
+    return { label: 'Exento', tone: 'success', charge: null, balance: 0, dueDate: '', days: null };
+  }
+  const charge = boxLatestCharge(member.id);
+  const balance = Number(charge?.balance || 0);
+  const paid = Number(charge?.totalPaid || 0);
+  const dueDate = charge?.dueDate || member.nextDueDate || '';
+  const days = boxDateDiffDays(dueDate);
+  if (balance <= 0 && charge) return { label: 'Al corriente', tone: 'success', charge, balance, dueDate, days };
+  if (paid > 0 && balance > 0) return { label: 'Abono pendiente', tone: 'warning', charge, balance, dueDate, days };
+  if (days === 0) return { label: 'Vence hoy', tone: 'warning', charge, balance, dueDate, days };
+  if (days !== null && days < 0 && balance > 0) return { label: 'Vencido', tone: 'danger', charge, balance, dueDate, days };
+  if (days !== null && days >= 1 && days <= 5) return { label: 'Proximo a pagar', tone: 'warning', charge, balance, dueDate, days };
+  return { label: balance > 0 ? 'Pendiente' : 'Al corriente', tone: balance > 0 ? 'warning' : 'success', charge, balance, dueDate, days };
+}
+
+function boxUpcomingPaymentItems() {
+  return Object.values(boxState.members)
+    .filter((m) => ['active', 'active_with_debt', 'trial'].includes(m.status))
+    .map((member) => ({ member, state: boxMemberPaymentState(member) }))
+    .filter(({ state }) => ['Proximo a pagar', 'Vence hoy', 'Vencido', 'Abono pendiente'].includes(state.label))
+    .sort((a, b) => (a.state.days ?? 999) - (b.state.days ?? 999));
+}
+
+function boxPublicStudentName(member) {
+  const cfg = boxBusinessConfig();
+  const mode = cfg.publicStudentNameMode || 'first';
+  const parts = String(member.publicName || member.fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'Alumno';
+  if (mode === 'full') return parts.join(' ');
+  if (mode === 'abbreviated') return parts.map((part, index) => index === 0 ? part : `${part.charAt(0)}.`).join(' ');
+  return parts[0];
+}
+
 function boxNormalizePhone(value) {
   return String(value || '').replace(/\D/g, '').slice(-10);
 }
@@ -126,6 +272,18 @@ function boxPath(collectionName, docId) {
   if (!collectionName) return root;
   const collection = root.collection(collectionName);
   return docId ? collection.doc(docId) : collection;
+}
+
+function boxCollectionSource(collectionName) {
+  const collection = boxPath(collectionName);
+  if (!boxIsTrainerOnly()) return collection;
+  const cutoffDate = boxMonthsAgoStart(2);
+  const cutoffPeriod = cutoffDate.slice(0, 7);
+  if (['attendance', 'sessions', 'physicalAudits'].includes(collectionName)) return collection.where('date', '>=', cutoffDate);
+  if (collectionName === 'payments') return collection.where('paymentDate', '>=', cutoffDate);
+  if (collectionName === 'charges') return collection.where('billingPeriodId', '>=', cutoffPeriod);
+  if (collectionName === 'notifications') return collection.where('noticeDate', '>=', cutoffDate);
+  return collection;
 }
 
 function boxServerTimestamp() {
@@ -165,13 +323,27 @@ function createBoxPages() {
   shell.insertAdjacentHTML('beforeend', html);
 }
 
+function boxRoleKey() {
+  if (isOwner) return 'owner';
+  return getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) || '';
+}
+
+function boxIsTrainerOnly() {
+  return boxRoleKey() === 'trainer';
+}
+
+function boxMainNavItems() {
+  const base = boxIsTrainerOnly() ? BOX_TRAINER_MAIN_NAV : BOX_ADMIN_MAIN_NAV;
+  return base.filter(([key]) => canAccessBusinessPage(key));
+}
+
 function renderBoxNav() {
   const nav = document.querySelector('.nav-tabs');
   if (!nav) return;
   if (!boxLegacyNavHtml) boxLegacyNavHtml = nav.innerHTML;
-  nav.innerHTML = BOX_PAGES
-    .filter(([key]) => key === 'box-public' || canAccessBusinessPage(key))
-    .map(([key, label], index) => `<button class="nav-tab ${index === 0 ? 'active' : ''}" onclick="showPage('${key}',this)">${label}</button>`)
+  const items = canAccessBusinessAdmin(BOX_LOMBARDO_BUSINESS_ID) ? boxMainNavItems() : BOX_PUBLIC_NAV;
+  nav.innerHTML = items
+    .map(([key, label], index) => `<button class="nav-tab ${index === 0 ? 'active' : ''}" data-box-main="${key}" onclick="showPage('${key}',this)">${label}</button>`)
     .join('');
 }
 
@@ -194,26 +366,34 @@ function selectBoxBusiness() {
   if (catTabs) catTabs.style.display = 'none';
   const cfg = boxBusinessConfig();
   document.getElementById('hdrName').textContent = cfg.displayName || cfg.name;
-  document.getElementById('hdrCat').textContent = `Mensualidad ${boxMoney(cfg.monthlyFee)} · ${cfg.timezone}`;
+  document.getElementById('hdrCat').textContent = 'Control administrativo y operativo';
   const logo = document.getElementById('hdrTorneoLogo');
   if (logo) logo.src = cfg.logo || CD_LOGO_SHIELD;
   setupBoxListeners();
-  const startPage = canAccessBusinessAdmin(BOX_LOMBARDO_BUSINESS_ID) ? 'box-dashboard' : 'box-public';
+  const startPage = canAccessBusinessAdmin(BOX_LOMBARDO_BUSINESS_ID) ? (boxMainNavItems()[0]?.[0] || 'box-dashboard') : 'box-public';
   showPage(startPage, document.querySelector(`.nav-tab[onclick="showPage('${startPage}',this)"]`) || document.querySelector('.nav-tab'));
 }
 
 function setupBoxListeners() {
-  if (!fs || boxState.listenersReady) {
+  if (!fs) {
     renderBoxPage(document.querySelector('.box-page.active')?.id?.replace('page-', '') || 'box-public');
     return;
   }
-  boxState.listenersReady = true;
-  boxState.unsubscribers.push(boxPath().onSnapshot((doc) => {
-    boxState.business = doc.exists ? { id: doc.id, ...doc.data() } : null;
-    renderActiveBoxPage();
-  }));
-  BOX_COLLECTIONS.forEach((collectionName) => {
-    boxState.unsubscribers.push(boxPath(collectionName).onSnapshot((snapshot) => {
+  if (!boxState.listenersReady) {
+    boxState.listenersReady = true;
+    boxState.unsubscribers.push(boxPath().onSnapshot((doc) => {
+      boxState.business = doc.exists ? { id: doc.id, ...doc.data() } : null;
+      renderActiveBoxPage();
+    }));
+  }
+  if (!canAccessBusinessAdmin(BOX_LOMBARDO_BUSINESS_ID) || boxState.privateListenersReady) {
+    renderBoxPage(document.querySelector('.box-page.active')?.id?.replace('page-', '') || 'box-public');
+    return;
+  }
+  boxState.privateListenersReady = true;
+  const collections = BOX_COLLECTIONS;
+  collections.forEach((collectionName) => {
+    boxState.unsubscribers.push(boxCollectionSource(collectionName).onSnapshot((snapshot) => {
       boxState[collectionName] = {};
       snapshot.forEach((doc) => {
         boxState[collectionName][doc.id] = { id: doc.id, _key: doc.id, ...doc.data() };
@@ -232,19 +412,33 @@ function renderBoxPage(pageKey) {
   if (!isBusinessPage(pageKey)) return;
   const renderers = {
     'box-public': renderBoxPublic,
+    'box-public-students': renderBoxPublicStudents,
     'box-dashboard': renderBoxDashboard,
+    'box-students': renderBoxStudents,
     'box-members': renderBoxMembers,
     'box-prospects': renderBoxProspects,
     'box-guardians': renderBoxGuardians,
     'box-groups': renderBoxGroups,
     'box-attendance': renderBoxAttendance,
+    'box-attendance-history': renderBoxAttendanceHistory,
+    'box-attendance-trials': renderBoxAttendanceTrials,
+    'box-attendance-audits': renderBoxAttendanceAudits,
+    'box-finance': renderBoxFinance,
     'box-billing': renderBoxBilling,
     'box-payments': renderBoxPayments,
+    'box-upcoming': renderBoxUpcomingPayments,
     'box-cash': renderBoxCash,
     'box-expenses': renderBoxExpenses,
     'box-reports': renderBoxReports,
+    'box-report-debts': renderBoxReportDebts,
+    'box-report-attendance': renderBoxReportAttendance,
+    'box-report-money': renderBoxReportMoney,
+    'box-report-workers': renderBoxReportWorkers,
     'box-inconsistencies': renderBoxInconsistencies,
     'box-receipts': renderBoxReceipts,
+    'box-admin': renderBoxAdmin,
+    'box-admin-expenses': renderBoxAdminExpenses,
+    'box-admin-folios': renderBoxAdminFolios,
     'box-permissions': renderBoxPermissions,
     'box-audit': renderBoxAudit,
     'box-settings': renderBoxSettings
@@ -262,15 +456,167 @@ function boxEmpty(label) {
 }
 
 function boxKpi(title, value, tone = '') {
-  return `<div class="stat-box ${tone}"><div class="sn">${value}</div><div class="sl2">${title}</div></div>`;
+  return `<div class="box-kpi ${tone}"><div class="box-kpi-value">${value}</div><div class="box-kpi-label">${title}</div></div>`;
+}
+
+function boxSectionHeader(title, subtitle = '', actions = '') {
+  return `<div class="box-section-head">
+    <div>
+      <div class="box-section-kicker">Box Lombardo Toledano</div>
+      <h2>${title}</h2>
+      ${subtitle ? `<p>${subtitle}</p>` : ''}
+    </div>
+    ${actions ? `<div class="box-section-actions">${actions}</div>` : ''}
+  </div>`;
+}
+
+function boxTabs(groupKey, activeKey) {
+  const tabs = BOX_SECONDARY_NAV[groupKey] || [];
+  const trainerAllowed = new Set(['box-members', 'box-attendance']);
+  const visible = tabs.filter(([key]) => canAccessBusinessPage(key) && (!boxIsTrainerOnly() || trainerAllowed.has(key)));
+  if (!visible.length) return '';
+  return `<div class="box-subtabs">${visible.map(([key, label]) => `
+    <button class="box-subtab ${key === activeKey ? 'active' : ''}" onclick="showPage('${key}', this)">${label}</button>
+  `).join('')}</div>`;
+}
+
+function boxPageShell(groupKey, activeKey, title, subtitle, body, actions = '') {
+  return `${boxSectionHeader(title, subtitle, actions)}${boxTabs(groupKey, activeKey)}${body}`;
+}
+
+function boxRecentPayments(limit = 5) {
+  const payments = Object.values(boxState.payments)
+    .filter((p) => !boxIsTrainerOnly() || boxIsWithinTrainerWindow(p.paymentDate || boxDateOnly(boxTs(p.createdAt))))
+    .sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt)).slice(0, limit);
+  return payments.length ? payments.map((p) => `<div class="box-row compact">
+    <div><strong>${p.folio || p.id}</strong><span>${boxState.members[p.memberId]?.fullName || p.memberId} Â· ${boxMoney(p.paidAmount)} Â· ${p.cashDeliveryStatus || '-'}</span></div>
+    <button class="btn btn-out btn-sm" onclick="sendBoxReceipt('${p.id}')">Comprobante</button>
+  </div>`).join('') : boxEmpty('Sin pagos recientes');
+}
+
+function boxUpcomingCharges(limit = 6) {
+  const charges = Object.values(boxState.charges)
+    .filter((c) => Number(c.balance || 0) > 0 && c.status !== 'canceled')
+    .sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')))
+    .slice(0, limit);
+  return charges.length ? charges.map((c) => `<div class="box-row compact">
+    <div><strong>${boxState.members[c.memberId]?.fullName || c.memberId}</strong><span>${c.periodLabel || c.billingPeriodId} Â· vence ${c.dueDate || '-'} Â· saldo ${boxMoney(c.balance)}</span></div>
+    <span class="box-pill">${BOX_CHARGE_STATUS_LABELS[c.status] || c.status}</span>
+  </div>`).join('') : boxEmpty('Sin vencimientos pendientes');
+}
+
+function boxUpcomingRows(limit = 20, compact = false) {
+  const items = boxUpcomingPaymentItems().slice(0, limit);
+  if (!items.length) return boxEmpty('Sin pagos proximos o vencidos');
+  return items.map(({ member, state }) => {
+    const guardian = boxState.guardians[(member.guardianIds || [])[0]] || {};
+    const daysLabel = state.days === 0 ? 'vence hoy' : state.days < 0 ? `${Math.abs(state.days)} dia(s) vencido` : `faltan ${state.days} dia(s)`;
+    const phone = boxNormalizePhone(guardian.whatsappNumber || guardian.primaryPhone || '');
+    const message = encodeURIComponent(`Hola, te recordamos la mensualidad de ${member.fullName || 'alumno'} en Box Lombardo Toledano. Saldo pendiente: ${boxMoney(state.balance)}.`);
+    return `<div class="box-row ${compact ? 'compact' : ''}">
+      <div>
+        <strong>${member.fullName || '-'}</strong>
+        <span>${guardian.fullName || 'Tutor sin registrar'} · ${phone || 'sin telefono'} · ${state.dueDate || 'sin vencimiento'}</span>
+        <span>${daysLabel} · pendiente ${boxMoney(state.balance)}</span>
+      </div>
+      <div class="box-row-actions">
+        <span class="box-pill ${state.tone || ''}">${state.label}</span>
+        ${phone ? `<a class="btn btn-out btn-sm" href="https://wa.me/52${phone}?text=${message}" target="_blank" rel="noopener" onclick="logBoxPaymentNotice('${member.id}', '${state.charge?.id || ''}')">WhatsApp</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderBoxUpcomingPayments() {
+  boxSetPage('box-upcoming', `
+    ${boxSectionHeader('Proximos pagos', 'Alumnos por vencer, vencidos o con abono pendiente.')}
+    <div class="card box-panel">
+      <div class="sh"><div class="st">Seguimiento de cobranza</div><div class="sl"></div></div>
+      ${boxUpcomingRows(50)}
+    </div>`);
+}
+
+async function logBoxPaymentNotice(memberId, chargeId = '') {
+  if (!fs || !currentUser) return;
+  const member = boxState.members[memberId] || {};
+  const guardian = boxState.guardians[(member.guardianIds || [])[0]] || {};
+  const payload = {
+    businessId: BOX_LOMBARDO_BUSINESS_ID,
+    type: 'payment_reminder',
+    memberId,
+    chargeId,
+    to: boxNormalizePhone(guardian.whatsappNumber || guardian.primaryPhone || ''),
+    status: 'opened_whatsapp',
+    lastMessage: `Recordatorio de mensualidad para ${member.fullName || memberId}`,
+    noticeDate: boxNowISO(),
+    notifiedBy: currentUser.uid,
+    notifiedByName: boxCurrentUserName(),
+    notifiedAt: boxServerTimestamp(),
+    createdAt: boxServerTimestamp()
+  };
+  await boxPath('notifications').add(payload).catch((error) => console.warn('box payment notice', error));
+  await boxAudit('payment_notice_opened', 'member', memberId, null, payload);
+}
+
+function boxActivity(limit = 6) {
+  const logs = Object.values(boxState.auditLogs).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt)).slice(0, limit);
+  return logs.length ? logs.map((l) => `<div class="box-row compact">
+    <div><strong>${l.action}</strong><span>${l.entityType} Â· ${boxDateLabel(l.createdAt)} Â· ${l.actorName || l.actorUserId || '-'}</span></div>
+  </div>`).join('') : boxEmpty('Sin actividad reciente');
+}
+
+function boxQuickActions() {
+  const actions = [];
+  if (canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID)) {
+    actions.push(['Registrar pago', 'box-finance']);
+    actions.push(['Pasar asistencia', 'box-attendance']);
+    actions.push(['Nuevo alumno', 'box-members']);
+  }
+  if (canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) actions.push(['Registrar gasto', 'box-expenses']);
+  if (canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) actions.push(['Confirmar entrega', 'box-cash']);
+  if (canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID)) actions.push(['Notificar proximos pagos', 'box-upcoming']);
+  return actions.length ? `<div class="box-action-grid">${actions.map(([label, key]) => `<button class="btn btn-g btn-full" onclick="showPage('${key}', document.querySelector('[data-box-main]'))">${label}</button>`).join('')}</div>` : boxEmpty('Sin acciones disponibles para tu rol');
+}
+
+function boxAttendanceStats() {
+  const active = Object.values(boxState.members).filter((m) => ['active', 'active_with_debt', 'trial'].includes(m.status));
+  const activeCount = Math.max(active.length, 1);
+  const today = boxNowISO();
+  const now = new Date(today + 'T00:00:00');
+  const weekStart = boxDateOnly(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+  const monthStart = today.slice(0, 8) + '01';
+  const records = Object.values(boxState.attendance).filter((a) => !boxIsTrainerOnly() || boxIsWithinTrainerWindow(a.date));
+  const presentLike = (a) => ['present', 'trial_class', 'late'].includes(a.status);
+  const todayPresent = records.filter((a) => a.date === today && presentLike(a)).length;
+  const weekRecords = records.filter((a) => a.date >= weekStart);
+  const monthRecords = records.filter((a) => a.date >= monthStart);
+  const uniqueWeekDates = new Set(weekRecords.map((a) => a.date)).size || 1;
+  const uniqueMonthDates = new Set(monthRecords.map((a) => a.date)).size || 1;
+  const percent = (value, total) => Math.round((Number(value || 0) / Math.max(Number(total || 0), 1)) * 100);
+  const byMember = active.map((member) => {
+    const memberRecords = monthRecords.filter((a) => a.memberId === member.id);
+    const presents = memberRecords.filter(presentLike).length;
+    return { member, total: memberRecords.length, presents, pct: percent(presents, memberRecords.length || uniqueMonthDates) };
+  });
+  return {
+    todayPresent,
+    todayPct: percent(todayPresent, activeCount),
+    weekPct: percent(weekRecords.filter(presentLike).length, activeCount * uniqueWeekDates),
+    monthPct: percent(monthRecords.filter(presentLike).length, activeCount * uniqueMonthDates),
+    averagePct: byMember.length ? Math.round(byMember.reduce((sum, item) => sum + item.pct, 0) / byMember.length) : 0,
+    low: byMember.filter((item) => item.total && item.pct < 60),
+    inactiveRecent: active.filter((member) => !records.some((a) => a.memberId === member.id && a.date >= weekStart && presentLike(a))),
+    formula: 'presentes / alumnos activos o asistencias posibles del periodo * 100'
+  };
 }
 
 function boxStats() {
   const members = Object.values(boxState.members);
   const activeMembers = members.filter((m) => ['active', 'active_with_debt', 'trial'].includes(m.status));
   const prospects = Object.values(boxState.prospects).filter((p) => p.status !== 'converted');
-  const charges = Object.values(boxState.charges).filter((c) => c.status !== 'canceled');
-  const payments = Object.values(boxState.payments).filter((p) => p.paymentStatus !== 'reverted');
+  const billableIds = new Set(activeMembers.filter((m) => !m.exemptPayment && !['scholarship', 'becado'].includes(m.scholarshipType)).map((m) => m.id));
+  const charges = Object.values(boxState.charges).filter((c) => c.status !== 'canceled' && billableIds.has(c.memberId));
+  const payments = Object.values(boxState.payments).filter((p) => p.paymentStatus !== 'reverted' && (!boxIsTrainerOnly() || boxIsWithinTrainerWindow(p.paymentDate || p.createdAtDate || boxDateOnly(boxTs(p.createdAt)))));
   const expenses = Object.values(boxState.expenses).filter((e) => !['canceled', 'rejected'].includes(e.status));
   const pendingCharges = charges.filter((c) => Number(c.balance || 0) > 0);
   const pendingCash = payments.filter((p) => p.cashDeliveryStatus === 'pending_delivery');
@@ -280,6 +626,7 @@ function boxStats() {
   const expenseTotal = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const today = boxNowISO();
   const todayAttendance = Object.values(boxState.attendance).filter((a) => a.date === today && a.status !== 'absent').length;
+  const states = activeMembers.map((member) => boxMemberPaymentState(member));
   return {
     members,
     activeMembers,
@@ -294,7 +641,11 @@ function boxStats() {
     income,
     expenseTotal,
     todayAttendance,
-    net: income - expenseTotal
+    net: income - expenseTotal,
+    currentMembers: states.filter((s) => s.label === 'Al corriente').length,
+    upcomingMembers: states.filter((s) => s.label === 'Proximo a pagar' || s.label === 'Vence hoy').length,
+    overdueMembers: states.filter((s) => s.label === 'Vencido').length,
+    partialMembers: states.filter((s) => s.label === 'Abono pendiente').length
   };
 }
 
@@ -306,11 +657,11 @@ function renderBoxPublic() {
       <div>
         <div class="box-kicker">CanchaDigital · Box</div>
         <h1>${cfg.displayName || cfg.name}</h1>
-        <p>${info.description || ''}</p>
+        <p>${info.description || 'Control administrativo y operativo.'}</p>
         <div class="box-chip-row">
-          <span class="box-chip">Mensualidad ${boxMoney(cfg.monthlyFee)}</span>
           <span class="box-chip">${info.enrollmentStatus || 'Inscripciones abiertas'}</span>
-          <span class="box-chip">${cfg.timezone}</span>
+          <span class="box-chip">${info.location || 'Lombardo Toledano'}</span>
+
         </div>
       </div>
       <div class="box-hero-logo"><img src="${cfg.logo || CD_LOGO_SHIELD}" alt="${cfg.displayName || cfg.name}"/></div>
@@ -327,17 +678,12 @@ function renderBoxPublic() {
         ${cfg.contactWhatsApp ? `<a class="btn btn-g btn-full" href="https://wa.me/${boxNormalizePhone(cfg.contactWhatsApp)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
       </section>
       <section class="card">
-        <div class="sh"><div class="st">Preinscripcion</div><div class="sl"></div></div>
-        <div class="form-2">
-          <div class="fg"><label class="fl">Nombre del nino</label><input class="fi" id="bp_child" placeholder="Nombre completo"/></div>
-          <div class="fg"><label class="fl">Edad</label><input class="fi" id="bp_age" type="number" min="3" max="99"/></div>
-          <div class="fg"><label class="fl">Tutor</label><input class="fi" id="bp_guardian" placeholder="Nombre del tutor"/></div>
-          <div class="fg"><label class="fl">Telefono</label><input class="fi" id="bp_phone" inputmode="tel" placeholder="10 digitos"/></div>
+        <div class="sh"><div class="st">Inscripcion</div><div class="sl"></div></div>
+        <div class="box-info-list">
+          <div><strong>Estado</strong><span>${info.enrollmentStatus || 'Inscripciones abiertas'}</span></div>
+          <div><strong>Atencion</strong><span>Solicita informes por WhatsApp para recibir requisitos y horarios disponibles.</span></div>
         </div>
-        <div class="fg"><label class="fl">Horario de interes</label><input class="fi" id="bp_schedule" placeholder="Ej: vespertino"/></div>
-        <div class="fg"><label class="fl">Observaciones</label><textarea class="fi" id="bp_notes"></textarea></div>
-        <label class="box-check"><input type="checkbox" id="bp_consent"/> Autorizo que me contacten para dar seguimiento.</label>
-        <button class="btn btn-g btn-full" onclick="saveBoxProspect()">Enviar preinscripcion</button>
+        ${cfg.contactWhatsApp ? `<a class="btn btn-g btn-full" href="https://wa.me/${boxNormalizePhone(cfg.contactWhatsApp)}" target="_blank" rel="noopener">Pedir informacion por WhatsApp</a>` : ''}
       </section>
     </div>
     <div class="box-grid box-grid-2">
@@ -377,28 +723,77 @@ async function saveBoxProspect() {
 function renderBoxDashboard() {
   const s = boxStats();
   const alerts = buildBoxAlerts();
+  const pendingCashTotal = s.pendingCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0);
+  const att = boxAttendanceStats();
+  const collectionPct = Math.round((s.income / Math.max(s.expected, 1)) * 100);
   boxSetPage('box-dashboard', `
-    <div class="sh"><div class="st">Resumen Box</div><div class="sl"></div><button class="btn btn-out btn-sm" onclick="boxSeedBusiness()">Inicializar</button></div>
-    <div class="stats-row box-kpi-grid">
-      ${boxKpi('Alumnos activos', s.activeMembers.length)}
-      ${boxKpi('Prospectos', s.prospects.length)}
-      ${boxKpi('Clase prueba', s.members.filter((m) => m.status === 'trial').length)}
-      ${boxKpi('Pagados', s.charges.filter((c) => c.status === 'paid').length)}
-      ${boxKpi('Pendientes', s.pendingCharges.length)}
-      ${boxKpi('Vencidos', s.charges.filter((c) => c.status === 'overdue').length)}
-      ${boxKpi('Ingreso esperado', boxMoney(s.expected))}
-      ${boxKpi('Ingreso registrado', boxMoney(s.income))}
-      ${boxKpi('Pendiente entregar', boxMoney(s.pendingCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0)))}
-      ${boxKpi('Efectivo confirmado', boxMoney(s.confirmedCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0)))}
-      ${boxKpi('Gastos', boxMoney(s.expenseTotal))}
-      ${boxKpi('Resultado neto', boxMoney(s.net))}
-      ${boxKpi('Asistencias hoy', s.todayAttendance)}
-      ${boxKpi('Diferencias', Object.values(boxState.cashDeliveries).filter((d) => Number(d.differenceAmount || 0) !== 0).length)}
-      ${boxKpi('Alertas', alerts.length)}
+    ${boxSectionHeader(boxIsTrainerOnly() ? 'Inicio' : 'Inicio', 'Operacion diaria del box sin datos de torneos.', canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) ? '<button class="btn btn-out btn-sm" onclick="boxSeedBusiness()">Inicializar</button>' : '')}
+    <div class="box-kpi-grid primary">
+      ${boxKpi(boxIsTrainerOnly() ? 'Total de alumnos activos' : 'Total registrados', boxIsTrainerOnly() ? s.activeMembers.length : s.members.length)}
+      ${boxKpi(boxIsTrainerOnly() ? 'Asistencias de hoy' : 'Alumnos activos', boxIsTrainerOnly() ? s.todayAttendance : s.activeMembers.length)}
+      ${boxKpi('Proximos a pagar', s.upcomingMembers)}
+      ${boxKpi('Vencidos', s.overdueMembers, s.overdueMembers ? 'danger' : '')}
     </div>
-    <div class="card">
-      <div class="sh"><div class="st">Alertas activas</div><div class="sl"></div></div>
-      ${alerts.length ? alerts.map((a) => `<div class="box-alert box-alert-${a.severity}"><strong>${a.label}</strong><span>${a.detail}</span></div>`).join('') : boxEmpty('Sin alertas activas')}
+    <div class="box-kpi-grid secondary">
+      ${boxKpi(boxIsTrainerOnly() ? 'Cobrado por entrenador' : 'Ingreso esperado', boxIsTrainerOnly() ? boxMoney(s.income) : boxMoney(s.expected))}
+      ${boxKpi(boxIsTrainerOnly() ? 'Efectivo pendiente' : 'Ingreso cobrado', boxIsTrainerOnly() ? boxMoney(pendingCashTotal) : boxMoney(s.income), pendingCashTotal ? 'warning' : '')}
+      ${boxKpi(boxIsTrainerOnly() ? 'Al corriente' : 'Saldo pendiente', boxIsTrainerOnly() ? s.currentMembers : boxMoney(s.pendingCharges.reduce((sum, c) => sum + Number(c.balance || 0), 0)))}
+      ${boxKpi(boxIsTrainerOnly() ? 'Asistencia mensual' : 'Resultado neto', boxIsTrainerOnly() ? `${att.monthPct}%` : boxMoney(s.net), s.net < 0 ? 'danger' : 'success')}
+    </div>
+    <div class="box-grid box-grid-2">
+      <section class="card box-panel"><div class="sh"><div class="st">Accesos rapidos</div><div class="sl"></div></div>${boxQuickActions()}</section>
+      <section class="card box-panel"><div class="sh"><div class="st">Proximos pagos</div><div class="sl"></div></div>${boxUpcomingRows(5, true)}</section>
+      ${!boxIsTrainerOnly() ? `<section class="card box-panel"><div class="sh"><div class="st">Asistencia</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Hoy</strong><span>${att.todayPresent}/${s.activeMembers.length} alumnos · ${att.todayPct}%</span></div><div><strong>Semana</strong><span>${att.weekPct}%</span></div><div><strong>Mes</strong><span>${att.monthPct}%</span></div><div><strong>Formula</strong><span>${att.formula}</span></div></div></section>
+      <section class="card box-panel"><div class="sh"><div class="st">Mensualidades</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Cobranza</strong><span>${collectionPct}% · ${boxMoney(s.income)} / ${boxMoney(s.expected)}</span></div><div><strong>Al corriente</strong><span>${s.currentMembers}</span></div><div><strong>Abonos pendientes</strong><span>${s.partialMembers}</span></div><div><strong>Formula</strong><span>monto cobrado / monto esperado * 100</span></div></div></section>` : ''}
+    </div>`);
+}
+
+function renderBoxLegacyDashboard() {
+  const s = boxStats();
+  const pendingCashTotal = s.pendingCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0);
+  boxSetPage('box-dashboard-legacy', `
+    <div class="box-kpi-grid primary">
+      ${boxKpi('Alumnos activos', s.activeMembers.length)}
+      ${boxKpi('Ingreso esperado', boxMoney(s.expected))}
+      ${boxKpi('Ingreso recibido', boxMoney(s.income))}
+      ${boxKpi('Efectivo pendiente de entregar', boxMoney(pendingCashTotal), pendingCashTotal ? 'warning' : '')}
+    </div>
+    <div class="box-kpi-grid secondary">
+      ${boxKpi('Pagos pendientes', s.pendingCharges.length)}
+      ${boxKpi('Gastos del mes', boxMoney(s.expenseTotal))}
+      ${boxKpi('Asistencia de hoy', s.todayAttendance)}
+      ${boxKpi('Resultado neto', boxMoney(s.net), s.net < 0 ? 'danger' : 'success')}
+    </div>
+    <div class="box-grid box-grid-2">
+      <section class="card box-panel"><div class="sh"><div class="st">Alertas importantes</div><div class="sl"></div></div>${alerts.length ? alerts.slice(0, 6).map((a) => `<div class="box-alert box-alert-${a.severity}"><strong>${a.label}</strong><span>${a.detail}</span></div>`).join('') : boxEmpty('Sin alertas activas')}</section>
+      <section class="card box-panel"><div class="sh"><div class="st">Acciones rapidas</div><div class="sl"></div></div>${boxQuickActions()}</section>
+      <section class="card box-panel"><div class="sh"><div class="st">Pagos recientes</div><div class="sl"></div></div>${boxRecentPayments()}</section>
+      <section class="card box-panel"><div class="sh"><div class="st">Proximos vencimientos</div><div class="sl"></div></div>${boxUpcomingCharges()}</section>
+      <section class="card box-panel box-span-2"><div class="sh"><div class="st">Actividad reciente</div><div class="sl"></div></div>${boxActivity()}</section>
+    </div>`);
+}
+
+function renderBoxPublicStudents() {
+  const cfg = boxBusinessConfig();
+  const configured = Array.isArray(cfg.publicStudents) ? cfg.publicStudents : [];
+  const members = (configured.length ? configured : Object.values(boxState.members))
+    .filter((m) => ['active', 'active_with_debt', 'trial'].includes(m.status) && m.publicVisible !== false)
+    .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+  boxSetPage('box-public-students', `
+    ${boxSectionHeader('Alumnos', 'Directorio publico con informacion autorizada.')}
+    <div class="box-grid box-grid-2">
+      ${members.length ? members.map((member) => {
+        const group = boxState.groups[member.groupId]?.name || 'Horario por confirmar';
+        const photo = member.publicPhotoAllowed && member.photoUrl ? `<img class="box-public-avatar" src="${member.photoUrl}" alt="${boxPublicStudentName(member)}"/>` : '<div class="box-public-avatar placeholder">BX</div>';
+        return `<section class="card box-public-student">
+          ${photo}
+          <div>
+            <strong>${boxPublicStudentName(member)}</strong>
+            <span>${group}</span>
+            <span>${BOX_MEMBER_STATUS_LABELS[member.status] || 'Activo'}${member.startDate ? ' · ingreso ' + member.startDate : ''}</span>
+          </div>
+        </section>`;
+      }).join('') : boxEmpty('Directorio publico sin alumnos visibles')}
     </div>`);
 }
 
@@ -410,18 +805,31 @@ function buildBoxAlerts() {
   });
   Object.values(boxState.charges).filter((c) => Number(c.balance || 0) > 0 && c.status !== 'canceled').forEach((c) => {
     const member = boxState.members[c.memberId];
-    alerts.push({ severity: c.status === 'overdue' ? 'critical' : 'warning', label: 'Mensualidad pendiente', detail: `${member?.fullName || c.memberId} · ${boxMoney(c.balance)}` });
+    alerts.push({ severity: c.status === 'overdue' ? 'critical' : 'warning', label: 'Mensualidad pendiente', detail: `${member?.fullName || c.memberId} Â· ${boxMoney(c.balance)}` });
   });
   Object.values(boxState.payments).filter((p) => p.receiptStatus !== 'sent').forEach((p) => {
     alerts.push({ severity: 'info', label: 'Pago sin comprobante enviado', detail: p.folio || p.id });
   });
   Object.values(boxState.payments).filter((p) => p.cashDeliveryStatus === 'pending_delivery').forEach((p) => {
-    alerts.push({ severity: 'warning', label: 'Pago pendiente de entregar', detail: `${p.folio || p.id} · ${boxMoney(p.paidAmount)}` });
+    alerts.push({ severity: 'warning', label: 'Pago pendiente de entregar', detail: `${p.folio || p.id} Â· ${boxMoney(p.paidAmount)}` });
   });
   Object.values(boxState.cashDeliveries).filter((d) => Number(d.differenceAmount || 0) !== 0).forEach((d) => {
-    alerts.push({ severity: 'critical', label: 'Entrega con diferencia', detail: `${d.folio || d.id} · ${boxMoney(d.differenceAmount)}` });
+    alerts.push({ severity: 'critical', label: 'Entrega con diferencia', detail: `${d.folio || d.id} Â· ${boxMoney(d.differenceAmount)}` });
   });
   return alerts.slice(0, 30);
+}
+
+function boxWrapExistingPage(targetKey, groupKey, activeKey, title, subtitle, renderFn) {
+  renderFn();
+  const source = document.getElementById('page-' + targetKey);
+  const content = source?.innerHTML || '';
+  boxSetPage(targetKey, boxPageShell(groupKey, activeKey, title, subtitle, content));
+}
+
+function renderBoxStudents() {
+  renderBoxMembers();
+  const content = document.getElementById('page-box-members')?.innerHTML || '';
+  boxSetPage('box-students', content);
 }
 
 function renderBoxMembers() {
@@ -429,6 +837,8 @@ function renderBoxMembers() {
   const members = Object.values(boxState.members).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
   const groupOptions = Object.values(boxState.groups).map((g) => `<option value="${g.id}">${g.name}</option>`).join('');
   boxSetPage('box-members', `
+    ${boxSectionHeader('Alumnos', 'Expediente, tutor, grupo y estado operativo de cada alumno.')}
+    ${boxTabs('students', 'box-members')}
     <div class="box-grid box-grid-2">
       <section class="card">
         <div class="sh"><div class="st">Alta de alumno</div><div class="sl"></div></div>
@@ -463,14 +873,16 @@ function renderBoxMemberCard(member) {
   const group = boxState.groups[member.groupId]?.name || 'Sin grupo';
   const lastPayment = Object.values(boxState.payments).filter((p) => p.memberId === member.id).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt))[0];
   const pending = Object.values(boxState.charges).filter((c) => c.memberId === member.id && Number(c.balance || 0) > 0);
+  const payState = boxMemberPaymentState(member);
   return `<div class="box-row">
     <div>
       <strong>${member.fullName || '-'}</strong>
-      <span>${BOX_MEMBER_STATUS_LABELS[member.status] || member.status} · ${group} · Tutor: ${guardians}</span>
-      <span>Mensualidad ${boxMoney(member.monthlyFee)} · Ultimo pago: ${lastPayment ? boxMoney(lastPayment.paidAmount) : '-'}</span>
+      <span>${BOX_MEMBER_STATUS_LABELS[member.status] || member.status} Â· ${group} Â· Tutor: ${guardians}</span>
+      <span>Mensualidad ${boxMoney(member.monthlyFee)} Â· Ultimo pago: ${lastPayment ? boxMoney(lastPayment.paidAmount) : '-'} Â· vence ${payState.dueDate || '-'}</span>
     </div>
     <div class="box-row-actions">
-      <span class="box-pill">${pending.length ? `${pending.length} pendiente(s)` : 'Al corriente'}</span>
+      <span class="box-pill ${payState.tone || ''}">${payState.label}</span>
+      ${payState.balance ? `<span class="box-pill">Saldo ${boxMoney(payState.balance)}</span>` : ''}
       <button class="btn btn-out btn-sm" onclick="fillBoxMember('${member.id}')">Editar</button>
       <button class="btn btn-r btn-sm" onclick="deactivateBoxMember('${member.id}')">Baja</button>
     </div>
@@ -574,8 +986,8 @@ async function deactivateBoxMember(id) {
 
 function renderBoxProspects() {
   const prospects = Object.values(boxState.prospects).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
-  boxSetPage('box-prospects', `<div class="card"><div class="sh"><div class="st">Prospectos</div><div class="sl"></div></div>${prospects.length ? prospects.map((p) => `
-    <div class="box-row"><div><strong>${p.fullName}</strong><span>${p.age || '-'} anos · Tutor: ${p.guardianName || '-'} · ${p.guardianPhone || '-'}</span><span>${p.interestedSchedule || '-'} · ${p.notes || ''}</span></div><button class="btn btn-out btn-sm" onclick="markProspectReviewed('${p.id}')">En revision</button></div>`).join('') : boxEmpty('Sin prospectos')}</div>`);
+  boxSetPage('box-prospects', `${boxSectionHeader('Prospectos', 'Seguimiento de interesados registrados desde el formulario publico.')}${boxTabs('students', 'box-prospects')}<div class="card"><div class="sh"><div class="st">Prospectos</div><div class="sl"></div></div>${prospects.length ? prospects.map((p) => `
+    <div class="box-row"><div><strong>${p.fullName}</strong><span>${p.age || '-'} anos Â· Tutor: ${p.guardianName || '-'} Â· ${p.guardianPhone || '-'}</span><span>${p.interestedSchedule || '-'} Â· ${p.notes || ''}</span></div><button class="btn btn-out btn-sm" onclick="markProspectReviewed('${p.id}')">En revision</button></div>`).join('') : boxEmpty('Sin prospectos')}</div>`);
 }
 
 async function markProspectReviewed(id) {
@@ -585,13 +997,15 @@ async function markProspectReviewed(id) {
 
 function renderBoxGuardians() {
   const guardians = Object.values(boxState.guardians).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
-  boxSetPage('box-guardians', `<div class="card"><div class="sh"><div class="st">Tutores</div><div class="sl"></div></div>${guardians.length ? guardians.map((g) => `
-    <div class="box-row"><div><strong>${g.fullName}</strong><span>${g.relationship || 'Tutor'} · ${g.primaryPhone || '-'} · WhatsApp ${g.whatsappNumber || '-'}</span><span>Alumnos: ${(g.memberIds || []).map((id) => boxState.members[id]?.fullName).filter(Boolean).join(', ') || '-'}</span></div></div>`).join('') : boxEmpty('Sin tutores')}</div>`);
+  boxSetPage('box-guardians', `${boxSectionHeader('Tutores', 'Contactos responsables, consentimiento y relacion con alumnos.')}${boxTabs('students', 'box-guardians')}<div class="card"><div class="sh"><div class="st">Tutores</div><div class="sl"></div></div>${guardians.length ? guardians.map((g) => `
+    <div class="box-row"><div><strong>${g.fullName}</strong><span>${g.relationship || 'Tutor'} Â· ${g.primaryPhone || '-'} Â· WhatsApp ${g.whatsappNumber || '-'}</span><span>Alumnos: ${(g.memberIds || []).map((id) => boxState.members[id]?.fullName).filter(Boolean).join(', ') || '-'}</span></div></div>`).join('') : boxEmpty('Sin tutores')}</div>`);
 }
 
 function renderBoxGroups() {
   const groups = Object.values(boxState.groups).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   boxSetPage('box-groups', `
+    ${boxSectionHeader('Grupos y horarios', 'Organiza alumnos por grupo, capacidad y horario de entrenamiento.')}
+    ${boxTabs('students', 'box-groups')}
     <div class="box-grid box-grid-2">
       <section class="card">
         <div class="sh"><div class="st">Grupo</div><div class="sl"></div></div>
@@ -606,7 +1020,7 @@ function renderBoxGroups() {
       </section>
       <section class="card">
         <div class="sh"><div class="st">Grupos activos</div><div class="sl"></div></div>
-        ${groups.length ? groups.map((g) => `<div class="box-row"><div><strong>${g.name}</strong><span>${(g.daysOfWeek || []).join(', ')} · ${g.startTime || '-'}-${g.endTime || '-'} · Capacidad ${g.capacity || '-'}</span></div><button class="btn btn-out btn-sm" onclick="disableBoxGroup('${g.id}')">Desactivar</button></div>`).join('') : boxEmpty('Sin grupos')}
+        ${groups.length ? groups.map((g) => `<div class="box-row"><div><strong>${g.name}</strong><span>${(g.daysOfWeek || []).join(', ')} Â· ${g.startTime || '-'}-${g.endTime || '-'} Â· Capacidad ${g.capacity || '-'}</span></div><button class="btn btn-out btn-sm" onclick="disableBoxGroup('${g.id}')">Desactivar</button></div>`).join('') : boxEmpty('Sin grupos')}
       </section>
     </div>`);
 }
@@ -642,7 +1056,17 @@ function renderBoxAttendance() {
   const groups = Object.values(boxState.groups).filter((g) => g.status !== 'inactive');
   const selectedGroup = document.getElementById('ba_group')?.value || groups[0]?.id || '';
   const members = Object.values(boxState.members).filter((m) => !selectedGroup || m.groupId === selectedGroup);
+  const allowedStatuses = ['present', 'absent', 'justified_absence', 'trial_class'];
+  const progressRows = members.map((m) => {
+    const records = Object.values(boxState.attendance).filter((a) => a.memberId === m.id && (!boxIsTrainerOnly() || boxIsWithinTrainerWindow(a.date)));
+    const present = records.filter((a) => ['present', 'trial_class', 'late'].includes(a.status)).length;
+    const absences = records.filter((a) => ['absent', 'justified_absence'].includes(a.status)).length;
+    const pct = records.length ? Math.round((present / records.length) * 100) : 0;
+    return `<div class="box-row compact"><div><strong>${m.fullName}</strong><span>${present} asistencias · ${absences} faltas · ${pct}% en periodo visible</span></div></div>`;
+  }).join('');
   boxSetPage('box-attendance', `
+    ${boxSectionHeader('Asistencia', 'Pase de lista, clases de prueba e incidencias operativas.')}
+    ${boxTabs('attendance', 'box-attendance')}
     <div class="card box-mobile-card">
       <div class="sh"><div class="st">Pasar asistencia</div><div class="sl"></div></div>
       <div class="form-2">
@@ -653,7 +1077,7 @@ function renderBoxAttendance() {
         <div class="box-att-row">
           <div><strong>${m.fullName}</strong><span>${BOX_MEMBER_STATUS_LABELS[m.status] || m.status}</span></div>
           <select class="fi" data-att-member="${m.id}">
-            ${Object.entries(BOX_ATTENDANCE_LABELS).map(([k, v]) => `<option value="${k}" ${k === 'present' ? 'selected' : ''}>${v}</option>`).join('')}
+            ${allowedStatuses.map((k) => `<option value="${k}" ${k === 'present' ? 'selected' : ''}>${BOX_ATTENDANCE_LABELS[k]}</option>`).join('')}
           </select>
         </div>`).join('') : boxEmpty('Sin alumnos esperados')}
       </div>
@@ -668,7 +1092,7 @@ function renderBoxAttendance() {
       </div>
       <button class="btn btn-out btn-full" onclick="registerTrialClass()">Registrar clase de prueba</button>
     </div>
-    <div class="card">
+    ${canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) ? `<div class="card">
       <div class="sh"><div class="st">Auditoria fisica</div><div class="sl"></div></div>
       <div class="form-2">
         <div class="fg"><label class="fl">Ninos observados</label><input class="fi" id="bpa_observed" type="number" min="0"/></div>
@@ -676,6 +1100,52 @@ function renderBoxAttendance() {
       </div>
       <div class="fg"><label class="fl">Observaciones</label><textarea class="fi" id="bpa_notes"></textarea></div>
       <button class="btn btn-out btn-full" onclick="saveBoxPhysicalAudit()">Guardar auditoria fisica</button>
+    </div>` : ''}
+    <div class="card">
+      <div class="sh"><div class="st">Progreso visible</div><div class="sl"></div></div>
+      <p class="box-muted">${boxIsTrainerOnly() ? 'El entrenador consulta mes actual y dos meses anteriores.' : 'El administrador consulta el historico completo.'}</p>
+      ${progressRows || boxEmpty('Sin progreso para mostrar')}
+    </div>`);
+}
+
+function renderBoxAttendanceHistory() {
+  const records = Object.values(boxState.attendance).sort((a, b) => boxTs(b.capturedAt) - boxTs(a.capturedAt)).slice(0, 80);
+  boxSetPage('box-attendance-history', `${boxSectionHeader('Historial de asistencia', 'Ultimos registros capturados por fecha, grupo y alumno.')}${boxTabs('attendance', 'box-attendance-history')}
+    <div class="card">${records.length ? records.map((a) => `<div class="box-row compact"><div><strong>${a.memberName || boxState.members[a.memberId]?.fullName || a.memberId}</strong><span>${a.date || '-'} · ${boxState.groups[a.groupId]?.name || 'Sin grupo'} · ${BOX_ATTENDANCE_LABELS[a.status] || a.status}</span></div></div>`).join('') : boxEmpty('Sin asistencias registradas')}</div>`);
+}
+
+function renderBoxAttendanceTrials() {
+  const trials = Object.values(boxState.members).filter((m) => m.status === 'trial').sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
+  boxSetPage('box-attendance-trials', `${boxSectionHeader('Clases de prueba', 'Registro rapido y seguimiento de alumnos en prueba.')}${boxTabs('attendance', 'box-attendance-trials')}
+    <div class="box-grid box-grid-2">
+      <section class="card">
+        <div class="sh"><div class="st">Registrar clase de prueba</div><div class="sl"></div></div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Nombre</label><input class="fi" id="bt_name"/></div>
+          <div class="fg"><label class="fl">Tutor telefono</label><input class="fi" id="bt_phone" inputmode="tel"/></div>
+        </div>
+        <button class="btn btn-g btn-full" onclick="registerTrialClass()">Registrar clase de prueba</button>
+      </section>
+      <section class="card"><div class="sh"><div class="st">En prueba</div><div class="sl"></div></div>${trials.length ? trials.map((m) => `<div class="box-row compact"><div><strong>${m.fullName}</strong><span>${m.trialPhone || '-'} · inicio ${m.startDate || '-'}</span></div></div>`).join('') : boxEmpty('Sin clases de prueba activas')}</section>
+    </div>`);
+}
+
+function renderBoxAttendanceAudits() {
+  const audits = Object.values(boxState.physicalAudits).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
+  boxSetPage('box-attendance-audits', `${boxSectionHeader('Auditorias fisicas', 'Conteo fisico contra asistencia capturada.')}${boxTabs('attendance', 'box-attendance-audits')}
+    <div class="box-grid box-grid-2">
+      <section class="card">
+        <div class="sh"><div class="st">Nueva auditoria fisica</div><div class="sl"></div></div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Fecha</label><input class="fi" id="ba_date" type="date" value="${boxNowISO()}"/></div>
+          <div class="fg"><label class="fl">Grupo</label><select class="fi" id="ba_group">${Object.values(boxState.groups).map((g) => `<option value="${g.id}">${g.name}</option>`).join('')}</select></div>
+          <div class="fg"><label class="fl">Alumnos observados</label><input class="fi" id="bpa_observed" type="number" min="0"/></div>
+          <div class="fg"><label class="fl">Foto opcional URL</label><input class="fi" id="bpa_photo" placeholder="https://..."/></div>
+        </div>
+        <div class="fg"><label class="fl">Observaciones</label><textarea class="fi" id="bpa_notes"></textarea></div>
+        <button class="btn btn-g btn-full" onclick="saveBoxPhysicalAudit()">Guardar auditoria fisica</button>
+      </section>
+      <section class="card"><div class="sh"><div class="st">Auditorias recientes</div><div class="sl"></div></div>${audits.length ? audits.map((a) => `<div class="box-row compact"><div><strong>${a.date || '-'}</strong><span>${boxState.groups[a.groupId]?.name || 'Sin grupo'} · observados ${a.observedCount || 0} · diferencia ${a.difference || 0}</span></div><span class="box-pill">${a.result || '-'}</span></div>`).join('') : boxEmpty('Sin auditorias fisicas')}</section>
     </div>`);
 }
 
@@ -802,9 +1272,51 @@ async function saveBoxPhysicalAudit() {
   showToast(difference === 0 ? 'Auditoria sin diferencias' : 'Auditoria guardada con alerta', difference === 0 ? 'tg' : 'ta');
 }
 
+function renderBoxFinance() {
+  const s = boxStats();
+  const pendingCashTotal = s.pendingCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0);
+  const chargeOptions = Object.values(boxState.charges)
+    .filter((c) => Number(c.balance || 0) > 0)
+    .map((c) => `<option value="${c.id}">${boxState.members[c.memberId]?.fullName || c.memberId} · ${c.periodLabel || c.billingPeriodId} · saldo ${boxMoney(c.balance)}</option>`).join('');
+  const payments = Object.values(boxState.payments)
+    .filter((p) => !boxIsTrainerOnly() || boxIsWithinTrainerWindow(p.paymentDate || boxDateOnly(boxTs(p.createdAt))))
+    .sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
+  boxSetPage('box-finance', `${boxSectionHeader('Mensualidades', boxIsTrainerOnly() ? 'Cobros, abonos y efectivo pendiente de los ultimos tres meses.' : 'Cobranza, abonos, adeudos, gastos y efectivo recibido.')}
+    <div class="box-kpi-grid primary">
+      ${boxKpi('Ingreso esperado', boxMoney(s.expected))}
+      ${boxKpi('Ingreso registrado', boxMoney(s.income))}
+      ${boxKpi('Efectivo pendiente', boxMoney(pendingCashTotal), pendingCashTotal ? 'warning' : '')}
+      ${boxKpi('Saldo pendiente', boxMoney(s.pendingCharges.reduce((sum, c) => sum + Number(c.balance || 0), 0)))}
+    </div>
+    <div class="box-kpi-grid secondary">
+      ${boxKpi('Resultado neto', boxMoney(s.net), s.net < 0 ? 'danger' : 'success')}
+      ${boxKpi('Al corriente', s.currentMembers)}
+      ${boxKpi('Vencidos', s.overdueMembers, s.overdueMembers ? 'danger' : '')}
+      ${boxKpi('Abonos pendientes', s.partialMembers)}
+    </div>
+    <div class="box-grid box-grid-2">
+      <section class="card box-panel">
+        <div class="sh"><div class="st">Registrar pago o abono</div><div class="sl"></div></div>
+        <div class="fg"><label class="fl">Alumno / cargo vigente</label><select class="fi" id="bp_charge">${chargeOptions || '<option value="">Sin cargos pendientes</option>'}</select></div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Monto recibido</label><input class="fi" id="bp_amount" type="number" min="1"/></div>
+          <div class="fg"><label class="fl">Metodo</label><input class="fi" value="Efectivo" disabled/></div>
+        </div>
+        <div class="fg"><label class="fl">Nota opcional</label><input class="fi" id="bp_notes2" placeholder="Pago completo, abono, observacion"/></div>
+        <button class="btn btn-g btn-full" onclick="createBoxPayment()">Registrar pago o abono</button>
+      </section>
+      <section class="card box-panel"><div class="sh"><div class="st">Proximos pagos</div><div class="sl"></div></div>${boxUpcomingRows(6, true)}</section>
+      <section class="card box-panel"><div class="sh"><div class="st">Movimientos recientes</div><div class="sl"></div></div>${payments.length ? payments.slice(0, 8).map((p) => `<div class="box-row compact"><div><strong>${p.folio || p.id}</strong><span>${boxState.members[p.memberId]?.fullName || p.memberId} · ${boxMoney(p.paidAmount)} · ${p.cashDeliveryStatus || '-'}</span></div><button class="btn btn-out btn-sm" onclick="sendBoxReceipt('${p.id}')">Comprobante</button></div>`).join('') : boxEmpty('Sin movimientos')}</section>
+      <section class="card box-panel"><div class="sh"><div class="st">Efectivo pendiente</div><div class="sl"></div></div>${s.pendingCash.length ? s.pendingCash.slice(0, 8).map((p) => `<label class="box-check"><input type="checkbox" data-cash-payment="${p.id}"/> ${p.folio || p.id} · ${boxState.members[p.memberId]?.fullName || p.memberId} · ${boxMoney(p.paidAmount)}</label>`).join('') + '<button class="btn btn-g btn-full" onclick="prepareBoxCashDelivery()">Preparar entrega</button>' : boxEmpty('Sin efectivo pendiente')}</section>
+      ${canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) ? `<section class="card box-panel box-span-2"><div class="sh"><div class="st">Administracion de mensualidades</div><div class="sl"></div></div><div class="box-action-grid"><button class="btn btn-out btn-full" onclick="showPage('box-billing', this)">Generar cargos del periodo</button><button class="btn btn-out btn-full" onclick="showPage('box-expenses', this)">Registrar gasto</button><button class="btn btn-out btn-full" onclick="showPage('box-cash', this)">Confirmar entrega</button><button class="btn btn-out btn-full" onclick="showPage('box-receipts', this)">Comprobantes</button></div></section>` : ''}
+    </div>`);
+}
+
 function renderBoxBilling() {
   const charges = Object.values(boxState.charges).sort((a, b) => (b.periodLabel || '').localeCompare(a.periodLabel || ''));
   boxSetPage('box-billing', `
+    ${boxSectionHeader('Mensualidades', 'Generacion idempotente de cargos y seguimiento de saldos.')}
+    ${boxTabs('finance', 'box-billing')}
     <div class="card">
       <div class="sh"><div class="st">Generar cargos</div><div class="sl"></div></div>
       <div class="form-3">
@@ -814,7 +1326,7 @@ function renderBoxBilling() {
       </div>
       <button class="btn btn-g btn-full" onclick="generateBoxMonthlyCharges()">Generar cargos idempotentes</button>
     </div>
-    <div class="card"><div class="sh"><div class="st">Cargos</div><div class="sl"></div></div>${charges.length ? charges.map((c) => `<div class="box-row"><div><strong>${boxState.members[c.memberId]?.fullName || c.memberId}</strong><span>${c.periodLabel || c.billingPeriodId} · ${BOX_CHARGE_STATUS_LABELS[c.status] || c.status}</span></div><div class="box-row-actions"><span class="box-pill">${boxMoney(c.totalPaid)} / ${boxMoney(c.expectedAmount)}</span><span class="box-pill">Saldo ${boxMoney(c.balance)}</span></div></div>`).join('') : boxEmpty('Sin cargos')}</div>`);
+    <div class="card"><div class="sh"><div class="st">Cargos</div><div class="sl"></div></div>${charges.length ? charges.map((c) => `<div class="box-row"><div><strong>${boxState.members[c.memberId]?.fullName || c.memberId}</strong><span>${c.periodLabel || c.billingPeriodId} Â· ${BOX_CHARGE_STATUS_LABELS[c.status] || c.status}</span></div><div class="box-row-actions"><span class="box-pill">${boxMoney(c.totalPaid)} / ${boxMoney(c.expectedAmount)}</span><span class="box-pill">Saldo ${boxMoney(c.balance)}</span></div></div>`).join('') : boxEmpty('Sin cargos')}</div>`);
 }
 
 async function generateBoxMonthlyCharges() {
@@ -832,9 +1344,11 @@ async function generateBoxMonthlyCharges() {
 function renderBoxPayments() {
   const chargeOptions = Object.values(boxState.charges)
     .filter((c) => Number(c.balance || 0) > 0)
-    .map((c) => `<option value="${c.id}">${boxState.members[c.memberId]?.fullName || c.memberId} · ${c.periodLabel || c.billingPeriodId} · saldo ${boxMoney(c.balance)}</option>`).join('');
+    .map((c) => `<option value="${c.id}">${boxState.members[c.memberId]?.fullName || c.memberId} Â· ${c.periodLabel || c.billingPeriodId} Â· saldo ${boxMoney(c.balance)}</option>`).join('');
   const payments = Object.values(boxState.payments).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
   boxSetPage('box-payments', `
+    ${boxSectionHeader(boxIsTrainerOnly() ? 'Cobros' : 'Pagos', 'Registro de pagos en efectivo y comprobantes.')}
+    ${boxTabs('finance', 'box-payments')}
     <div class="box-grid box-grid-2">
       <section class="card">
         <div class="sh"><div class="st">Pago en efectivo</div><div class="sl"></div></div>
@@ -848,7 +1362,7 @@ function renderBoxPayments() {
       </section>
       <section class="card">
         <div class="sh"><div class="st">Historial de pagos</div><div class="sl"></div></div>
-        ${payments.length ? payments.map((p) => `<div class="box-row"><div><strong>${p.folio || p.id}</strong><span>${boxState.members[p.memberId]?.fullName || p.memberId} · ${boxMoney(p.paidAmount)} · efectivo</span><span>Recibio: ${p.receivedByName || p.receivedByUserId || '-'} · ${p.cashDeliveryStatus || '-'}</span></div><button class="btn btn-out btn-sm" onclick="sendBoxReceipt('${p.id}')">Comprobante</button></div>`).join('') : boxEmpty('Sin pagos')}</section>
+        ${payments.length ? payments.map((p) => `<div class="box-row"><div><strong>${p.folio || p.id}</strong><span>${boxState.members[p.memberId]?.fullName || p.memberId} Â· ${boxMoney(p.paidAmount)} Â· efectivo</span><span>Recibio: ${p.receivedByName || p.receivedByUserId || '-'} Â· ${p.cashDeliveryStatus || '-'}</span></div><button class="btn btn-out btn-sm" onclick="sendBoxReceipt('${p.id}')">Comprobante</button></div>`).join('') : boxEmpty('Sin pagos')}</section>
     </div>`);
 }
 
@@ -878,14 +1392,16 @@ function renderBoxCash() {
   const pending = Object.values(boxState.payments).filter((p) => p.cashDeliveryStatus === 'pending_delivery');
   const deliveries = Object.values(boxState.cashDeliveries).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
   boxSetPage('box-cash', `
+    ${boxSectionHeader(boxIsTrainerOnly() ? 'Efectivo pendiente' : 'Entregas de efectivo', 'Preparacion, control y confirmacion de efectivo recibido.')}
+    ${boxTabs('finance', 'box-cash')}
     <div class="card">
       <div class="sh"><div class="st">Preparar entrega</div><div class="sl"></div></div>
-      ${pending.length ? pending.map((p) => `<label class="box-check"><input type="checkbox" data-cash-payment="${p.id}"/> ${p.folio || p.id} · ${boxState.members[p.memberId]?.fullName || p.memberId} · ${boxMoney(p.paidAmount)} · recibio ${p.receivedByName || '-'}</label>`).join('') : boxEmpty('Sin pagos pendientes')}
+      ${pending.length ? pending.map((p) => `<label class="box-check"><input type="checkbox" data-cash-payment="${p.id}"/> ${p.folio || p.id} Â· ${boxState.members[p.memberId]?.fullName || p.memberId} Â· ${boxMoney(p.paidAmount)} Â· recibio ${p.receivedByName || '-'}</label>`).join('') : boxEmpty('Sin pagos pendientes')}
       <button class="btn btn-g btn-full" onclick="prepareBoxCashDelivery()">Preparar entrega seleccionada</button>
     </div>
     <div class="card">
       <div class="sh"><div class="st">Entregas</div><div class="sl"></div></div>
-      ${deliveries.length ? deliveries.map((d) => `<div class="box-row"><div><strong>${d.folio || d.id}</strong><span>${d.status} · esperado ${boxMoney(d.expectedAmount)} · entregado ${boxMoney(d.deliveredAmount)}</span><span>Diferencia ${boxMoney(d.differenceAmount)}</span></div><div class="box-row-actions">${d.status !== 'confirmed' ? `<input class="fi box-small-input" id="cash_${d.id}" type="number" value="${Number(d.expectedAmount || 0)}"/><button class="btn btn-g btn-sm" onclick="confirmBoxCashDelivery('${d.id}')">Confirmar</button>` : '<span class="box-pill">Confirmada</span>'}</div></div>`).join('') : boxEmpty('Sin entregas')}
+      ${deliveries.length ? deliveries.map((d) => `<div class="box-row"><div><strong>${d.folio || d.id}</strong><span>${d.status} Â· esperado ${boxMoney(d.expectedAmount)} Â· entregado ${boxMoney(d.deliveredAmount)}</span><span>Diferencia ${boxMoney(d.differenceAmount)}</span></div><div class="box-row-actions">${d.status !== 'confirmed' ? `<input class="fi box-small-input" id="cash_${d.id}" type="number" value="${Number(d.expectedAmount || 0)}"/><button class="btn btn-g btn-sm" onclick="confirmBoxCashDelivery('${d.id}')">Confirmar</button>` : '<span class="box-pill">Confirmada</span>'}</div></div>`).join('') : boxEmpty('Sin entregas')}
     </div>`);
 }
 
@@ -915,6 +1431,8 @@ function renderBoxExpenses() {
   const cfg = boxBusinessConfig();
   const expenses = Object.values(boxState.expenses).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
   boxSetPage('box-expenses', `
+    ${boxSectionHeader('Gastos', 'Registro y seguimiento de salidas de efectivo.')}
+    ${boxTabs('finance', 'box-expenses')}
     <div class="box-grid box-grid-2">
       <section class="card">
         <div class="sh"><div class="st">Registrar gasto</div><div class="sl"></div></div>
@@ -927,7 +1445,7 @@ function renderBoxExpenses() {
         <div class="fg"><label class="fl">Descripcion</label><textarea class="fi" id="be_desc"></textarea></div>
         <button class="btn btn-g btn-full" onclick="saveBoxExpense()">Guardar gasto</button>
       </section>
-      <section class="card"><div class="sh"><div class="st">Gastos</div><div class="sl"></div></div>${expenses.length ? expenses.map((e) => `<div class="box-row"><div><strong>${e.folio || e.concept}</strong><span>${e.category} · ${boxMoney(e.amount)} · ${e.status}</span><span>${e.description || ''}</span></div></div>`).join('') : boxEmpty('Sin gastos')}</section>
+      <section class="card"><div class="sh"><div class="st">Gastos</div><div class="sl"></div></div>${expenses.length ? expenses.map((e) => `<div class="box-row"><div><strong>${e.folio || e.concept}</strong><span>${e.category} Â· ${boxMoney(e.amount)} Â· ${e.status}</span><span>${e.description || ''}</span></div></div>`).join('') : boxEmpty('Sin gastos')}</section>
     </div>`);
 }
 
@@ -956,20 +1474,66 @@ async function saveBoxExpense() {
 
 function renderBoxReports() {
   const s = boxStats();
-  boxSetPage('box-reports', `<div class="card"><div class="sh"><div class="st">Cortes y reportes</div><div class="sl"></div></div>
-    <div class="box-report-grid">
-      <div><strong>Corte diario</strong><span>Ingresos ${boxMoney(s.income)} · Gastos ${boxMoney(s.expenseTotal)} · Neto ${boxMoney(s.net)}</span></div>
-      <div><strong>Corte semanal</strong><span>Nuevos alumnos ${s.members.filter((m) => boxTs(m.createdAt) > Date.now() - 7 * 86400000).length} · Asistencias ${Object.keys(boxState.attendance).length}</span></div>
-      <div><strong>Corte mensual</strong><span>Alumnos activos ${s.activeMembers.length} · Esperado ${boxMoney(s.expected)} · Confirmado ${boxMoney(s.confirmedCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0))}</span></div>
-      <div><strong>Rango personalizado</strong><span>Filtra por fechas desde Firestore en la siguiente iteracion de reportes avanzados.</span></div>
-    </div></div>`);
+  const att = boxAttendanceStats();
+  const collectionPct = Math.round((s.income / Math.max(s.expected, 1)) * 100);
+  boxSetPage('box-reports', `${boxSectionHeader('Dashboard', 'Estadisticas sencillas de asistencia, cobranza e ingresos.')}
+    <div class="box-subtabs">
+      ${['Hoy', 'Semana', 'Mes', 'Mes anterior', 'Año', 'Rango'].map((label, index) => `<button class="box-subtab ${index === 2 ? 'active' : ''}">${label}</button>`).join('')}
+    </div>
+    <div class="box-kpi-grid primary">
+      ${boxKpi('Asistencia hoy', `${att.todayPct}%`)}
+      ${boxKpi('Asistencia semanal', `${att.weekPct}%`)}
+      ${boxKpi('Asistencia mensual', `${att.monthPct}%`)}
+      ${boxKpi('Promedio por alumno', `${att.averagePct}%`)}
+    </div>
+    <div class="box-kpi-grid secondary">
+      ${boxKpi('Cobranza', `${collectionPct}%`)}
+      ${boxKpi('Total esperado', boxMoney(s.expected))}
+      ${boxKpi('Total cobrado', boxMoney(s.income))}
+      ${boxKpi('Total pendiente', boxMoney(s.pendingCharges.reduce((sum, c) => sum + Number(c.balance || 0), 0)), s.pendingCharges.length ? 'warning' : '')}
+    </div>
+    <div class="box-grid box-grid-2">
+      <section class="card box-panel"><div class="sh"><div class="st">Asistencia</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Formula hoy</strong><span>alumnos presentes hoy / alumnos activos * 100</span></div><div><strong>Formula semana y mes</strong><span>${att.formula}</span></div><div><strong>Baja asistencia</strong><span>${att.low.map((i) => i.member.fullName).join(', ') || 'Sin alertas'}</span></div><div><strong>Sin asistencia reciente</strong><span>${att.inactiveRecent.map((m) => m.fullName).slice(0, 6).join(', ') || 'Sin alertas'}</span></div></div></section>
+      <section class="card box-panel"><div class="sh"><div class="st">Mensualidades</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Formula cobranza</strong><span>monto cobrado / monto esperado * 100</span></div><div><strong>Al corriente</strong><span>${s.currentMembers}</span></div><div><strong>Proximos a pagar</strong><span>${s.upcomingMembers}</span></div><div><strong>Vencidos</strong><span>${s.overdueMembers}</span></div><div><strong>Abonos pendientes</strong><span>${s.partialMembers}</span></div></div></section>
+      <section class="card box-panel"><div class="sh"><div class="st">Ingresos y gastos</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Ingresos</strong><span>${boxMoney(s.income)}</span></div><div><strong>Gastos</strong><span>${boxMoney(s.expenseTotal)}</span></div><div><strong>Resultado neto</strong><span>${boxMoney(s.net)}</span></div></div></section>
+      <section class="card box-panel"><div class="sh"><div class="st">Alumnos</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Activos</strong><span>${s.activeMembers.length}</span></div><div><strong>Altas recientes</strong><span>${s.members.filter((m) => boxTs(m.createdAt) > Date.now() - 30 * 86400000).length}</span></div><div><strong>Bajas</strong><span>${s.members.filter((m) => ['inactive', 'permanent_leave', 'temporary_leave'].includes(m.status)).length}</span></div></div></section>
+    </div>`);
+}
+
+function renderBoxReportDebts() {
+  const debts = Object.values(boxState.charges).filter((c) => Number(c.balance || 0) > 0 && c.status !== 'canceled');
+  boxSetPage('box-report-debts', `${boxSectionHeader('Adeudos', 'Saldos abiertos por alumno y periodo.')}${boxTabs('reports', 'box-report-debts')}<div class="card">${debts.length ? debts.map((c) => `<div class="box-row compact"><div><strong>${boxState.members[c.memberId]?.fullName || c.memberId}</strong><span>${c.periodLabel || c.billingPeriodId} · ${BOX_CHARGE_STATUS_LABELS[c.status] || c.status}</span></div><span class="box-pill">${boxMoney(c.balance)}</span></div>`).join('') : boxEmpty('Sin adeudos')}</div>`);
+}
+
+function renderBoxReportAttendance() {
+  const s = boxStats();
+  const rows = Object.values(boxState.attendance).sort((a, b) => boxTs(b.capturedAt) - boxTs(a.capturedAt)).slice(0, 60);
+  boxSetPage('box-report-attendance', `${boxSectionHeader('Reporte de asistencia', 'Asistencia capturada por fecha y grupo.')}${boxTabs('reports', 'box-report-attendance')}
+    <div class="box-kpi-grid secondary">${boxKpi('Asistencia de hoy', s.todayAttendance)}${boxKpi('Sesiones', Object.keys(boxState.sessions).length)}${boxKpi('Registros', Object.keys(boxState.attendance).length)}${boxKpi('Clases de prueba', Object.values(boxState.attendance).filter((a) => a.status === 'trial_class').length)}</div>
+    <div class="card">${rows.length ? rows.map((a) => `<div class="box-row compact"><div><strong>${a.memberName || boxState.members[a.memberId]?.fullName || a.memberId}</strong><span>${a.date || '-'} · ${boxState.groups[a.groupId]?.name || '-'} · ${BOX_ATTENDANCE_LABELS[a.status] || a.status}</span></div></div>`).join('') : boxEmpty('Sin registros')}</div>`);
+}
+
+function renderBoxReportMoney() {
+  const s = boxStats();
+  boxSetPage('box-report-money', `${boxSectionHeader('Ingresos y gastos', 'Comparativo general de entradas, salidas y resultado neto.')}${boxTabs('reports', 'box-report-money')}
+    <div class="box-kpi-grid primary">${boxKpi('Ingresos', boxMoney(s.income))}${boxKpi('Gastos', boxMoney(s.expenseTotal))}${boxKpi('Neto', boxMoney(s.net), s.net < 0 ? 'danger' : 'success')}${boxKpi('Efectivo confirmado', boxMoney(s.confirmedCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0)))}</div>
+    <div class="box-grid box-grid-2"><section class="card"><div class="sh"><div class="st">Pagos</div><div class="sl"></div></div>${boxRecentPayments(8)}</section><section class="card"><div class="sh"><div class="st">Gastos</div><div class="sl"></div></div>${s.expenses.slice(0, 8).map((e) => `<div class="box-row compact"><div><strong>${e.concept}</strong><span>${e.category || '-'} · ${e.date || '-'}</span></div><span class="box-pill">${boxMoney(e.amount)}</span></div>`).join('') || boxEmpty('Sin gastos')}</section></div>`);
+}
+
+function renderBoxReportWorkers() {
+  const byUser = {};
+  Object.values(boxState.payments).forEach((p) => {
+    const key = p.receivedByName || p.receivedByUserId || 'Sin usuario';
+    byUser[key] = (byUser[key] || 0) + Number(p.paidAmount || 0);
+  });
+  boxSetPage('box-report-workers', `${boxSectionHeader('Cobros por trabajador', 'Monto recibido por persona que registro el pago.')}${boxTabs('reports', 'box-report-workers')}<div class="card">${Object.entries(byUser).map(([name, amount]) => `<div class="box-row compact"><div><strong>${name}</strong><span>Cobros registrados</span></div><span class="box-pill">${boxMoney(amount)}</span></div>`).join('') || boxEmpty('Sin cobros registrados')}</div>`);
 }
 
 function renderBoxInconsistencies() {
   const saved = Object.values(boxState.inconsistencies);
   const generated = buildBoxAlerts().map((a, index) => ({ id: `generated_${index}`, title: a.label, detail: a.detail, severity: a.severity, status: 'pending' }));
   const items = [...saved, ...generated];
-  boxSetPage('box-inconsistencies', `<div class="card"><div class="sh"><div class="st">Inconsistencias</div><div class="sl"></div></div>${items.length ? items.map((i) => `<div class="box-alert box-alert-${i.severity || 'info'}"><strong>${i.title || i.label}</strong><span>${i.detail || ''} · ${i.status || 'pendiente'}</span>${!String(i.id).startsWith('generated_') ? `<button class="btn btn-out btn-sm" onclick="resolveBoxInconsistency('${i.id}')">Resolver</button>` : ''}</div>`).join('') : boxEmpty('Sin inconsistencias')}</div>`);
+  boxSetPage('box-inconsistencies', `${boxSectionHeader('Inconsistencias', 'Alertas operativas, adeudos e incidencias por resolver.')}${boxTabs(canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) ? 'reports' : 'attendance', 'box-inconsistencies')}<div class="card"><div class="sh"><div class="st">Inconsistencias</div><div class="sl"></div></div>${items.length ? items.map((i) => `<div class="box-alert box-alert-${i.severity || 'info'}"><strong>${i.title || i.label}</strong><span>${i.detail || ''} Â· ${i.status || 'pendiente'}</span>${!String(i.id).startsWith('generated_') ? `<button class="btn btn-out btn-sm" onclick="resolveBoxInconsistency('${i.id}')">Resolver</button>` : ''}</div>`).join('') : boxEmpty('Sin inconsistencias')}</div>`);
 }
 
 async function resolveBoxInconsistency(id) {
@@ -981,14 +1545,24 @@ async function resolveBoxInconsistency(id) {
 
 function renderBoxReceipts() {
   const notifications = Object.values(boxState.notifications).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
-  boxSetPage('box-receipts', `<div class="card"><div class="sh"><div class="st">Comprobantes WhatsApp</div><div class="sl"></div></div>${notifications.length ? notifications.map((n) => `<div class="box-row"><div><strong>${n.paymentId || n.id}</strong><span>${n.to || '-'} · ${n.status || '-'}</span><span>${n.error || ''}</span></div>${n.paymentId ? `<button class="btn btn-out btn-sm" onclick="sendBoxReceipt('${n.paymentId}')">Reenviar</button>` : ''}</div>`).join('') : boxEmpty('Sin comprobantes')}</div>`);
+  boxSetPage('box-receipts', `${boxSectionHeader('Comprobantes WhatsApp', 'Envios, errores y reintentos de recibos.')}${boxTabs(canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) ? 'admin' : 'finance', 'box-receipts')}<div class="card"><div class="sh"><div class="st">Comprobantes WhatsApp</div><div class="sl"></div></div>${notifications.length ? notifications.map((n) => `<div class="box-row"><div><strong>${n.paymentId || n.id}</strong><span>${n.to || '-'} Â· ${n.status || '-'}</span><span>${n.error || ''}</span></div>${n.paymentId ? `<button class="btn btn-out btn-sm" onclick="sendBoxReceipt('${n.paymentId}')">Reenviar</button>` : ''}</div>`).join('') : boxEmpty('Sin comprobantes')}</div>`);
+}
+
+function renderBoxAdmin() {
+  boxSetPage('box-admin', boxPageShell('admin', 'box-permissions', 'Administracion', 'Permisos, configuracion, auditoria y parametros operativos.', `
+    <div class="box-grid box-grid-2">
+      <section class="card box-panel"><div class="sh"><div class="st">Personal y permisos</div><div class="sl"></div></div><p class="box-muted">Administra accesos de dueño, administrador, entrenador y auditor.</p><button class="btn btn-g btn-full" onclick="showPage('box-permissions', this)">Abrir permisos</button></section>
+      <section class="card box-panel"><div class="sh"><div class="st">Configuracion del box</div><div class="sl"></div></div><p class="box-muted">Mensualidad, zona horaria, clases de prueba y parametros visibles.</p><button class="btn btn-g btn-full" onclick="showPage('box-settings', this)">Abrir configuracion</button></section>
+      <section class="card box-panel"><div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div><p class="box-muted">Consulta acciones administrativas y cambios relevantes.</p><button class="btn btn-out btn-full" onclick="showPage('box-audit', this)">Ver auditoria</button></section>
+      <section class="card box-panel"><div class="sh"><div class="st">WhatsApp y folios</div><div class="sl"></div></div><p class="box-muted">Comprobantes, mensajes y parametros de numeracion.</p><button class="btn btn-out btn-full" onclick="showPage('box-receipts', this)">Ver comprobantes</button></section>
+    </div>`));
 }
 
 function renderBoxPermissions() {
   const users = Object.values(C.usuarios || {}).sort((a, b) => (a.nombre || a.email || '').localeCompare(b.nombre || b.email || ''));
-  boxSetPage('box-permissions', `<div class="card"><div class="sh"><div class="st">Personal y permisos</div><div class="sl"></div></div>${users.length ? users.map((u) => {
+  boxSetPage('box-permissions', `${boxSectionHeader('Personal y permisos', 'Gestiona roles del box sin exponer opciones a usuarios sin permiso.')}${boxTabs('admin', 'box-permissions')}<div class="card"><div class="sh"><div class="st">Personal y permisos</div><div class="sl"></div></div>${users.length ? users.map((u) => {
     const role = u.businessRoles?.[BOX_LOMBARDO_BUSINESS_ID]?.role || '';
-    return `<div class="box-row"><div><strong>${u.nombre || u.email}</strong><span>${u.email || ''} · rol box: ${role || 'sin acceso'}</span></div>${isOwner ? `<select class="fi box-role-select" id="role_${u.uid}"><option value="">Sin acceso</option><option value="owner" ${role === 'owner' ? 'selected' : ''}>Dueno</option><option value="box_admin" ${role === 'box_admin' ? 'selected' : ''}>Admin box</option><option value="trainer" ${role === 'trainer' ? 'selected' : ''}>Entrenador</option><option value="auditor" ${role === 'auditor' ? 'selected' : ''}>Auditor</option></select><button class="btn btn-g btn-sm" onclick="saveBoxUserRole('${u.uid}')">Guardar</button>` : ''}</div>`;
+    return `<div class="box-row"><div><strong>${u.nombre || u.email}</strong><span>${u.email || ''} Â· rol box: ${role || 'sin acceso'}</span></div>${isOwner ? `<select class="fi box-role-select" id="role_${u.uid}"><option value="">Sin acceso</option><option value="owner" ${role === 'owner' ? 'selected' : ''}>Dueno</option><option value="box_admin" ${role === 'box_admin' ? 'selected' : ''}>Admin box</option><option value="trainer" ${role === 'trainer' ? 'selected' : ''}>Entrenador</option><option value="auditor" ${role === 'auditor' ? 'selected' : ''}>Auditor</option></select><button class="btn btn-g btn-sm" onclick="saveBoxUserRole('${u.uid}')">Guardar</button>` : ''}</div>`;
   }).join('') : boxEmpty('Sin usuarios')}</div>`);
 }
 
@@ -1004,21 +1578,47 @@ async function saveBoxUserRole(uid) {
 
 function renderBoxAudit() {
   const logs = Object.values(boxState.auditLogs).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt)).slice(0, 80);
-  boxSetPage('box-audit', `<div class="card"><div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>${logs.length ? logs.map((l) => `<div class="box-row"><div><strong>${l.action}</strong><span>${l.entityType} · ${l.entityId || '-'} · ${boxDateLabel(l.createdAt)}</span><span>${l.actorName || l.actorUserId || ''} ${l.reason ? '· ' + l.reason : ''}</span></div></div>`).join('') : boxEmpty('Sin auditoria')}</div>`);
+  boxSetPage('box-audit', `${boxSectionHeader('Auditoria', 'Historial de cambios y acciones relevantes.')}${boxTabs('admin', 'box-audit')}<div class="card"><div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>${logs.length ? logs.map((l) => `<div class="box-row"><div><strong>${l.action}</strong><span>${l.entityType} Â· ${l.entityId || '-'} Â· ${boxDateLabel(l.createdAt)}</span><span>${l.actorName || l.actorUserId || ''} ${l.reason ? 'Â· ' + l.reason : ''}</span></div></div>`).join('') : boxEmpty('Sin auditoria')}</div>`);
 }
 
 function renderBoxSettings() {
   const cfg = boxBusinessConfig();
-  boxSetPage('box-settings', `<div class="card"><div class="sh"><div class="st">Configuracion</div><div class="sl"></div></div>
+  boxSetPage('box-settings', `${boxSectionHeader('Configuracion del box', 'Parametros administrativos visibles solo para perfiles autorizados.')}${boxTabs('admin', 'box-settings')}<div class="card"><div class="sh"><div class="st">Configuracion</div><div class="sl"></div></div>
     <div class="box-info-list">
-      <div><strong>ID</strong><span>${cfg.id}</span></div>
-      <div><strong>Tipo</strong><span>${cfg.type}</span></div>
       <div><strong>Mensualidad</strong><span>${boxMoney(cfg.monthlyFee)}</span></div>
+      <div><strong>Zona horaria</strong><span>${cfg.timezone || 'America/Mazatlan'}</span></div>
+      <div><strong>Nombre publico de alumnos</strong><span>${cfg.publicStudentNameMode || 'first'} (full, abbreviated o first)</span></div>
       <div><strong>Metodo habilitado</strong><span>Efectivo</span></div>
       <div><strong>Clases de prueba</strong><span>${cfg.trialClassesAllowed}</span></div>
     </div>
     <button class="btn btn-g btn-full" onclick="boxSeedBusiness()">Crear/actualizar configuracion inicial segura</button>
   </div>`);
+}
+
+function renderBoxAdminExpenses() {
+  const cfg = boxBusinessConfig();
+  boxSetPage('box-admin-expenses', `${boxSectionHeader('Categorias de gastos', 'Catalogo operativo utilizado al registrar gastos.')}${boxTabs('admin', 'box-admin-expenses')}
+    <div class="card"><div class="sh"><div class="st">Categorias activas</div><div class="sl"></div></div>
+      <div class="box-chip-row">${(cfg.expenseCategories || []).map((category) => `<span class="box-chip">${category}</span>`).join('') || boxEmpty('Sin categorias')}</div>
+      <p class="box-muted">La actualizacion segura del catalogo se realiza desde la configuracion inicial del box.</p>
+    </div>`);
+}
+
+function renderBoxAdminFolios() {
+  const counters = {
+    payments: Object.keys(boxState.payments).length,
+    deliveries: Object.keys(boxState.cashDeliveries).length,
+    expenses: Object.keys(boxState.expenses).length,
+    members: Object.keys(boxState.members).length
+  };
+  boxSetPage('box-admin-folios', `${boxSectionHeader('Folios y parametros', 'Lectura de secuencias operativas actuales.')}${boxTabs('admin', 'box-admin-folios')}
+    <div class="box-kpi-grid secondary">
+      ${boxKpi('Pagos registrados', counters.payments)}
+      ${boxKpi('Entregas', counters.deliveries)}
+      ${boxKpi('Gastos', counters.expenses)}
+      ${boxKpi('Alumnos', counters.members)}
+    </div>
+    <div class="card"><p class="box-muted">Los folios se generan desde los flujos existentes de pagos, entregas, gastos y alumnos. No se exponen identificadores tecnicos al usuario final.</p></div>`);
 }
 
 async function boxSeedBusiness() {
@@ -1029,3 +1629,4 @@ async function boxSeedBusiness() {
     showToast(error.message || 'No se pudo inicializar', 'tr');
   }
 }
+
