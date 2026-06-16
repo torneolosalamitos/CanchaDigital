@@ -170,7 +170,7 @@ const BOX_PAGES = [
   ['box-report-workers', 'Cobros por trabajador'],
   ['box-inconsistencies', 'Inconsistencias'],
   ['box-receipts', 'Comprobantes'],
-  ['box-admin', 'Administracion'],
+  ['box-admin', 'Configuracion'],
   ['box-admin-expenses', 'Categorias de gastos'],
   ['box-admin-folios', 'Folios y parametros'],
   ['box-permissions', 'Personal y permisos'],
@@ -184,7 +184,7 @@ const BOX_ADMIN_MAIN_NAV = [
   ['box-attendance', 'Asistencia'],
   ['box-finance', 'Mensualidades'],
   ['box-reports', 'Dashboard'],
-  ['box-admin', 'Administracion']
+  ['box-admin', 'Configuracion']
 ];
 
 const BOX_TRAINER_MAIN_NAV = [
@@ -223,7 +223,7 @@ const BOX_SECONDARY_NAV = {
     ['box-report-money', 'Cobranza']
   ],
   admin: [
-    ['box-admin', 'Principal'],
+    ['box-admin', 'Configuracion'],
     ['box-audit', 'Auditoria']
   ]
 };
@@ -1854,46 +1854,41 @@ function renderBoxReceipts() {
 function renderBoxAdmin() {
   const cfg = boxBusinessConfig();
   const info = cfg.publicInfo || {};
-  boxSetPage('box-admin', boxPageShell('admin', 'box-admin', 'Administracion', 'Configuraciones y ediciones disponibles para administracion.', `
-    <div class="box-grid box-grid-2">
-      <section class="card box-panel">
-        <div class="sh"><div class="st">Configuracion de cobro</div><div class="sl"></div></div>
+  boxSetPage('box-admin', boxPageShell('admin', 'box-admin', 'Configuracion', 'Ajustes del box visibles solo para administradores.', `
+    <div class="box-config-layout">
+      <section class="card box-config-card box-span-2">
+        <div class="sh"><div class="st">Datos principales</div><div class="sl"></div></div>
         <div class="form-2">
           <div class="fg"><label class="fl">Mensualidad base</label><input class="fi" id="badmin_fee" type="number" min="0" value="${Number(cfg.monthlyFee || 400)}"/></div>
           <div class="fg"><label class="fl">Clases de prueba</label><input class="fi" id="badmin_trials" type="number" min="0" value="${Number(cfg.trialClassesAllowed || 1)}"/></div>
           <div class="fg"><label class="fl">Nombre publico</label><select class="fi" id="badmin_public_name"><option value="first" ${(cfg.publicStudentNameMode || 'first') === 'first' ? 'selected' : ''}>Primer nombre</option><option value="abbreviated" ${cfg.publicStudentNameMode === 'abbreviated' ? 'selected' : ''}>Abreviado</option><option value="full" ${cfg.publicStudentNameMode === 'full' ? 'selected' : ''}>Completo</option></select></div>
           <div class="fg"><label class="fl">WhatsApp informes</label><input class="fi" id="badmin_whatsapp" value="${boxAttr(cfg.contactWhatsApp || BOX_OWNER_CONTACT_PHONE)}"/></div>
-        </div>
-        <button class="btn btn-g btn-full" onclick="saveBoxAdminSettings()">Guardar configuracion</button>
-      </section>
-      <section class="card box-panel">
-        <div class="sh"><div class="st">Informacion publica</div><div class="sl"></div></div>
-        <div class="form-2">
           <div class="fg"><label class="fl">Ubicacion</label><input class="fi" id="badmin_location" value="${boxAttr(info.location || BOX_PUBLIC_LOCATION)}"/></div>
           <div class="fg"><label class="fl">Horario publico</label><input class="fi" id="badmin_schedule" value="${boxAttr(info.schedule || BOX_PUBLIC_SCHEDULE)}"/></div>
           <div class="fg"><label class="fl">Entrenador</label><input class="fi" id="badmin_coach" value="${boxAttr((info.coaches || [BOX_PUBLIC_COACH])[0] || BOX_PUBLIC_COACH)}"/></div>
           <div class="fg"><label class="fl">Descripcion corta</label><input class="fi" id="badmin_description" value="${boxAttr(info.description || BOX_PUBLIC_DESCRIPTION)}"/></div>
         </div>
-        <button class="btn btn-out btn-full" onclick="saveBoxAdminSettings()">Guardar informacion publica</button>
+        <button class="btn btn-g btn-full" onclick="saveBoxAdminSettings()">Guardar configuracion</button>
       </section>
-      <section class="card box-panel">
+      <section class="card box-config-card">
         <div class="sh"><div class="st">Alumnos</div><div class="sl"></div></div>
-        <div class="box-info-list"><div><strong>Alta y edicion</strong><span>Registro de alumno, telefono, mensualidad individual y estado.</span></div><div><strong>Eliminacion segura</strong><span>Da de baja al alumno y conserva historial de cobros/asistencia.</span></div></div>
-        <button class="btn btn-g btn-full" onclick="showPage('box-members', this)">Abrir alumnos</button>
+        <p class="box-muted">Alta, edicion y baja segura de alumnos con telefono, genero, edad, ingreso, estado, grupo y mensualidad.</p>
+        <button class="btn btn-g btn-full" onclick="boxOpenPage('box-members','students',this)">Abrir alumnos</button>
       </section>
-      <section class="card box-panel">
+      <section class="card box-config-card">
         <div class="sh"><div class="st">Mensualidades</div><div class="sl"></div></div>
-        <div class="box-info-list"><div><strong>Cargos</strong><span>Generacion mensual idempotente por alumno activo.</span></div><div><strong>Metodos</strong><span>Efectivo.</span></div></div>
-        <div class="box-action-row"><button class="btn btn-g btn-sm" onclick="showPage('box-billing', this)">Generar cargos</button><button class="btn btn-out btn-sm" onclick="showPage('box-payments', this)">Registrar pago</button></div>
+        <p class="box-muted">Genera cargos, registra pagos y revisa proximos cobros sin entrar al dashboard.</p>
+        <div class="box-action-grid"><button class="btn btn-g btn-full" onclick="boxOpenPage('box-billing','finance',this)">Cargos</button><button class="btn btn-out btn-full" onclick="boxOpenPage('box-payments','finance',this)">Pagos</button></div>
       </section>
-      <section class="card box-panel">
-        <div class="sh"><div class="st">Control interno</div><div class="sl"></div></div>
-        <div class="box-action-row"><button class="btn btn-out btn-sm" onclick="showPage('box-cash', this)">Entregas</button><button class="btn btn-out btn-sm" onclick="showPage('box-expenses', this)">Gastos</button><button class="btn btn-out btn-sm" onclick="showPage('box-reports', this)">Dashboard</button></div>
-      </section>
-      <section class="card box-panel">
+      <section class="card box-config-card">
         <div class="sh"><div class="st">Gastos</div><div class="sl"></div></div>
-        <div class="box-info-list"><div><strong>Administracion de gastos</strong><span>Agrega, edita o elimina gastos del negocio.</span></div><div><strong>Dashboard</strong><span>Los cambios se reflejan en ingresos, egresos y resultado neto.</span></div></div>
-        <div class="box-action-row"><button class="btn btn-g btn-sm" onclick="showPage('box-expenses', this)">Abrir gastos</button><button class="btn btn-out btn-sm" onclick="showPage('box-audit', this)">Auditoria</button></div>
+        <p class="box-muted">Agrega, edita o elimina gastos. Todo se refleja en resumen y auditoria.</p>
+        <button class="btn btn-g btn-full" onclick="boxOpenPage('box-expenses','finance',this)">Abrir gastos</button>
+      </section>
+      <section class="card box-config-card">
+        <div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>
+        <p class="box-muted">Consulta cambios del negocio con fecha, hora, usuario y entidad afectada.</p>
+        <button class="btn btn-out btn-full" onclick="boxOpenPage('box-audit','admin',this)">Ver auditoria</button>
       </section>
     </div>`));
 }

@@ -268,8 +268,8 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
 /* Business / Box Lombardo */
 .box-page{max-width:1120px;}
 .box-hero{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:28px;align-items:center;background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:8px;padding:28px;margin-bottom:14px;box-shadow:none;}
-.box-hero h1{font-family:'Montserrat',sans-serif;font-size:42px;font-weight:950;letter-spacing:.35px;text-transform:uppercase;color:#12316f;line-height:1.04;margin:4px 0 10px;}
-.box-hero p{font-size:14px;font-weight:800;line-height:1.62;color:#4b5563;max-width:620px;}
+.box-hero h1{font-family:'Montserrat',sans-serif;font-size:38px;font-weight:950;letter-spacing:.25px;text-transform:uppercase;color:#111827;line-height:1.08;margin:4px 0 10px;text-wrap:balance;}
+.box-hero p{font-size:14px;font-weight:800;line-height:1.58;color:#4b5563;max-width:560px;text-wrap:balance;}
 .box-kicker{font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--emerald);}
 .box-hero-logo{display:flex;justify-content:center;align-items:center;}
 .box-hero-logo img{width:190px;height:190px;object-fit:contain;filter:none;}
@@ -405,12 +405,15 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
 .box-public-student strong{display:block;font-size:14px;font-weight:900;color:#111827;}
 .box-public-student span{display:block;font-size:11px;font-weight:700;color:#6b7280;line-height:1.45;margin-top:2px;}
 .box-public-avatar{width:48px;height:48px;border-radius:999px;object-fit:cover;border:1px solid rgba(17,24,39,.08);background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#6b7280;flex-shrink:0;}
-.box-section-head-simple{align-items:center;min-height:86px;}
-.box-section-head-simple h2{font-size:34px;margin:0;}
+.box-section-head-simple{align-items:center;min-height:76px;padding:16px 18px;}
+.box-section-head-simple h2{font-size:30px;margin:0;line-height:1.05;}
 .box-student-directory{align-items:stretch;}
-.box-public-student-minimal{padding:16px;border-left:4px solid #f59e0b;}
+.box-public-student-minimal{padding:15px 16px;border-left:4px solid #f59e0b;min-height:86px;}
 .box-public-student-minimal strong{font-size:15px;margin-bottom:8px;}
 .box-public-student-minimal span{font-size:12px;}
+.box-config-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.box-config-card{min-height:180px;display:flex;flex-direction:column;}
+.box-config-card .btn-full,.box-config-card .box-action-grid{margin-top:auto;}
 .box-page .fi{background:#f9fafb;border-color:rgba(17,24,39,.12);border-radius:8px;}
 .box-page .fl{color:#4b5563;}
 .box-page .btn-g{background:#111827;box-shadow:none;}
@@ -426,14 +429,14 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
 .box-home-rules .box-list-item,.box-home-contact .box-list-item{position:relative;padding-left:18px;}
 .box-home-rules .box-list-item::before,.box-home-contact .box-list-item::before{content:'•';position:absolute;left:2px;color:#111827;font-weight:900;}
 @media (max-width:760px){
-  .box-hero{grid-template-columns:1fr;padding:22px 16px;text-align:center;gap:16px;}
-  .box-hero h1{font-size:34px;line-height:1.05;letter-spacing:.2px;margin-top:10px;text-wrap:balance;}
-  .box-hero p{font-size:13px;line-height:1.5;margin:0 auto;max-width:330px;text-wrap:balance;}
+  .box-hero{grid-template-columns:1fr;padding:20px 16px 22px;text-align:center;gap:14px;}
+  .box-hero h1{font-size:28px;line-height:1.12;letter-spacing:.1px;margin:6px auto 8px;max-width:330px;text-wrap:balance;}
+  .box-hero p{font-size:12px;line-height:1.5;margin:0 auto;max-width:310px;text-wrap:balance;}
   .box-hero-logo{display:flex;justify-content:center;order:-1;}
-  .box-hero-logo img{width:132px;height:132px;}
+  .box-hero-logo img{width:116px;height:116px;}
   .box-home-hero::before{left:14px;top:14px;}
   .box-home-hero::after{display:none;}
-  .box-grid-2,.box-report-grid,.box-home-strip,.box-rules-grid{grid-template-columns:1fr;}
+  .box-grid-2,.box-report-grid,.box-home-strip,.box-rules-grid,.box-config-layout{grid-template-columns:1fr;}
   .box-kpi-grid,.box-kpi-grid.primary,.box-kpi-grid.secondary{grid-template-columns:repeat(2,minmax(0,1fr));}
   .box-section-head{align-items:flex-start;flex-direction:column;padding:16px 14px;}
   .box-section-head h2{font-size:24px;}
@@ -449,6 +452,14 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
   .box-span-2{grid-column:auto;}
   .box-page .form-2,.box-page .form-3{grid-template-columns:1fr;}
   .box-page{padding-left:0;padding-right:0;}
+  .box-section-head-simple{min-height:64px;padding:14px 16px;border-radius:8px;}
+  .box-section-head-simple h2{font-size:26px;}
+  .box-student-directory{gap:9px;}
+  .box-public-student-minimal{min-height:74px;padding:13px 14px;}
+  .box-public-student-minimal strong{font-size:14px;margin-bottom:6px;}
+  .box-public-student-minimal span{font-size:11px;line-height:1.38;}
+  .box-page .empty{min-height:180px;padding:28px 16px;font-size:13px;}
+  .box-page .empty-icon{font-size:18px;margin-bottom:8px;}
 }
 
 /* ═══ FORM ═══ */
@@ -1862,7 +1873,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   .hdr-name{
     max-width:calc(100vw - 134px);
     font-family:'Montserrat',sans-serif;
-    font-size:23px;
+    font-size:20px;
     font-weight:950;
     letter-spacing:.2px;
     line-height:1.08;
@@ -1873,7 +1884,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   .hdr-cat{
     max-width:calc(100vw - 134px);
     margin-top:7px;
-    font-size:9px;
+    font-size:8.5px;
     font-weight:900;
     letter-spacing:.8px;
     line-height:1.38;
@@ -1956,7 +1967,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
     max-width:calc(100vw - 122px);
   }
   .hdr-name{
-    font-size:21px;
+    font-size:19px;
   }
   .ico-btn{
     min-width:38px;
