@@ -141,8 +141,8 @@ body{background:var(--bg);color:var(--text);font-family:'Montserrat',sans-serif;
 .hdr-logos{display:flex;align-items:center;gap:8px;flex-shrink:0;padding:0;}
 .hdr-shield{display:flex;align-items:center;}
 .hdr-torneo-logo{display:flex;align-items:center;}
-.hdr-name{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1.6px;color:var(--text);line-height:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.hdr-cat{font-size:12px;font-weight:800;letter-spacing:1.6px;color:var(--muted);text-transform:uppercase;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hdr-name{font-family:'Montserrat',sans-serif;font-size:25px;font-weight:950;letter-spacing:.35px;text-transform:uppercase;color:var(--text);line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hdr-cat{font-size:11px;font-weight:900;letter-spacing:1.1px;color:var(--muted);text-transform:uppercase;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hdr-right{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-shrink:0;padding:0;}
 .live-badge{background:rgba(220,38,38,.1);color:#dc2626;border:1px solid rgba(220,38,38,.22);font-size:10px;font-weight:800;letter-spacing:1px;padding:7px 10px;border-radius:999px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 18px rgba(220,38,38,.08);}
 .ldot{width:5px;height:5px;border-radius:50%;background:#dc2626;animation:pdot 1.5s infinite;}
@@ -268,8 +268,8 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
 /* Business / Box Lombardo */
 .box-page{max-width:1120px;}
 .box-hero{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:28px;align-items:center;background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:8px;padding:28px;margin-bottom:14px;box-shadow:none;}
-.box-hero h1{font-family:'Bebas Neue',sans-serif;font-size:54px;letter-spacing:1.8px;color:#12316f;line-height:.9;margin:4px 0 10px;}
-.box-hero p{font-size:14px;font-weight:700;line-height:1.7;color:#4b5563;max-width:620px;}
+.box-hero h1{font-family:'Montserrat',sans-serif;font-size:42px;font-weight:950;letter-spacing:.35px;text-transform:uppercase;color:#12316f;line-height:1.04;margin:4px 0 10px;}
+.box-hero p{font-size:14px;font-weight:800;line-height:1.62;color:#4b5563;max-width:620px;}
 .box-kicker{font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--emerald);}
 .box-hero-logo{display:flex;justify-content:center;align-items:center;}
 .box-hero-logo img{width:190px;height:190px;object-fit:contain;filter:none;}
@@ -427,8 +427,8 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
 .box-home-rules .box-list-item::before,.box-home-contact .box-list-item::before{content:'•';position:absolute;left:2px;color:#111827;font-weight:900;}
 @media (max-width:760px){
   .box-hero{grid-template-columns:1fr;padding:22px 16px;text-align:center;gap:16px;}
-  .box-hero h1{font-size:43px;line-height:.92;margin-top:12px;}
-  .box-hero p{font-size:13px;line-height:1.55;margin:0 auto;max-width:330px;}
+  .box-hero h1{font-size:34px;line-height:1.05;letter-spacing:.2px;margin-top:10px;text-wrap:balance;}
+  .box-hero p{font-size:13px;line-height:1.5;margin:0 auto;max-width:330px;text-wrap:balance;}
   .box-hero-logo{display:flex;justify-content:center;order:-1;}
   .box-hero-logo img{width:132px;height:132px;}
   .box-home-hero::before{left:14px;top:14px;}
@@ -1861,18 +1861,22 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   }
   .hdr-name{
     max-width:calc(100vw - 134px);
-    font-size:30px;
-    letter-spacing:1px;
-    line-height:.9;
+    font-family:'Montserrat',sans-serif;
+    font-size:23px;
+    font-weight:950;
+    letter-spacing:.2px;
+    line-height:1.08;
+    text-transform:uppercase;
     color:#07162c;
     text-wrap:balance;
   }
   .hdr-cat{
     max-width:calc(100vw - 134px);
-    margin-top:8px;
-    font-size:10px;
-    letter-spacing:1.05px;
-    line-height:1.35;
+    margin-top:7px;
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.8px;
+    line-height:1.38;
     color:#647da6;
   }
   .hdr-logos{
@@ -1952,7 +1956,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
     max-width:calc(100vw - 122px);
   }
   .hdr-name{
-    font-size:27px;
+    font-size:21px;
   }
   .ico-btn{
     min-width:38px;
