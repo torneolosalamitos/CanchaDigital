@@ -20,6 +20,7 @@ service cloud.firestore {
     function isOwner() {
       return signedIn() &&
         (
+          request.auth.token.email == 'edanchra@gmail.com' ||
           request.auth.token.email == 'Edanchra@gmail.com' ||
           request.auth.token.email == 'admincanchadigital@gmail.com'
         );
@@ -102,12 +103,10 @@ service cloud.firestore {
         (
           request.auth.uid == uid &&
           request.resource.data.role == resource.data.role &&
-          request.resource.data.businessRoles == resource.data.businessRoles
+          request.resource.data.businessRoles == resource.data.businessRoles &&
+          request.resource.data.adminScope == resource.data.adminScope
         ) ||
-        (
-          isAdmin() &&
-          request.resource.data.role == 'captain'
-        )
+        false
       );
       allow delete: if isOwner();
     }
@@ -238,17 +237,17 @@ service cloud.firestore {
 
       match /members/{id} {
         allow read: if businessMember(businessId);
-        allow create: if businessMoneyManager(businessId) &&
+        allow create: if businessWriter(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId);
-        allow update: if businessMoneyManager(businessId) &&
+        allow update: if businessWriter(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId) &&
           request.resource.data.createdAt == resource.data.createdAt;
         allow delete: if false;
       }
 
       match /guardians/{id} {
-        allow read: if businessMoneyManager(businessId);
-        allow create, update: if businessMoneyManager(businessId) &&
+        allow read: if businessWriter(businessId) || businessAuditor(businessId);
+        allow create, update: if businessWriter(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId);
         allow delete: if false;
       }

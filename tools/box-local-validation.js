@@ -12,6 +12,7 @@ const VALIDATION_MEMBER_ID = `member-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_2_ID = `member-validation-cash-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_3_ID = `member-validation-wa-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_TRANSFER_ID = `member-validation-transfer-${VALIDATION_SUFFIX}`;
+const VALIDATION_MEMBER_TRAINER_ID = `member-validation-trainer-${VALIDATION_SUFFIX}`;
 const VALIDATION_GROUP_ID = `group-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_ATTENDANCE_ID = `attendance-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_SESSION_ID = `session-validation-${VALIDATION_SUFFIX}`;
@@ -23,6 +24,8 @@ const VALIDATION_CHARGE_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_ID}`;
 const VALIDATION_CHARGE_2_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_2_ID}`;
 const VALIDATION_CHARGE_3_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_3_ID}`;
 const VALIDATION_CHARGE_TRANSFER_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_TRANSFER_ID}`;
+const VALIDATION_TRAINER_CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
+const VALIDATION_CHARGE_TRAINER_ID = `${VALIDATION_TRAINER_CURRENT_PERIOD}_${VALIDATION_MEMBER_TRAINER_ID}`;
 
 const results = [];
 const tokenMeta = new Map();
@@ -251,6 +254,32 @@ async function validate() {
       status: 'active'
     }, adminToken);
     return { id: VALIDATION_GROUP_ID };
+  });
+
+  await step('Entrenador registra alumno y se vincula a mensualidades', async () => {
+    await fsSet(`${rootPath}/members/${VALIDATION_MEMBER_TRAINER_ID}`, {
+      businessId: BOX_BUSINESS_ID,
+      folio: `BOX-ALU-${VALIDATION_MEMBER_TRAINER_ID}`,
+      fullName: 'Alumno Registrado Entrenador',
+      gender: 'masculino',
+      age: 14,
+      phone: '6672220003',
+      status: 'active',
+      groupId: VALIDATION_GROUP_ID,
+      monthlyFee: 400,
+      discountAmount: 0,
+      guardianIds: [],
+      startDate: new Date().toISOString().slice(0, 10),
+      createdBy: TEST_USERS.trainer.uid,
+      updatedBy: TEST_USERS.trainer.uid
+    }, trainerToken);
+    await callFunction('boxEnsureMemberCurrentCharge', trainerToken, {
+      memberId: VALIDATION_MEMBER_TRAINER_ID,
+      startDate: new Date().toISOString().slice(0, 10)
+    });
+    const charge = await adminDoc(`${rootPath}/charges/${VALIDATION_CHARGE_TRAINER_ID}`);
+    if (charge.memberId !== VALIDATION_MEMBER_TRAINER_ID || charge.expectedAmount !== 400) throw new Error('Cargo del alumno del entrenador no se creo correctamente');
+    return { memberId: VALIDATION_MEMBER_TRAINER_ID, chargeId: VALIDATION_CHARGE_TRAINER_ID };
   });
 
   await step('Registro de asistencia via reglas Firestore', async () => {

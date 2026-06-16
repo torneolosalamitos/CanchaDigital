@@ -85,11 +85,11 @@ function onAuthChange(user){
   const applyUserProfile = (userData = {}) => {
     if (uid && C?.usuarios) C.usuarios[uid] = { ...(C.usuarios[uid] || {}), ...userData, uid };
     const role = isOwner ? 'admin' : (userData.role||'viewer');
-    isAdmin = (role === 'admin');
+    isAdmin = isOwner || (role === 'admin');
     const normalizedScope = normalizeAdminScope(userData.adminScope || {});
     adminScope = isOwner
       ? normalizeAdminScope(buildFullAdminScope())
-      : (role === 'admin' && !Object.keys(normalizedScope).length ? normalizeAdminScope(buildFullAdminScope()) : normalizedScope);
+      : normalizedScope;
     const capFlag = (role === 'captain');
     const capKey  = userData.equipoKey || null;
     updateAdminUI(isAdmin, isOwner, capFlag, capKey);
@@ -152,7 +152,7 @@ function updateAdminUI(adminFlag, ownerFlag, captainFlag, capEquipoKey){
   if(adminBadge) adminBadge.style.display = canAct?'block':'none';
   if(loginBtn)   loginBtn.style.display   = currentUser ? 'none' : 'block';
   if(logoutBtn)  logoutBtn.style.display  = currentUser ? 'block' : 'none';
-  if(usersBtn)   usersBtn.style.display   = adminFlag?'':'none';
+  if(usersBtn)   usersBtn.style.display   = ownerFlag?'':'none';
   if(userChip){
     userChip.classList.toggle('show', !!currentUser);
     if(userChipName){
@@ -821,8 +821,8 @@ function renderUsuariosPanel(filter=''){
     const actionBtns = isOwnerU ? '' : `
       <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;margin-top:6px">
         ${isOwner ? `<button class="btn btn-g btn-sm" onclick="openSetAdmin('${u.uid}')">${u.role==='admin'?'⚙️ Editar admin':'⚙️ Admin'}</button>` : ''}
-        ${(isOwner || u.role==='viewer') && u.role!=='captain' ? `<button class="btn btn-sm" style="background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.25);border-radius:7px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:800" onclick="openSetCaptain('${u.uid}')">⚽ Capitán</button>` : ''}
-        ${(isOwner || u.role==='captain') && u.role!=='viewer' ? `<button class="btn btn-out btn-sm" onclick="setUserRole('${u.uid}','viewer')">Quitar rol</button>` : ''}
+        ${isOwner && u.role!=='captain' ? `<button class="btn btn-sm" style="background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.25);border-radius:7px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:800" onclick="openSetCaptain('${u.uid}')">⚽ Capitán</button>` : ''}
+        ${isOwner && u.role!=='viewer' ? `<button class="btn btn-out btn-sm" onclick="setUserRole('${u.uid}','viewer')">Quitar rol</button>` : ''}
       </div>`;
     return `<div class="user-row" style="flex-wrap:wrap;align-items:flex-start">
       <div class="user-avatar" style="margin-top:2px">${initials}</div>
@@ -843,8 +843,8 @@ function filterUsuarios(q){
 }
 
 async function setUserRole(uid, role){
-  if(role === 'admin' && !isOwner){
-    showToast('Solo el propietario puede hacer administradores','tr');
+  if(!isOwner){
+    showToast('Solo el propietario puede modificar roles','tr');
     return;
   }
   const updates = { role };
@@ -934,6 +934,10 @@ async function saveAdminRole(){
 //  CAPTAIN MANAGEMENT
 // ══════════════════════════════════════════════
 function openSetCaptain(uid){
+  if(!isOwner){
+    showToast('Solo el propietario puede asignar capitanes','tr');
+    return;
+  }
   const u = C.usuarios[uid]; if(!u) return;
   document.getElementById('sc_uid').value = uid;
   const info = document.getElementById('sc_user_info');
@@ -952,6 +956,10 @@ function openSetCaptain(uid){
 }
 
 async function saveCaptain(){
+  if(!isOwner){
+    showToast('Solo el propietario puede guardar roles','tr');
+    return;
+  }
   const uid = document.getElementById('sc_uid').value;
   const equipoKey = document.getElementById('sc_equipo').value;
   if(!uid || !equipoKey){ showToast('Selecciona un equipo','ta'); return; }

@@ -90,6 +90,7 @@ const BOX_COLLECTIONS = [
 
 const BOX_TRAINER_COLLECTIONS = [
   'members',
+  'guardians',
   'groups',
   'sessions',
   'attendance',
@@ -188,7 +189,7 @@ const BOX_ADMIN_MAIN_NAV = [
 
 const BOX_TRAINER_MAIN_NAV = [
   ['box-public', 'Inicio'],
-  ['box-public-students', 'Alumnos'],
+  ['box-members', 'Alumnos'],
   ['box-attendance', 'Asistencias'],
   ['box-finance', 'Mensualidades']
 ];
@@ -222,12 +223,7 @@ const BOX_SECONDARY_NAV = {
   ],
   admin: [
     ['box-admin', 'Principal'],
-    ['box-permissions', 'Usuarios'],
-    ['box-settings', 'Box'],
-    ['box-groups', 'Horarios'],
-    ['box-audit', 'Historico'],
-    ['box-receipts', 'WhatsApp'],
-    ['box-admin-folios', 'Parametros']
+    ['box-audit', 'Auditoria']
   ]
 };
 
@@ -834,7 +830,7 @@ function renderBoxPublic() {
   const location = info.location || BOX_PUBLIC_LOCATION;
   const schedule = info.schedule || BOX_PUBLIC_SCHEDULE;
   const coaches = Array.isArray(info.coaches) && info.coaches.length ? info.coaches : [BOX_PUBLIC_COACH];
-  const description = info.description || BOX_PUBLIC_DESCRIPTION;
+  const description = 'Disciplina, confianza y acondicionamiento para todas las edades.';
   boxSetPage('box-public', `
     <div class="box-hero box-home-hero">
       <div>
@@ -848,9 +844,12 @@ function renderBoxPublic() {
         <div class="box-card-symbol">📍</div>
         <div class="sh"><div class="st">Ubicacion</div><div class="sl"></div></div>
         <p class="box-card-main">${location}</p>
-        <a class="box-map-card" href="${BOX_PUBLIC_MAPS_URL}" target="_blank" rel="noopener">
-          <span>🗺️</span>
-          <strong>Abrir mapa</strong>
+        <a class="box-geo-card" href="${BOX_PUBLIC_MAPS_URL}" target="_blank" rel="noopener" aria-label="Abrir ubicacion de ${BOX_PUBLIC_BRAND}">
+          <span class="box-geo-road box-geo-road-a"></span>
+          <span class="box-geo-road box-geo-road-b"></span>
+          <span class="box-geo-road box-geo-road-c"></span>
+          <span class="box-geo-pin">⌖</span>
+          <span class="box-geo-label">Abrir mapa</span>
         </a>
       </section>
       <section class="card box-home-card">
@@ -859,7 +858,6 @@ function renderBoxPublic() {
         <div class="box-schedule-list">
           ${BOX_PUBLIC_SCHEDULE_DAYS.map((day) => `<div><strong>${day}</strong><span>5:00 PM - 8:00 PM</span></div>`).join('')}
         </div>
-        <p class="box-muted">${schedule}</p>
       </section>
       <section class="card box-home-card">
         <div class="box-card-symbol">🥊</div>
@@ -1018,15 +1016,18 @@ function renderBoxMembers() {
   const members = Object.values(boxState.members).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
   const groupOptions = Object.values(boxState.groups).map((g) => `<option value="${g.id}">${g.name}</option>`).join('');
   boxSetPage('box-members', `
-    ${boxSectionHeader('Alumnos', 'Expediente, tutor, grupo y estado operativo de cada alumno.')}
+    ${boxSectionHeader('Alumnos', 'Registro, edicion y control mensual de alumnos.')}
     ${boxTabs('students', 'box-members')}
     <div class="box-grid box-grid-2">
       <section class="card">
         <div class="sh"><div class="st">Alta de alumno</div><div class="sl"></div></div>
         <input type="hidden" id="bm_id"/>
         <div class="form-2">
-          <div class="fg"><label class="fl">Alumno</label><input class="fi" id="bm_name"/></div>
-          <div class="fg"><label class="fl">Fecha nacimiento</label><input class="fi" id="bm_birth" type="date"/></div>
+          <div class="fg"><label class="fl">Nombre y apellido</label><input class="fi" id="bm_name"/></div>
+          <div class="fg"><label class="fl">Genero</label><select class="fi" id="bm_gender"><option value="">No especificado</option><option value="masculino">Masculino</option><option value="femenino">Femenino</option><option value="otro">Otro</option></select></div>
+          <div class="fg"><label class="fl">Edad</label><input class="fi" id="bm_age" type="number" min="0" max="120"/></div>
+          <div class="fg"><label class="fl">Fecha de ingreso</label><input class="fi" id="bm_start" type="date" value="${boxNowISO()}"/></div>
+          <div class="fg"><label class="fl">Telefono</label><input class="fi" id="bm_phone" inputmode="tel"/></div>
           <div class="fg"><label class="fl">Estado</label><select class="fi" id="bm_status">${Object.entries(BOX_MEMBER_STATUS_LABELS).map(([k, v]) => `<option value="${k}" ${k === 'active' ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
           <div class="fg"><label class="fl">Grupo</label><select class="fi" id="bm_group"><option value="">Sin grupo</option>${groupOptions}</select></div>
           <div class="fg"><label class="fl">Mensualidad</label><input class="fi" id="bm_fee" type="number" min="0" value="${Number(cfg.monthlyFee || 400)}"/></div>
@@ -1035,12 +1036,11 @@ function renderBoxMembers() {
         <div class="fg"><label class="fl">Notas</label><textarea class="fi" id="bm_notes"></textarea></div>
         <hr class="divider"/>
         <div class="form-2">
-          <div class="fg"><label class="fl">Tutor</label><input class="fi" id="bm_guardian"/></div>
+          <div class="fg"><label class="fl">Contacto / tutor</label><input class="fi" id="bm_guardian" placeholder="Opcional"/></div>
           <div class="fg"><label class="fl">Relacion</label><input class="fi" id="bm_relation" placeholder="Mama, papa, tutor"/></div>
-          <div class="fg"><label class="fl">Telefono</label><input class="fi" id="bm_phone" inputmode="tel"/></div>
           <div class="fg"><label class="fl">WhatsApp</label><input class="fi" id="bm_whatsapp" inputmode="tel"/></div>
         </div>
-        <button class="btn btn-g btn-full" onclick="saveBoxMember()">Guardar alumno y tutor</button>
+        <button class="btn btn-g btn-full" onclick="saveBoxMember()">Guardar alumno</button>
       </section>
       <section class="card">
         <div class="sh"><div class="st">Alumnos</div><div class="sl"></div></div>
@@ -1056,15 +1056,17 @@ function renderBoxMemberCard(member) {
   const pending = Object.values(boxState.charges).filter((c) => c.memberId === member.id && Number(c.balance || 0) > 0);
   const payState = boxMemberPaymentState(member);
   const isInactive = ['inactive', 'permanent_leave', 'temporary_leave'].includes(member.status);
-  const adminActions = canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)
+  const canEditMembers = canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID);
+  const adminActions = canEditMembers
     ? `<button class="btn btn-out btn-sm" onclick="fillBoxMember('${member.id}')">Editar</button>
-      ${isInactive ? `<button class="btn btn-g btn-sm" onclick="reactivateBoxMember('${member.id}')">Reactivar</button>` : `<button class="btn btn-r btn-sm" onclick="deactivateBoxMember('${member.id}')">Baja</button>`}`
+      ${isInactive ? `<button class="btn btn-g btn-sm" onclick="reactivateBoxMember('${member.id}')">Reactivar</button>` : `<button class="btn btn-r btn-sm" onclick="deactivateBoxMember('${member.id}')">Eliminar</button>`}`
     : '';
   return `<div class="box-row">
     <div>
       <strong>${member.fullName || '-'}</strong>
-      <span>${BOX_MEMBER_STATUS_LABELS[member.status] || member.status} Â· ${group} Â· Tutor: ${guardians}</span>
-      <span>Mensualidad ${boxMoney(member.monthlyFee)} Â· Ultimo pago: ${lastPayment ? boxMoney(lastPayment.paidAmount) : '-'} Â· vence ${payState.dueDate || '-'}</span>
+      <span>${BOX_MEMBER_STATUS_LABELS[member.status] || member.status} · ${boxPublicGender(member)} · ${member.age ?? '-'} anos · ${group}</span>
+      <span>Ingreso ${member.startDate || '-'} · Tel. ${member.phone || boxState.guardians[(member.guardianIds || [])[0]]?.primaryPhone || '-'} · mensualidad ${boxMoney(member.monthlyFee)}</span>
+      <span>Ultimo pago: ${lastPayment ? boxMoney(lastPayment.paidAmount) : '-'} · vence ${payState.dueDate || '-'}</span>
     </div>
     <div class="box-row-actions">
       <span class="box-pill ${payState.tone || ''}">${payState.label}</span>
@@ -1076,29 +1078,33 @@ function renderBoxMemberCard(member) {
 
 async function saveBoxMember() {
   if (!fs || !currentUser) return showToast('Inicia sesion para guardar', 'ta');
-  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede guardar alumnos', 'tr');
+  if (!canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID)) return showToast('No tienes permiso para guardar alumnos', 'tr');
   const memberId = document.getElementById('bm_id')?.value || '';
   const fullName = document.getElementById('bm_name')?.value.trim();
-  const guardianName = document.getElementById('bm_guardian')?.value.trim();
   const phone = boxNormalizePhone(document.getElementById('bm_phone')?.value);
-  if (!fullName || !guardianName || phone.length !== 10) return showToast('Alumno, tutor y telefono son obligatorios', 'ta');
+  const guardianName = document.getElementById('bm_guardian')?.value.trim() || `Contacto de ${fullName}`;
+  if (!fullName || phone.length !== 10) return showToast('Nombre, apellido y telefono son obligatorios', 'ta');
   const guardianExisting = Object.values(boxState.guardians).find((g) => boxNormalizePhone(g.primaryPhone) === phone);
   const guardianRef = guardianExisting ? boxPath('guardians', guardianExisting.id) : boxPath('guardians').doc();
   const memberRef = memberId ? boxPath('members', memberId) : boxPath('members').doc();
   const guardianId = guardianRef.id;
   const prev = memberId ? boxState.members[memberId] : null;
-  const birthDate = document.getElementById('bm_birth')?.value || null;
+  const age = Number(document.getElementById('bm_age')?.value || 0) || null;
+  const startDate = document.getElementById('bm_start')?.value || prev?.startDate || boxNowISO();
   const payload = {
     businessId: BOX_LOMBARDO_BUSINESS_ID,
     fullName,
-    birthDate,
-    age: birthDate ? Math.max(0, Math.floor((Date.now() - new Date(birthDate).getTime()) / 31557600000)) : null,
+    gender: document.getElementById('bm_gender')?.value || '',
+    age,
+    phone,
     status: document.getElementById('bm_status')?.value || 'active',
     groupId: document.getElementById('bm_group')?.value || '',
     monthlyFee: Number(document.getElementById('bm_fee')?.value || boxBusinessConfig().monthlyFee || 400),
     discountAmount: Number(document.getElementById('bm_discount')?.value || 0),
     scholarshipType: null,
-    startDate: prev?.startDate || boxNowISO(),
+    startDate,
+    billingAnchorDay: Number(String(startDate).slice(-2)) || null,
+    nextDueDate: startDate,
     endDate: null,
     guardianIds: [...new Set([...(prev?.guardianIds || []), guardianId])],
     notes: document.getElementById('bm_notes')?.value.trim() || '',
@@ -1129,6 +1135,11 @@ async function saveBoxMember() {
   batch.set(memberRef, payload, { merge: true });
   await batch.commit();
   await boxAudit(prev ? 'member_updated' : 'member_created', 'member', memberRef.id, prev, payload);
+  await boxCallable('boxEnsureMemberCurrentCharge', {
+    memberId: memberRef.id,
+    startDate,
+    idempotencyKey: `member_charge_${memberRef.id}_${startDate}`
+  }).catch((error) => console.warn('box ensure member charge', error));
   await syncBoxPublicStudents({ [memberRef.id]: { id: memberRef.id, ...prev, ...payload } });
   showToast('Alumno guardado', 'tg');
   renderBoxMembers();
@@ -1140,7 +1151,9 @@ function fillBoxMember(id) {
   const guardian = boxState.guardians[(member.guardianIds || [])[0]] || {};
   document.getElementById('bm_id').value = id;
   document.getElementById('bm_name').value = member.fullName || '';
-  document.getElementById('bm_birth').value = member.birthDate || '';
+  document.getElementById('bm_gender').value = member.gender || member.genero || '';
+  document.getElementById('bm_age').value = member.age || '';
+  document.getElementById('bm_start').value = member.startDate || boxNowISO();
   document.getElementById('bm_status').value = member.status || 'active';
   document.getElementById('bm_group').value = member.groupId || '';
   document.getElementById('bm_fee').value = Number(member.monthlyFee || boxBusinessConfig().monthlyFee || 400);
@@ -1148,13 +1161,13 @@ function fillBoxMember(id) {
   document.getElementById('bm_notes').value = member.notes || '';
   document.getElementById('bm_guardian').value = guardian.fullName || '';
   document.getElementById('bm_relation').value = guardian.relationship || '';
-  document.getElementById('bm_phone').value = guardian.primaryPhone || '';
+  document.getElementById('bm_phone').value = member.phone || guardian.primaryPhone || '';
   document.getElementById('bm_whatsapp').value = guardian.whatsappNumber || '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function deactivateBoxMember(id) {
-  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede dar bajas', 'tr');
+  if (!canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID)) return showToast('No tienes permiso para eliminar alumnos', 'tr');
   const member = boxState.members[id];
   if (!member) return;
   const reason = prompt('Motivo de baja o cambio de estado');
@@ -1169,11 +1182,11 @@ async function deactivateBoxMember(id) {
   }, { merge: true });
   await boxAudit('member_status_changed', 'member', id, { status: member.status }, { status: 'inactive' }, reason);
   await syncBoxPublicStudents({ [id]: { ...member, status: 'inactive', endDate: boxNowISO() } });
-  showToast('Alumno dado de baja sin eliminar historial', 'tg');
+  showToast('Alumno eliminado del padron activo sin perder historial', 'tg');
 }
 
 async function reactivateBoxMember(id) {
-  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede reactivar alumnos', 'tr');
+  if (!canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID)) return showToast('No tienes permiso para reactivar alumnos', 'tr');
   const member = boxState.members[id];
   if (!member) return;
   const nextStatus = member.previousStatus && !['inactive', 'permanent_leave', 'temporary_leave'].includes(member.previousStatus)
@@ -1682,6 +1695,7 @@ function renderBoxExpenses() {
     <div class="box-grid box-grid-2">
       <section class="card">
         <div class="sh"><div class="st">Registrar gasto</div><div class="sl"></div></div>
+        <input type="hidden" id="be_id"/>
         <div class="form-2">
           <div class="fg"><label class="fl">Concepto</label><input class="fi" id="be_concept"/></div>
           <div class="fg"><label class="fl">Categoria</label><select class="fi" id="be_category">${(cfg.expenseCategories || []).map((c) => `<option value="${c}">${c}</option>`).join('')}</select></div>
@@ -1691,17 +1705,20 @@ function renderBoxExpenses() {
         <div class="fg"><label class="fl">Descripcion</label><textarea class="fi" id="be_desc"></textarea></div>
         <button class="btn btn-g btn-full" onclick="saveBoxExpense()">Guardar gasto</button>
       </section>
-      <section class="card"><div class="sh"><div class="st">Gastos</div><div class="sl"></div></div>${expenses.length ? expenses.map((e) => `<div class="box-row"><div><strong>${e.folio || e.concept}</strong><span>${e.category} Â· ${boxMoney(e.amount)} Â· ${e.status}</span><span>${e.description || ''}</span></div></div>`).join('') : boxEmpty('Sin gastos')}</section>
+      <section class="card"><div class="sh"><div class="st">Gastos</div><div class="sl"></div></div>${expenses.length ? expenses.map((e) => `<div class="box-row"><div><strong>${e.folio || e.concept}</strong><span>${e.category} · ${boxMoney(e.amount)} · ${e.status}</span><span>${e.description || ''}</span></div><div class="box-row-actions"><button class="btn btn-out btn-sm" onclick="fillBoxExpense('${e.id}')">Editar</button><button class="btn btn-r btn-sm" onclick="deleteBoxExpense('${e.id}')">Eliminar</button></div></div>`).join('') : boxEmpty('Sin gastos')}</section>
     </div>`);
 }
 
 async function saveBoxExpense() {
+  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede guardar gastos', 'tr');
+  const expenseId = document.getElementById('be_id')?.value || '';
   const concept = document.getElementById('be_concept')?.value.trim();
   const amount = Number(document.getElementById('be_amount')?.value || 0);
   if (!concept || amount <= 0) return showToast('Concepto y monto requeridos', 'ta');
+  const prev = expenseId ? boxState.expenses[expenseId] : null;
   const payload = {
     businessId: BOX_LOMBARDO_BUSINESS_ID,
-    folio: `BOX-GAS-${Date.now()}`,
+    folio: prev?.folio || `BOX-GAS-${Date.now()}`,
     concept,
     category: document.getElementById('be_category')?.value || 'Otros',
     amount,
@@ -1711,11 +1728,44 @@ async function saveBoxExpense() {
     paymentMethod: 'cash',
     description: document.getElementById('be_desc')?.value.trim() || '',
     status: canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) ? 'authorized' : 'requested',
-    createdAt: boxServerTimestamp()
+    updatedAt: boxServerTimestamp()
   };
-  const ref = await boxPath('expenses').add(payload);
-  await boxAudit('expense_created', 'expense', ref.id, null, payload);
-  showToast('Gasto guardado', 'tg');
+  if (!prev) payload.createdAt = boxServerTimestamp();
+  const ref = expenseId ? boxPath('expenses', expenseId) : boxPath('expenses').doc();
+  await ref.set(payload, { merge: true });
+  await boxAudit(prev ? 'expense_updated' : 'expense_created', 'expense', ref.id, prev, payload);
+  showToast(prev ? 'Gasto actualizado' : 'Gasto guardado', 'tg');
+  renderBoxExpenses();
+}
+
+function fillBoxExpense(id) {
+  const expense = boxState.expenses[id];
+  if (!expense) return;
+  document.getElementById('be_id').value = id;
+  document.getElementById('be_concept').value = expense.concept || '';
+  document.getElementById('be_category').value = expense.category || 'Otros';
+  document.getElementById('be_amount').value = Number(expense.amount || 0);
+  document.getElementById('be_date').value = expense.date || boxNowISO();
+  document.getElementById('be_desc').value = expense.description || '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteBoxExpense(id) {
+  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede eliminar gastos', 'tr');
+  const expense = boxState.expenses[id];
+  if (!expense) return;
+  const reason = prompt('Motivo para eliminar/cancelar este gasto') || '';
+  if (!reason) return;
+  await boxPath('expenses', id).set({
+    status: 'canceled',
+    canceledBy: currentUser?.uid || '',
+    canceledAt: boxServerTimestamp(),
+    cancelReason: reason,
+    updatedAt: boxServerTimestamp()
+  }, { merge: true });
+  await boxAudit('expense_canceled', 'expense', id, expense, { status: 'canceled', reason });
+  showToast('Gasto eliminado del resumen', 'tg');
+  renderBoxExpenses();
 }
 
 function renderBoxReports() {
@@ -1837,13 +1887,8 @@ function renderBoxAdmin() {
       </section>
       <section class="card box-panel">
         <div class="sh"><div class="st">Alumnos</div><div class="sl"></div></div>
-        <div class="box-info-list"><div><strong>Alta y edicion</strong><span>Registro de alumno, tutor, mensualidad individual y estado.</span></div><div><strong>Baja segura</strong><span>No elimina historial; cambia estado y conserva pagos/asistencia.</span></div></div>
+        <div class="box-info-list"><div><strong>Alta y edicion</strong><span>Registro de alumno, telefono, mensualidad individual y estado.</span></div><div><strong>Eliminacion segura</strong><span>Da de baja al alumno y conserva historial de cobros/asistencia.</span></div></div>
         <button class="btn btn-g btn-full" onclick="showPage('box-members', this)">Abrir alumnos</button>
-      </section>
-      <section class="card box-panel">
-        <div class="sh"><div class="st">Horarios</div><div class="sl"></div></div>
-        <div class="box-info-list"><div><strong>Grupos</strong><span>Crear horarios por dias, hora de inicio, fin y capacidad.</span></div><div><strong>Uso operativo</strong><span>Sirven para asistencia y organizacion interna.</span></div></div>
-        <button class="btn btn-g btn-full" onclick="boxOpenPage('box-groups','admin', this)">Editar horarios</button>
       </section>
       <section class="card box-panel">
         <div class="sh"><div class="st">Mensualidades</div><div class="sl"></div></div>
@@ -1855,14 +1900,9 @@ function renderBoxAdmin() {
         <div class="box-action-row"><button class="btn btn-out btn-sm" onclick="showPage('box-cash', this)">Entregas</button><button class="btn btn-out btn-sm" onclick="showPage('box-expenses', this)">Gastos</button><button class="btn btn-out btn-sm" onclick="showPage('box-reports', this)">Resumen</button></div>
       </section>
       <section class="card box-panel">
-        <div class="sh"><div class="st">Personal y auditoria</div><div class="sl"></div></div>
-        <div class="box-info-list"><div><strong>Roles</strong><span>Dueño, administrador, entrenador y auditor.</span></div><div><strong>Auditoria</strong><span>Historial de cambios relevantes.</span></div></div>
-        <div class="box-action-row"><button class="btn btn-out btn-sm" onclick="showPage('box-permissions', this)">Permisos</button><button class="btn btn-out btn-sm" onclick="showPage('box-audit', this)">Auditoria</button></div>
-      </section>
-      <section class="card box-panel">
-        <div class="sh"><div class="st">Comprobantes</div><div class="sl"></div></div>
-        <div class="box-info-list"><div><strong>WhatsApp</strong><span>Envios, errores y reintentos de recibos.</span></div><div><strong>Folios</strong><span>Conteo operativo de pagos, entregas y gastos.</span></div></div>
-        <div class="box-action-row"><button class="btn btn-out btn-sm" onclick="showPage('box-receipts', this)">Comprobantes</button><button class="btn btn-out btn-sm" onclick="showPage('box-admin-folios', this)">Folios</button></div>
+        <div class="sh"><div class="st">Gastos</div><div class="sl"></div></div>
+        <div class="box-info-list"><div><strong>Administracion de gastos</strong><span>Agrega, edita o elimina gastos del negocio.</span></div><div><strong>Resumen</strong><span>Los cambios se reflejan en ingresos, egresos y resultado neto.</span></div></div>
+        <div class="box-action-row"><button class="btn btn-g btn-sm" onclick="showPage('box-expenses', this)">Abrir gastos</button><button class="btn btn-out btn-sm" onclick="showPage('box-audit', this)">Auditoria</button></div>
       </section>
     </div>`));
 }
@@ -1870,40 +1910,44 @@ function renderBoxAdmin() {
 async function saveBoxAdminSettings() {
   if (!fs || !currentUser) return showToast('Inicia sesion para guardar', 'ta');
   if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede cambiar configuracion', 'tr');
-  const monthlyFee = Number(document.getElementById('badmin_fee')?.value || 0);
-  const trialClassesAllowed = Number(document.getElementById('badmin_trials')?.value || 0);
-  const publicStudentNameMode = document.getElementById('badmin_public_name')?.value || 'first';
-  const contactWhatsApp = boxNormalizePhone(document.getElementById('badmin_whatsapp')?.value || BOX_OWNER_CONTACT_PHONE);
-  const publicInfo = {
-    ...(boxBusinessConfig().publicInfo || {}),
-    location: document.getElementById('badmin_location')?.value.trim() || BOX_PUBLIC_LOCATION,
-    schedule: document.getElementById('badmin_schedule')?.value.trim() || BOX_PUBLIC_SCHEDULE,
-    coaches: [document.getElementById('badmin_coach')?.value.trim() || BOX_PUBLIC_COACH],
-    description: document.getElementById('badmin_description')?.value.trim() || BOX_PUBLIC_DESCRIPTION
-  };
-  if (monthlyFee < 0 || trialClassesAllowed < 0) return showToast('Captura valores validos', 'ta');
-  const prev = boxBusinessConfig();
-  const patch = {
-    monthlyFee,
-    trialClassesAllowed,
-    publicStudentNameMode,
-    contactWhatsApp,
-    publicInfo,
-    paymentMethodsEnabled: ['cash', 'transfer'],
-    updatedBy: currentUser.uid,
-    updatedAt: boxServerTimestamp()
-  };
-  await fs.collection('businesses').doc(BOX_LOMBARDO_BUSINESS_ID).set(patch, { merge: true });
-  Object.assign(BUSINESS_CATALOG[BOX_LOMBARDO_BUSINESS_ID], patch);
-  await boxAudit('business_settings_updated', 'business', BOX_LOMBARDO_BUSINESS_ID, {
-    monthlyFee: prev.monthlyFee,
-    trialClassesAllowed: prev.trialClassesAllowed,
-    publicStudentNameMode: prev.publicStudentNameMode,
-    contactWhatsApp: prev.contactWhatsApp,
-    publicInfo: prev.publicInfo || null
-  }, patch);
-  showToast('Configuracion guardada', 'tg');
-  renderBoxAdmin();
+  try {
+    const monthlyFee = Number(document.getElementById('badmin_fee')?.value || 0);
+    const trialClassesAllowed = Number(document.getElementById('badmin_trials')?.value || 0);
+    const publicStudentNameMode = document.getElementById('badmin_public_name')?.value || 'first';
+    const contactWhatsApp = boxNormalizePhone(document.getElementById('badmin_whatsapp')?.value || BOX_OWNER_CONTACT_PHONE);
+    const publicInfo = {
+      ...(boxBusinessConfig().publicInfo || {}),
+      location: document.getElementById('badmin_location')?.value.trim() || BOX_PUBLIC_LOCATION,
+      schedule: document.getElementById('badmin_schedule')?.value.trim() || BOX_PUBLIC_SCHEDULE,
+      coaches: [document.getElementById('badmin_coach')?.value.trim() || BOX_PUBLIC_COACH],
+      description: document.getElementById('badmin_description')?.value.trim() || BOX_PUBLIC_DESCRIPTION
+    };
+    if (monthlyFee < 0 || trialClassesAllowed < 0) return showToast('Captura valores validos', 'ta');
+    const prev = boxBusinessConfig();
+    const patch = {
+      monthlyFee,
+      trialClassesAllowed,
+      publicStudentNameMode,
+      contactWhatsApp,
+      publicInfo,
+      paymentMethodsEnabled: ['cash', 'transfer'],
+      updatedBy: currentUser.uid,
+      updatedAt: boxServerTimestamp()
+    };
+    await fs.collection('businesses').doc(BOX_LOMBARDO_BUSINESS_ID).set(patch, { merge: true });
+    Object.assign(BUSINESS_CATALOG[BOX_LOMBARDO_BUSINESS_ID], patch);
+    await boxAudit('business_settings_updated', 'business', BOX_LOMBARDO_BUSINESS_ID, {
+      monthlyFee: prev.monthlyFee,
+      trialClassesAllowed: prev.trialClassesAllowed,
+      publicStudentNameMode: prev.publicStudentNameMode,
+      contactWhatsApp: prev.contactWhatsApp,
+      publicInfo: prev.publicInfo || null
+    }, patch).catch((error) => console.warn('box settings audit', error));
+    showToast('Configuracion guardada', 'tg');
+    renderBoxAdmin();
+  } catch (error) {
+    showToast(error.message || 'No se pudo guardar configuracion', 'tr');
+  }
 }
 
 function renderBoxPermissions() {
@@ -1925,8 +1969,8 @@ async function saveBoxUserRole(uid) {
 }
 
 function renderBoxAudit() {
-  const logs = Object.values(boxState.auditLogs).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt)).slice(0, 80);
-  boxSetPage('box-audit', `${boxSectionHeader('Auditoria', 'Historial de cambios y acciones relevantes.')}${boxTabs('admin', 'box-audit')}<div class="card"><div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>${logs.length ? logs.map((l) => `<div class="box-row"><div><strong>${l.action}</strong><span>${l.entityType} Â· ${l.entityId || '-'} Â· ${boxDateLabel(l.createdAt)}</span><span>${l.actorName || l.actorUserId || ''} ${l.reason ? 'Â· ' + l.reason : ''}</span></div></div>`).join('') : boxEmpty('Sin auditoria')}</div>`);
+  const logs = Object.values(boxState.auditLogs).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
+  boxSetPage('box-audit', `${boxSectionHeader('Auditoria', 'Registro completo de acciones con fecha, hora, usuario y entidad afectada.')}${boxTabs('admin', 'box-audit')}<div class="card"><div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>${logs.length ? logs.map((l) => `<div class="box-row"><div><strong>${l.action}</strong><span>Fecha y hora: ${boxDateLabel(l.createdAt)}</span><span>Usuario: ${l.actorName || l.actorUserId || '-'} · Entidad: ${l.entityType || '-'} · ${l.entityId || '-'}</span>${l.reason ? `<span>Motivo: ${l.reason}</span>` : ''}</div></div>`).join('') : boxEmpty('Sin auditoria')}</div>`);
 }
 
 function renderBoxSettings() {

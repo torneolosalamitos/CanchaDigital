@@ -1898,6 +1898,91 @@ exports.boxGenerateMonthlyCharges = functions.https.onCall(async (data, context)
   return { ok: true, created };
 });
 
+exports.boxEnsureMemberCurrentCharge = functions.https.onCall(async (data, context) => {
+  const call = normalizeCallableArgs(data, context);
+  const payload = call.payload;
+  assertBoxBusinessId(payload);
+  const { auth } = await assertBoxPermission(call.context, ['owner', 'box_admin', 'trainer'], payload);
+  const memberId = String(payload.memberId || '').trim();
+  if (!memberId) throw new functions.https.HttpsError('invalid-argument', 'Alumno requerido.');
+  const root = boxRootRef();
+  const today = todayISO();
+  const period = today.slice(0, 7);
+  const startDate = normalizeDateISO(payload.startDate) || today;
+  const anchorDay = Math.max(1, Math.min(28, Number(startDate.slice(-2)) || 10));
+  const dueDate = `${period}-${String(anchorDay).padStart(2, '0')}`;
+  let chargeId = `${period}_${memberId}`;
+  await db.runTransaction(async (transaction) => {
+    const businessSnap = await transaction.get(root);
+    const business = businessSnap.exists ? businessSnap.data() || {} : {};
+    const memberRef = root.collection('members').doc(memberId);
+    const memberSnap = await transaction.get(memberRef);
+    if (!memberSnap.exists) throw new functions.https.HttpsError('not-found', 'Alumno no encontrado.');
+    const member = memberSnap.data() || {};
+    if (member.businessId && member.businessId !== BOX_BUSINESS_ID) throw new functions.https.HttpsError('permission-denied', 'Alumno de otro negocio.');
+    if (['inactive', 'permanent_leave', 'temporary_leave'].includes(member.status)) return;
+    const chargeRef = root.collection('charges').doc(chargeId);
+    const chargeSnap = await transaction.get(chargeRef);
+    const baseAmount = Number(member.monthlyFee || business.monthlyFee || 400);
+    const discountAmount = Number(member.discountAmount || 0);
+    const expectedAmount = Math.max(0, baseAmount - discountAmount);
+    transaction.set(root.collection('billingPeriods').doc(period), {
+      businessId: BOX_BUSINESS_ID,
+      period,
+      label: boxPeriodLabel(period),
+      status: 'open',
+      dueDate,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    if (!chargeSnap.exists) {
+      transaction.set(chargeRef, {
+        businessId: BOX_BUSINESS_ID,
+        memberId,
+        billingPeriodId: period,
+        periodLabel: boxPeriodLabel(period),
+        concept: 'monthly_fee',
+        baseAmount,
+        discountAmount,
+        expectedAmount,
+        totalPaid: 0,
+        balance: expectedAmount,
+        dueDate,
+        status: expectedAmount === 0 ? 'scholarship' : 'pending',
+        createdBy: auth.uid,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    } else {
+      const charge = chargeSnap.data() || {};
+      const totalPaid = Number(charge.totalPaid || 0);
+      const balance = Math.max(0, expectedAmount - totalPaid);
+      transaction.set(chargeRef, {
+        baseAmount,
+        discountAmount,
+        expectedAmount,
+        balance,
+        dueDate,
+        status: balance === 0 ? 'paid' : (totalPaid > 0 ? 'partial' : 'pending'),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    transaction.set(memberRef, {
+      nextDueDate: dueDate,
+      billingAnchorDay: anchorDay,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    await boxAuditBackend(transaction, {
+      actorUserId: auth.uid,
+      actorName: auth.token.email || '',
+      action: chargeSnap.exists ? 'member_charge_updated' : 'member_charge_created',
+      entityType: 'charge',
+      entityId: chargeId,
+      newValue: { memberId, period, dueDate, expectedAmount }
+    });
+  });
+  return { ok: true, chargeId, period, dueDate };
+});
+
 exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
   const call = normalizeCallableArgs(data, context);
   const payload = call.payload;

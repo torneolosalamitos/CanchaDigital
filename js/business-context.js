@@ -132,7 +132,7 @@ function canAccessBusinessPage(pageKey) {
     'box-reports', 'box-report-debts', 'box-report-attendance', 'box-report-money',
     'box-report-workers', 'box-inconsistencies', 'box-receipts'
   ];
-  const trainerPages = ['box-attendance', 'box-finance'];
+  const trainerPages = ['box-members', 'box-attendance', 'box-finance'];
   const auditorPages = [
     'box-attendance', 'box-attendance-history', 'box-reports',
     'box-report-debts', 'box-report-attendance', 'box-report-money', 'box-inconsistencies'
@@ -142,7 +142,8 @@ function canAccessBusinessPage(pageKey) {
       (role === 'trainer' && trainerPages.includes(pageKey)) ||
       (role === 'auditor' && auditorPages.includes(pageKey));
   }
-  if (['box-admin', 'box-permissions', 'box-audit', 'box-settings', 'box-admin-expenses', 'box-admin-folios'].includes(pageKey)) {
+  if (pageKey === 'box-permissions') return !!isOwner;
+  if (['box-admin', 'box-audit'].includes(pageKey)) {
     return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID);
   }
   return false;

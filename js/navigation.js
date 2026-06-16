@@ -3,7 +3,7 @@ function canAccessPage(page) {
     return typeof canAccessBusinessPage === 'function' ? canAccessBusinessPage(page) : false;
   }
   if (!ADMIN_ONLY_PAGES.has(page)) return true;
-  return !!isAdmin;
+  return !!(isOwner || isAdmin);
 }
 
 function showPage(pageKey, btn) {
