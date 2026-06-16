@@ -310,7 +310,7 @@ function boxPaymentMethodCode(value) {
 }
 
 function boxPaymentMethodLabel(value) {
-  return boxPaymentMethodCode(value) === 'transfer' ? 'Metodo anterior' : 'Efectivo';
+  return boxPaymentMethodCode(value) === 'transfer' ? 'Transferencia' : 'Efectivo';
 }
 
 function boxEnabledPaymentMethods() {
@@ -1778,41 +1778,45 @@ function renderBoxReceipts() {
 function renderBoxAdmin() {
   const cfg = boxBusinessConfig();
   const info = cfg.publicInfo || {};
+  const enabledMethods = boxEnabledPaymentMethods();
+  const expenseCategories = Array.isArray(cfg.expenseCategories) && cfg.expenseCategories.length
+    ? cfg.expenseCategories
+    : ['Equipo deportivo', 'Guantes y material', 'Mantenimiento', 'Limpieza', 'Reparaciones', 'Publicidad', 'Servicios', 'Personal', 'Eventos', 'Otros'];
   boxSetPage('box-admin', boxPageShell('admin', 'box-admin', 'Configuracion', 'Ajustes del box visibles solo para administradores.', `
     <div class="box-config-layout">
-      <section class="card box-config-card box-span-2">
-        <div class="sh"><div class="st">Datos principales</div><div class="sl"></div></div>
+      <section class="card box-config-card">
+        <div class="sh"><div class="st">Informacion publica</div><div class="sl"></div></div>
+        <div class="form-2">
+          <div class="fg"><label class="fl">Nombre del box</label><input class="fi" id="badmin_display" value="${boxAttr(cfg.displayName || BOX_PUBLIC_BRAND)}"/></div>
+          <div class="fg"><label class="fl">Entrenador</label><input class="fi" id="badmin_coach" value="${boxAttr((info.coaches || [BOX_PUBLIC_COACH])[0] || BOX_PUBLIC_COACH)}"/></div>
+          <div class="fg"><label class="fl">Ubicacion</label><input class="fi" id="badmin_location" value="${boxAttr(info.location || BOX_PUBLIC_LOCATION)}"/></div>
+          <div class="fg"><label class="fl">WhatsApp informes</label><input class="fi" id="badmin_whatsapp" inputmode="tel" value="${boxAttr(cfg.contactWhatsApp || BOX_OWNER_CONTACT_PHONE)}"/></div>
+        </div>
+        <div class="fg"><label class="fl">Frase principal</label><input class="fi" id="badmin_description" value="${boxAttr(info.description || BOX_PUBLIC_DESCRIPTION)}"/></div>
+      </section>
+      <section class="card box-config-card">
+        <div class="sh"><div class="st">Cobros</div><div class="sl"></div></div>
         <div class="form-2">
           <div class="fg"><label class="fl">Mensualidad base</label><input class="fi" id="badmin_fee" type="number" min="0" value="${Number(cfg.monthlyFee || 400)}"/></div>
           <div class="fg"><label class="fl">Clases de prueba</label><input class="fi" id="badmin_trials" type="number" min="0" value="${Number(cfg.trialClassesAllowed || 1)}"/></div>
-          <div class="fg"><label class="fl">Nombre publico</label><select class="fi" id="badmin_public_name"><option value="first" ${(cfg.publicStudentNameMode || 'first') === 'first' ? 'selected' : ''}>Primer nombre</option><option value="abbreviated" ${cfg.publicStudentNameMode === 'abbreviated' ? 'selected' : ''}>Abreviado</option><option value="full" ${cfg.publicStudentNameMode === 'full' ? 'selected' : ''}>Completo</option></select></div>
-          <div class="fg"><label class="fl">WhatsApp informes</label><input class="fi" id="badmin_whatsapp" value="${boxAttr(cfg.contactWhatsApp || BOX_OWNER_CONTACT_PHONE)}"/></div>
-          <div class="fg"><label class="fl">Ubicacion</label><input class="fi" id="badmin_location" value="${boxAttr(info.location || BOX_PUBLIC_LOCATION)}"/></div>
-          <div class="fg"><label class="fl">Horario publico</label><input class="fi" id="badmin_schedule" value="${boxAttr(info.schedule || BOX_PUBLIC_SCHEDULE)}"/></div>
-          <div class="fg"><label class="fl">Entrenador</label><input class="fi" id="badmin_coach" value="${boxAttr((info.coaches || [BOX_PUBLIC_COACH])[0] || BOX_PUBLIC_COACH)}"/></div>
-          <div class="fg"><label class="fl">Descripcion corta</label><input class="fi" id="badmin_description" value="${boxAttr(info.description || BOX_PUBLIC_DESCRIPTION)}"/></div>
+        </div>
+        <div class="box-check-grid">
+          <label class="box-check"><input type="checkbox" id="badmin_cash" ${enabledMethods.includes('cash') ? 'checked' : ''}/> Efectivo</label>
+          <label class="box-check"><input type="checkbox" id="badmin_transfer" ${enabledMethods.includes('transfer') ? 'checked' : ''}/> Transferencia</label>
+        </div>
+      </section>
+      <section class="card box-config-card box-span-2">
+        <div class="sh"><div class="st">Categorias de gastos</div><div class="sl"></div></div>
+        <div class="fg"><label class="fl">Separalas con coma</label><textarea class="fi" id="badmin_expenses">${boxAttr(expenseCategories.join(', '))}</textarea></div>
+      </section>
+      <section class="card box-config-card box-span-2">
+        <div class="sh"><div class="st">Acciones rapidas</div><div class="sl"></div></div>
+        <div class="box-action-grid">
+          <button class="btn btn-out btn-full" onclick="boxOpenPage('box-members','students',this)">Alumnos</button>
+          <button class="btn btn-out btn-full" onclick="boxOpenPage('box-expenses','finance',this)">Gastos</button>
+          <button class="btn btn-out btn-full" onclick="boxOpenPage('box-audit','admin',this)">Auditoria</button>
         </div>
         <button class="btn btn-g btn-full" onclick="saveBoxAdminSettings()">Guardar configuracion</button>
-      </section>
-      <section class="card box-config-card">
-        <div class="sh"><div class="st">Alumnos</div><div class="sl"></div></div>
-        <p class="box-muted">Alta, edicion y baja segura de alumnos con telefono, genero, edad, ingreso, estado, grupo y mensualidad.</p>
-        <button class="btn btn-g btn-full" onclick="boxOpenPage('box-members','students',this)">Abrir alumnos</button>
-      </section>
-      <section class="card box-config-card">
-        <div class="sh"><div class="st">Mensualidades</div><div class="sl"></div></div>
-        <p class="box-muted">Genera cargos, registra pagos y revisa proximos cobros sin entrar al resumen.</p>
-        <div class="box-action-grid"><button class="btn btn-g btn-full" onclick="boxOpenPage('box-billing','finance',this)">Cargos</button><button class="btn btn-out btn-full" onclick="boxOpenPage('box-payments','finance',this)">Pagos</button></div>
-      </section>
-      <section class="card box-config-card">
-        <div class="sh"><div class="st">Gastos</div><div class="sl"></div></div>
-        <p class="box-muted">Agrega, edita o elimina gastos. Todo se refleja en resumen y auditoria.</p>
-        <button class="btn btn-g btn-full" onclick="boxOpenPage('box-expenses','finance',this)">Abrir gastos</button>
-      </section>
-      <section class="card box-config-card">
-        <div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>
-        <p class="box-muted">Consulta cambios del negocio con fecha, hora, usuario y entidad afectada.</p>
-        <button class="btn btn-out btn-full" onclick="boxOpenPage('box-audit','admin',this)">Ver auditoria</button>
       </section>
     </div>`));
 }
@@ -1823,24 +1827,34 @@ async function saveBoxAdminSettings() {
   try {
     const monthlyFee = Number(document.getElementById('badmin_fee')?.value || 0);
     const trialClassesAllowed = Number(document.getElementById('badmin_trials')?.value || 0);
-    const publicStudentNameMode = document.getElementById('badmin_public_name')?.value || 'first';
     const contactWhatsApp = boxNormalizePhone(document.getElementById('badmin_whatsapp')?.value || BOX_OWNER_CONTACT_PHONE);
+    const displayName = document.getElementById('badmin_display')?.value.trim() || BOX_PUBLIC_BRAND;
+    const paymentMethodsEnabled = [];
+    if (document.getElementById('badmin_cash')?.checked) paymentMethodsEnabled.push('cash');
+    if (document.getElementById('badmin_transfer')?.checked) paymentMethodsEnabled.push('transfer');
+    const expenseCategories = (document.getElementById('badmin_expenses')?.value || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
     const publicInfo = {
       ...(boxBusinessConfig().publicInfo || {}),
       location: document.getElementById('badmin_location')?.value.trim() || BOX_PUBLIC_LOCATION,
-      schedule: document.getElementById('badmin_schedule')?.value.trim() || BOX_PUBLIC_SCHEDULE,
+      schedule: BOX_PUBLIC_SCHEDULE,
       coaches: [document.getElementById('badmin_coach')?.value.trim() || BOX_PUBLIC_COACH],
       description: document.getElementById('badmin_description')?.value.trim() || BOX_PUBLIC_DESCRIPTION
     };
     if (monthlyFee < 0 || trialClassesAllowed < 0) return showToast('Captura valores validos', 'ta');
+    if (!paymentMethodsEnabled.length) return showToast('Activa al menos un metodo de pago', 'ta');
+    if (!expenseCategories.length) return showToast('Agrega al menos una categoria de gasto', 'ta');
     const prev = boxBusinessConfig();
     const patch = {
+      displayName,
       monthlyFee,
       trialClassesAllowed,
-      publicStudentNameMode,
       contactWhatsApp,
       publicInfo,
-      paymentMethodsEnabled: ['cash'],
+      expenseCategories,
+      paymentMethodsEnabled,
       updatedBy: currentUser.uid,
       updatedAt: boxServerTimestamp()
     };
@@ -1849,8 +1863,9 @@ async function saveBoxAdminSettings() {
     await boxAudit('business_settings_updated', 'business', BOX_LOMBARDO_BUSINESS_ID, {
       monthlyFee: prev.monthlyFee,
       trialClassesAllowed: prev.trialClassesAllowed,
-      publicStudentNameMode: prev.publicStudentNameMode,
       contactWhatsApp: prev.contactWhatsApp,
+      expenseCategories: prev.expenseCategories || null,
+      paymentMethodsEnabled: prev.paymentMethodsEnabled || null,
       publicInfo: prev.publicInfo || null
     }, patch).catch((error) => console.warn('box settings audit', error));
     showToast('Configuracion guardada', 'tg');

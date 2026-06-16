@@ -29,7 +29,7 @@ const BUSINESS_CATALOG = {
     splashSubtitle: 'INFORMACION - ALUMNOS',
     monthlyFee: 400,
     currency: 'MXN',
-    paymentMethodsEnabled: ['cash'],
+    paymentMethodsEnabled: ['cash', 'transfer'],
     trialClassesAllowed: 1,
     contactWhatsApp: '6674585275',
     publicInfo: {

@@ -1787,7 +1787,7 @@ exports.boxSeedBusiness = functions.https.onCall(async (data, context) => {
     monthlyFee: 400,
     currency: 'MXN',
     timezone: 'America/Mazatlan',
-    paymentMethodsEnabled: ['cash'],
+    paymentMethodsEnabled: ['cash', 'transfer'],
     trialClassesAllowed: 1,
     contactWhatsApp: '6674585275',
     publicInfo: {
