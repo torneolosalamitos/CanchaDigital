@@ -26,7 +26,7 @@ const BUSINESS_CATALOG = {
     type: 'boxing_gym',
     status: 'active',
     logo: SHARK_BOXING_GYM_LOGO,
-    splashSubtitle: 'BOX · ALUMNOS · MENSUALIDADES',
+    splashSubtitle: 'INFORMACION · ALUMNOS',
     monthlyFee: 400,
     currency: 'MXN',
     paymentMethodsEnabled: ['cash'],
