@@ -937,6 +937,10 @@ input:checked+.toggle-slider:before{transform:translateX(18px);}
 .role-owner{background:rgba(202,138,4,.15);color:var(--gold);}
 .role-admin{background:rgba(77,126,245,.15);color:var(--acc);}
 .role-viewer{background:var(--card2);color:var(--muted);}
+.admin-scope-card{border:1px solid var(--border);border-radius:9px;background:var(--card2);padding:10px;}
+.admin-scope-head{display:flex;align-items:center;gap:6px;justify-content:space-between;margin-bottom:8px;}
+.admin-scope-head strong{font-size:11px;font-weight:900;color:var(--text);letter-spacing:.4px;}
+.admin-scope-cats{display:flex;gap:8px;flex-wrap:wrap;}
 .reg-tab{flex:1;padding:8px;border:none;background:var(--card2);cursor:pointer;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;color:var(--muted);transition:all .2s;border-radius:8px;}
 .reg-tab.active{background:var(--acc);color:#fff;}
 .lm-tabs{display:flex;gap:6px;margin-bottom:14px;}

@@ -818,9 +818,10 @@ function renderUsuariosPanel(filter=''){
     const roleLabel = isOwnerU?'👑 Owner':u.role==='admin'?'⚙️ Admin':u.role==='captain'?'⚽ Capitán':'👁️ Espectador';
     const equipoNombre = u.equipoKey && C.equipos[u.equipoKey] ? C.equipos[u.equipoKey].nombre : '';
     const scopeLabel = formatUserAdminScope(u.adminScope);
+    const boxRoleLabel = getBoxRoleLabel(u.businessRoles?.[BOX_LOMBARDO_BUSINESS_ID]?.role || '');
     const actionBtns = isOwnerU ? '' : `
       <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;margin-top:6px">
-        ${isOwner ? `<button class="btn btn-g btn-sm" onclick="openSetAdmin('${u.uid}')">${u.role==='admin'?'⚙️ Editar admin':'⚙️ Admin'}</button>` : ''}
+        ${isOwner ? `<button class="btn btn-g btn-sm" onclick="openSetAdmin('${u.uid}')">Permisos</button>` : ''}
         ${isOwner && u.role!=='captain' ? `<button class="btn btn-sm" style="background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.25);border-radius:7px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:800" onclick="openSetCaptain('${u.uid}')">⚽ Capitán</button>` : ''}
         ${isOwner && u.role!=='viewer' ? `<button class="btn btn-out btn-sm" onclick="setUserRole('${u.uid}','viewer')">Quitar rol</button>` : ''}
       </div>`;
@@ -831,6 +832,7 @@ function renderUsuariosPanel(filter=''){
         <div class="user-meta">${u.email||'—'}</div>
         <div class="user-meta" style="margin-top:2px">Registro: ${fecha}${lastLogin?' · Último acceso: '+lastLogin:''}${equipoNombre?' · Equipo: '+equipoNombre:''}</div>
         ${u.role==='admin' && scopeLabel ? `<div class="user-meta" style="margin-top:2px;color:var(--acc);font-weight:800">Permisos: ${scopeLabel}</div>` : ''}
+        ${boxRoleLabel ? `<div class="user-meta" style="margin-top:2px;color:#92400e;font-weight:800">Shark Boxing Gym: ${boxRoleLabel}</div>` : ''}
         <div style="margin-top:4px"><span class="role-badge ${roleBadgeClass}">${roleLabel}</span></div>
         ${actionBtns}
       </div>
@@ -851,6 +853,7 @@ async function setUserRole(uid, role){
   if(role === 'viewer'){
     updates.equipoKey = null;
     updates.adminScope = null;
+    updates.businessRoles = null;
   }
   try{
     if(fs) await updateDoc('usuarios', uid, updates);
@@ -872,6 +875,32 @@ function formatUserAdminScope(scopeRaw){
   return chunks.join(' | ');
 }
 
+function getBoxRoleLabel(role){
+  return ({
+    owner: 'Dueño del box',
+    box_admin: 'Admin del box',
+    trainer: 'Entrenador',
+    auditor: 'Auditor'
+  })[role] || '';
+}
+
+function ensureAdminPermissionsBoxRoleControl(){
+  const wrap = document.getElementById('sa_cat_list');
+  if(!wrap || document.getElementById('sa_box_role')) return;
+  const holder = document.createElement('div');
+  holder.className = 'fg';
+  holder.innerHTML = `
+    <label class="fl">Rol en Shark Boxing Gym</label>
+    <select class="fi" id="sa_box_role">
+      <option value="">Sin acceso al box</option>
+      <option value="owner">Dueño / encargado</option>
+      <option value="box_admin">Administrador del box</option>
+      <option value="trainer">Entrenador</option>
+      <option value="auditor">Auditor</option>
+    </select>`;
+  wrap.parentNode.insertBefore(holder, wrap);
+}
+
 function openSetAdmin(uid){
   if(!isOwner){
     showToast('Solo el propietario puede asignar administradores','tr');
@@ -881,29 +910,60 @@ function openSetAdmin(uid){
   document.getElementById('sa_uid').value = uid;
   const info = document.getElementById('sa_user_info');
   if(info) info.textContent = (u.nombre||u.email) + ' · ' + (u.email||'');
+  const help = info?.nextElementSibling;
+  if(help) help.textContent = 'Solo el propietario puede asignar permisos. Marca todos los torneos, categorias y accesos del box que este usuario podra gestionar.';
+  ensureAdminPermissionsBoxRoleControl();
+  const boxRole = u.businessRoles?.[BOX_LOMBARDO_BUSINESS_ID]?.role || '';
+  const boxRoleSelect = document.getElementById('sa_box_role');
+  if(boxRoleSelect) boxRoleSelect.value = boxRole;
   const sel = document.getElementById('sa_torneo');
-  if(sel){
-    const scope = normalizeAdminScope(u.adminScope || {});
-    const assigned = Object.keys(scope)[0] || currentTorneo;
-    sel.innerHTML = TOURNAMENT_OPTION_ORDER.map((key)=>`<option value="${key}" ${assigned===key?'selected':''}>${TORNEO_NAMES[key]}</option>`).join('');
-  }
+  if(sel) sel.closest('.fg').style.display = 'none';
   renderAdminCatPermissions();
   openModal('modalSetAdmin');
 }
 
 function renderAdminCatPermissions(){
   const uid = document.getElementById('sa_uid')?.value;
-  const torneo = document.getElementById('sa_torneo')?.value || currentTorneo;
   const u = uid ? C.usuarios[uid] : null;
   const saved = normalizeAdminScope(u?.adminScope || {});
-  const selected = saved[torneo] || (TORNEO_CONFIG[torneo]?.categories || []).map((cat)=>cat.key);
   const wrap = document.getElementById('sa_cat_list');
   if(!wrap) return;
-  wrap.innerHTML = (TORNEO_CONFIG[torneo]?.categories || []).map((cat)=>`
-    <label class="resumen-cat-check">
-      <input type="checkbox" value="${cat.key}" ${selected.includes(cat.key)?'checked':''}/>
-      <span>${cat.label}</span>
-    </label>`).join('');
+  wrap.style.display = 'grid';
+  wrap.style.gap = '10px';
+  wrap.innerHTML = TOURNAMENT_OPTION_ORDER.map((torneo)=>{
+    const cats = TORNEO_CONFIG[torneo]?.categories || [];
+    const selected = saved[torneo] || [];
+    return `<section class="admin-scope-card" data-admin-scope-torneo="${torneo}">
+      <div class="admin-scope-head">
+        <strong>${TORNEO_NAMES[torneo] || torneo}</strong>
+        <button type="button" class="btn btn-out btn-sm" onclick="toggleAdminScopeTournament('${torneo}', true)">Todo</button>
+        <button type="button" class="btn btn-out btn-sm" onclick="toggleAdminScopeTournament('${torneo}', false)">Nada</button>
+      </div>
+      <div class="admin-scope-cats">
+        ${cats.map((cat)=>`
+          <label class="resumen-cat-check">
+            <input type="checkbox" data-admin-scope-cat="${cat.key}" ${selected.includes(cat.key)?'checked':''}/>
+            <span>${cat.label}</span>
+          </label>`).join('')}
+      </div>
+    </section>`;
+  }).join('');
+}
+
+function toggleAdminScopeTournament(torneo, checked){
+  document
+    .querySelectorAll(`[data-admin-scope-torneo="${torneo}"] input[data-admin-scope-cat]`)
+    .forEach((input)=>{ input.checked = !!checked; });
+}
+
+function collectAdminScopeFromModal(){
+  const scope = {};
+  document.querySelectorAll('[data-admin-scope-torneo]').forEach((section)=>{
+    const torneo = section.getAttribute('data-admin-scope-torneo');
+    const cats = Array.from(section.querySelectorAll('input[data-admin-scope-cat]:checked')).map((input)=>input.getAttribute('data-admin-scope-cat'));
+    if(cats.length) scope[torneo] = catsToPermissionMap(cats);
+  });
+  return scope;
 }
 
 async function saveAdminRole(){
@@ -912,18 +972,29 @@ async function saveAdminRole(){
     return;
   }
   const uid = document.getElementById('sa_uid').value;
-  const torneo = document.getElementById('sa_torneo').value;
-  const cats = Array.from(document.querySelectorAll('#sa_cat_list input:checked')).map((input)=>input.value);
-  if(!uid || !torneo || !cats.length){
-    showToast('Selecciona torneo y al menos una categoria','ta');
+  const adminScopePatch = collectAdminScopeFromModal();
+  const boxRole = document.getElementById('sa_box_role')?.value || '';
+  if(!uid){
+    showToast('Selecciona usuario','ta');
+    return;
+  }
+  if(!Object.keys(adminScopePatch).length && !boxRole){
+    showToast('Selecciona al menos un permiso de torneo o rol de box','ta');
     return;
   }
   try{
-    const patch = { role:'admin', equipoKey:null, adminScope:buildSingleAdminScope(torneo, cats) };
+    const patch = {
+      role: Object.keys(adminScopePatch).length ? 'admin' : 'viewer',
+      equipoKey:null,
+      adminScope: Object.keys(adminScopePatch).length ? adminScopePatch : firebase.firestore.FieldValue.delete()
+    };
+    patch[`businessRoles.${BOX_LOMBARDO_BUSINESS_ID}`] = boxRole
+      ? { role: boxRole, assignedAt: firestoreServerTimestamp(), assignedBy: currentUser.uid }
+      : firebase.firestore.FieldValue.delete();
     if(fs) await updateDoc('usuarios', uid, patch);
     else await db.ref('usuarios/'+uid).update(patch);
     closeModal('modalSetAdmin');
-    showToast('Permisos de administrador guardados','tg');
+    showToast('Permisos guardados','tg');
     renderUsuariosPanel();
   }catch(e){
     showToast('Error: '+e.message,'tr');

@@ -147,7 +147,7 @@ const BOX_ATTENDANCE_LABELS = {
 const BOX_PAGES = [
   ['box-public', 'Info publica'],
   ['box-public-students', 'Alumnos publicos'],
-  ['box-dashboard', 'Dashboard'],
+  ['box-dashboard', 'Resumen'],
   ['box-students', 'Alumnos'],
   ['box-members', 'Alumnos'],
   ['box-prospects', 'Prospectos'],
@@ -163,7 +163,7 @@ const BOX_PAGES = [
   ['box-upcoming', 'Proximos pagos'],
   ['box-cash', 'Entregas de efectivo'],
   ['box-expenses', 'Gastos'],
-  ['box-reports', 'Cortes y reportes'],
+  ['box-reports', 'Resumen'],
   ['box-report-debts', 'Adeudos'],
   ['box-report-attendance', 'Reporte asistencia'],
   ['box-report-money', 'Ingresos y gastos'],
@@ -180,11 +180,12 @@ const BOX_PAGES = [
 
 const BOX_ADMIN_MAIN_NAV = [
   ['box-public', 'Inicio'],
-  ['box-public-students', 'Alumnos'],
+  ['box-members', 'Alumnos'],
   ['box-attendance', 'Asistencia'],
   ['box-finance', 'Mensualidades'],
-  ['box-reports', 'Dashboard'],
-  ['box-admin', 'Configuracion']
+  ['box-reports', 'Resumen'],
+  ['box-admin', 'Configuracion'],
+  ['box-permissions', 'Permisos']
 ];
 
 const BOX_TRAINER_MAIN_NAV = [
@@ -508,7 +509,7 @@ function boxIsTrainerOnly() {
 
 function boxMainNavItems() {
   const base = boxIsTrainerOnly() ? BOX_TRAINER_MAIN_NAV : BOX_ADMIN_MAIN_NAV;
-  return base.filter(([key]) => canAccessBusinessPage(key));
+  return base.filter(([key]) => canAccessBusinessPage(key) && (key !== 'box-permissions' || isOwner));
 }
 
 function renderBoxNav() {
@@ -1775,7 +1776,7 @@ function renderBoxReports() {
   const deliveries = Object.values(boxState.cashDeliveries);
   const auditCount = Object.keys(boxState.auditLogs).length;
   const inactiveCount = s.members.filter((m) => ['inactive', 'permanent_leave', 'temporary_leave'].includes(m.status)).length;
-  boxSetPage('box-reports', `${boxSectionHeader('Dashboard', 'Indicadores operativos del negocio en tiempo real.')}
+  boxSetPage('box-reports', `${boxSectionHeader('Resumen', 'Indicadores operativos del negocio en tiempo real.')}
     <div class="box-kpi-grid primary">
       ${boxKpi('Alumnos activos', activeTotal)}
       ${boxKpi('Asistencia hoy', `${presentToday}/${activeTotal}`)}
@@ -1877,7 +1878,7 @@ function renderBoxAdmin() {
       </section>
       <section class="card box-config-card">
         <div class="sh"><div class="st">Mensualidades</div><div class="sl"></div></div>
-        <p class="box-muted">Genera cargos, registra pagos y revisa proximos cobros sin entrar al dashboard.</p>
+        <p class="box-muted">Genera cargos, registra pagos y revisa proximos cobros sin entrar al resumen.</p>
         <div class="box-action-grid"><button class="btn btn-g btn-full" onclick="boxOpenPage('box-billing','finance',this)">Cargos</button><button class="btn btn-out btn-full" onclick="boxOpenPage('box-payments','finance',this)">Pagos</button></div>
       </section>
       <section class="card box-config-card">
@@ -1885,6 +1886,11 @@ function renderBoxAdmin() {
         <p class="box-muted">Agrega, edita o elimina gastos. Todo se refleja en resumen y auditoria.</p>
         <button class="btn btn-g btn-full" onclick="boxOpenPage('box-expenses','finance',this)">Abrir gastos</button>
       </section>
+      ${isOwner ? `<section class="card box-config-card">
+        <div class="sh"><div class="st">Permisos</div><div class="sl"></div></div>
+        <p class="box-muted">Asigna acceso de owner, admin, entrenador o auditor para Shark Boxing Gym.</p>
+        <button class="btn btn-out btn-full" onclick="boxOpenPage('box-permissions','admin',this)">Abrir permisos</button>
+      </section>` : ''}
       <section class="card box-config-card">
         <div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>
         <p class="box-muted">Consulta cambios del negocio con fecha, hora, usuario y entidad afectada.</p>
