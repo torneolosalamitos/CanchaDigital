@@ -29,8 +29,7 @@ const BUSINESS_CATALOG = {
     splashSubtitle: 'BOX · ALUMNOS · MENSUALIDADES',
     monthlyFee: 400,
     currency: 'MXN',
-    timezone: 'America/Mazatlan',
-    paymentMethodsEnabled: ['cash', 'transfer'],
+    paymentMethodsEnabled: ['cash'],
     trialClassesAllowed: 1,
     contactWhatsApp: '6674585275',
     publicInfo: {
@@ -132,7 +131,7 @@ function canAccessBusinessPage(pageKey) {
     'box-reports', 'box-report-debts', 'box-report-attendance', 'box-report-money',
     'box-report-workers', 'box-inconsistencies', 'box-receipts'
   ];
-  const trainerPages = ['box-members', 'box-attendance', 'box-finance'];
+  const trainerPages = ['box-members', 'box-attendance', 'box-finance', 'box-upcoming'];
   const auditorPages = [
     'box-attendance', 'box-attendance-history', 'box-reports',
     'box-report-debts', 'box-report-attendance', 'box-report-money', 'box-inconsistencies'
@@ -153,15 +152,16 @@ function renderSplashBusinessCard(business) {
   const target = business.type === 'tournament' ? `selectBusiness('${business.id}')` : `selectBusiness('${business.id}')`;
   const logo = business.logo || CD_LOGO_SHIELD;
   const title = business.displayName || business.name;
+  const typeClass = business.type === 'tournament' ? 'cd-business-card--tournament' : 'cd-business-card--boxing';
   return `
-    <div onclick="${target}" class="business-splash-card" data-business-id="${business.id}">
-      <div class="business-splash-logo"><img src="${logo}" alt="${title}"/></div>
-      <div class="business-splash-copy">
-        <div class="business-splash-title">${title}</div>
-        <div class="business-splash-sub">${business.splashSubtitle || business.type}</div>
-      </div>
-      <div class="business-splash-arrow">&#8250;</div>
-    </div>`;
+    <button type="button" onclick="${target}" class="cd-business-card ${typeClass}" data-business-id="${business.id}" aria-label="Entrar a ${title}">
+      <span class="cd-business-card__logo"><img src="${logo}" alt="${title}"/></span>
+      <span class="cd-business-card__copy">
+        <span class="cd-business-card__title">${title}</span>
+        <span class="cd-business-card__sub">${business.splashSubtitle || business.type}</span>
+      </span>
+      <span class="cd-business-card__arrow" aria-hidden="true">&#8250;</span>
+    </button>`;
 }
 
 function hydrateBusinessSplashCards() {
@@ -169,8 +169,7 @@ function hydrateBusinessSplashCards() {
   if (!splash) return;
   const label = Array.from(splash.querySelectorAll('div')).find((el) => (el.textContent || '').includes('ELIGE TU TORNEO'));
   if (label) label.textContent = 'ELIGE TU ESPACIO';
-  const container = splash.querySelector('[data-business-options]') || Array.from(splash.querySelectorAll('div'))
-    .find((el) => el.children?.length >= 2 && Array.from(el.children).some((child) => child.getAttribute?.('onclick')?.includes('selectTorneo')));
+  const container = splash.querySelector('[data-business-options]');
   if (!container) return;
   container.setAttribute('data-business-options', '1');
   container.innerHTML = BUSINESS_OPTION_ORDER

@@ -27,6 +27,13 @@
 <script src="js/stats-leaders.js"></script>
 <script src="js/partidos.js"></script>
 <script src="js/tabla.js"></script>
+<script src="js/box/box-core.js"></script>
+<script src="js/box/box-public.js"></script>
+<script src="js/box/box-members.js"></script>
+<script src="js/box/box-attendance.js"></script>
+<script src="js/box/box-billing.js"></script>
+<script src="js/box/box-dashboard.js"></script>
+<script src="js/box/box-admin.js"></script>
 <script src="js/box/box-module.js"></script>
 <link rel="stylesheet" href="css/styles.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -79,49 +86,6 @@
       </aside>
     </div>
   </section>
-  <!-- Floating decorations -->
-  
-
-  <!-- Brand -->
-  <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:16px;position:relative;z-index:1">
-    <img src="/CanchaDigital/img/logo-cancha-splash.png" alt="CanchaDigital" style="width:280px;max-width:85vw;height:auto;margin-bottom:8px;display:block;"/>
-    <div style="font-size:9px;font-weight:700;letter-spacing:4px;color:rgba(26,58,138,.4);text-transform:uppercase;margin-bottom:0">Gestión y Visualización de Torneos</div>
-
-  </div>
-
-  <!-- Divider -->
-  <div style="width:80px;height:2px;background:linear-gradient(90deg,transparent,rgba(46,168,60,.6),transparent);margin:0 auto 20px"></div>
-  <div style="font-size:10px;font-weight:800;letter-spacing:4px;color:rgba(26,58,138,0.35);text-transform:uppercase;text-align:center;margin-bottom:16px">ELIGE TU ESPACIO</div>
-
-  <!-- Business cards -->
-  <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px">
-    <div onclick="selectTorneo('lombardo_toledano')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
-      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-lombardo-toledano.png" alt="TORNEO LOMBARDO TOLEDANO" style="width:60px;height:60px;object-fit:contain;"/></div>
-      <div style="flex:1">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO LOMBARDO TOLEDANO</div>
-        <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">LIBRE VARONIL Y FEMENIL</div>
-      </div>
-      <div style="font-size:18px;color:rgba(46,168,60,.8);font-weight:700">&#8250;</div>
-    </div>
-    <div onclick="selectTorneo('nuevos_valores')" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
-      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-nuevos-valores.png" alt="TORNEO NUEVOS VALORES" style="width:60px;height:60px;object-fit:contain;"/></div>
-      <div style="flex:1">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">TORNEO NUEVOS VALORES</div>
-        <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">INFANTIL, OSOS Y JUVENIL</div>
-      </div>
-      <div style="font-size:22px;color:rgba(46,168,60,.6);font-weight:700">&#8250;</div>
-    </div>
-    <div onclick="window.selectBusiness ? selectBusiness('box-lombardo-toledano') : null" style="background:#ffffff;border:2px solid rgba(26,58,138,.24);border-radius:18px;padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .25s;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(26,58,138,.04)" onmouseover="this.style.borderColor='rgba(46,168,60,.7)';this.style.boxShadow='0 0 24px rgba(46,168,60,.16)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(26,58,138,.24)';this.style.boxShadow='0 2px 10px rgba(26,58,138,.04)';this.style.transform='translateY(0)'">
-      <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><img src="img/logo-shark-boxing-gym.png" alt="SHARK BOXING GYM" style="width:60px;height:60px;object-fit:contain;"/></div>
-      <div style="flex:1">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;color:#1a3a8a;line-height:1.1">SHARK BOXING GYM</div>
-        <div style="font-size:10px;color:rgba(26,58,138,.52);font-weight:700;margin-top:3px;letter-spacing:1px">BOX · ALUMNOS · MENSUALIDADES</div>
-      </div>
-      <div style="font-size:22px;color:rgba(46,168,60,.6);font-weight:700">&#8250;</div>
-    </div>
-  </div>
-
-  <div class="sp-admin-link" onclick="openLoginModal()" style="margin-top:22px">🔐 Acceso administrador</div>
 </div>
 
 <!-- ═══ LOGIN MODAL ═══ -->

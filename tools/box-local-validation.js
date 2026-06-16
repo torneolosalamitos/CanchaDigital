@@ -11,7 +11,7 @@ const VALIDATION_GUARDIAN_ID = `guardian-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_ID = `member-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_2_ID = `member-validation-cash-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_3_ID = `member-validation-wa-${VALIDATION_SUFFIX}`;
-const VALIDATION_MEMBER_TRANSFER_ID = `member-validation-transfer-${VALIDATION_SUFFIX}`;
+const VALIDATION_MEMBER_CASH_2_ID = `member-validation-cash-2-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_TRAINER_ID = `member-validation-trainer-${VALIDATION_SUFFIX}`;
 const VALIDATION_GROUP_ID = `group-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_ATTENDANCE_ID = `attendance-validation-${VALIDATION_SUFFIX}`;
@@ -23,7 +23,7 @@ const VALIDATION_PERIOD = '2026-07';
 const VALIDATION_CHARGE_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_ID}`;
 const VALIDATION_CHARGE_2_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_2_ID}`;
 const VALIDATION_CHARGE_3_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_3_ID}`;
-const VALIDATION_CHARGE_TRANSFER_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_TRANSFER_ID}`;
+const VALIDATION_CHARGE_CASH_2_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_CASH_2_ID}`;
 const VALIDATION_TRAINER_CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
 const VALIDATION_CHARGE_TRAINER_ID = `${VALIDATION_TRAINER_CURRENT_PERIOD}_${VALIDATION_MEMBER_TRAINER_ID}`;
 
@@ -224,7 +224,7 @@ async function validate() {
       createdBy: TEST_USERS.admin.uid,
       updatedBy: TEST_USERS.admin.uid
     }, adminToken);
-    for (const [id, name] of [[VALIDATION_MEMBER_2_ID, 'Alumno Validacion Entrega'], [VALIDATION_MEMBER_3_ID, 'Alumno Validacion WhatsApp'], [VALIDATION_MEMBER_TRANSFER_ID, 'Alumno Validacion Transferencia']]) {
+    for (const [id, name] of [[VALIDATION_MEMBER_2_ID, 'Alumno Validacion Entrega'], [VALIDATION_MEMBER_3_ID, 'Alumno Validacion WhatsApp'], [VALIDATION_MEMBER_CASH_2_ID, 'Alumno Validacion Efectivo 2']]) {
       await fsSet(`${rootPath}/members/${id}`, {
         businessId: BOX_BUSINESS_ID,
         folio: `BOX-ALU-${id}`,
@@ -349,17 +349,17 @@ async function validate() {
     return { paymentId: result.paymentId, folio: result.folio, balance: charge.balance, cashDeliveryStatus: payment.cashDeliveryStatus };
   });
 
-  await step('Registro de pago por transferencia sin entrega de efectivo', async () => {
+  await step('Registro de segundo pago en efectivo con entrega pendiente', async () => {
     const result = await callFunction('boxCreatePayment', trainerToken, {
-      chargeId: VALIDATION_CHARGE_TRANSFER_ID,
+      chargeId: VALIDATION_CHARGE_CASH_2_ID,
       paidAmount: 400,
-      paymentMethod: 'transfer',
-      notes: 'Transferencia validacion entrenador'
+      paymentMethod: 'cash',
+      notes: 'Segundo efectivo validacion entrenador'
     });
-    const charge = await adminDoc(`${rootPath}/charges/${VALIDATION_CHARGE_TRANSFER_ID}`);
+    const charge = await adminDoc(`${rootPath}/charges/${VALIDATION_CHARGE_CASH_2_ID}`);
     const payment = await adminDoc(`${rootPath}/payments/${result.paymentId}`);
-    if (charge.balance !== 0 || charge.status !== 'paid') throw new Error('Transferencia no actualizo saldo');
-    if (payment.paymentMethod !== 'transfer' || payment.cashDeliveryStatus !== 'not_required') throw new Error(`Transferencia con estado incorrecto: ${JSON.stringify(payment)}`);
+    if (charge.balance !== 0 || charge.status !== 'paid') throw new Error('Segundo efectivo no actualizo saldo');
+    if (payment.paymentMethod !== 'cash' || payment.cashDeliveryStatus !== 'pending_delivery') throw new Error(`Segundo efectivo con estado incorrecto: ${JSON.stringify(payment)}`);
     return { paymentId: result.paymentId, paymentMethod: payment.paymentMethod, cashDeliveryStatus: payment.cashDeliveryStatus };
   });
 
