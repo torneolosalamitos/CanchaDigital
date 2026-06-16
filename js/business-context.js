@@ -125,7 +125,7 @@ function canAccessBusinessPage(pageKey) {
   if (['box-public', 'box-public-students'].includes(pageKey)) return true;
   const role = getBusinessRole(BOX_LOMBARDO_BUSINESS_ID);
   const managerPages = [
-    'box-dashboard', 'box-students', 'box-members', 'box-prospects', 'box-guardians', 'box-groups',
+    'box-dashboard', 'box-students', 'box-members', 'box-prospects', 'box-guardians',
     'box-attendance', 'box-attendance-history', 'box-attendance-trials', 'box-attendance-audits',
     'box-finance', 'box-upcoming', 'box-billing', 'box-payments', 'box-cash', 'box-expenses',
     'box-reports', 'box-report-debts', 'box-report-attendance', 'box-report-money',
@@ -141,7 +141,6 @@ function canAccessBusinessPage(pageKey) {
       (role === 'trainer' && trainerPages.includes(pageKey)) ||
       (role === 'auditor' && auditorPages.includes(pageKey));
   }
-  if (pageKey === 'box-permissions') return !!isOwner;
   if (['box-admin', 'box-audit'].includes(pageKey)) {
     return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID);
   }

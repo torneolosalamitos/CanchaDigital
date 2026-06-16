@@ -152,7 +152,6 @@ const BOX_PAGES = [
   ['box-members', 'Alumnos'],
   ['box-prospects', 'Prospectos'],
   ['box-guardians', 'Tutores'],
-  ['box-groups', 'Grupos y horarios'],
   ['box-attendance', 'Asistencia'],
   ['box-attendance-history', 'Historial asistencia'],
   ['box-attendance-trials', 'Clases de prueba'],
@@ -173,7 +172,6 @@ const BOX_PAGES = [
   ['box-admin', 'Configuracion'],
   ['box-admin-expenses', 'Categorias de gastos'],
   ['box-admin-folios', 'Folios y parametros'],
-  ['box-permissions', 'Personal y permisos'],
   ['box-audit', 'Auditoria'],
   ['box-settings', 'Configuracion']
 ];
@@ -184,8 +182,7 @@ const BOX_ADMIN_MAIN_NAV = [
   ['box-attendance', 'Asistencia'],
   ['box-finance', 'Mensualidades'],
   ['box-reports', 'Resumen'],
-  ['box-admin', 'Configuracion'],
-  ['box-permissions', 'Permisos']
+  ['box-admin', 'Configuracion']
 ];
 
 const BOX_TRAINER_MAIN_NAV = [
@@ -204,8 +201,7 @@ const BOX_PUBLIC_NAV = [
 const BOX_SECONDARY_NAV = {
   students: [
     ['box-members', 'Padron'],
-    ['box-guardians', 'Responsables'],
-    ['box-groups', 'Horarios']
+    ['box-guardians', 'Responsables']
   ],
   attendance: [
     ['box-attendance', 'Lista'],
@@ -509,7 +505,7 @@ function boxIsTrainerOnly() {
 
 function boxMainNavItems() {
   const base = boxIsTrainerOnly() ? BOX_TRAINER_MAIN_NAV : BOX_ADMIN_MAIN_NAV;
-  return base.filter(([key]) => canAccessBusinessPage(key) && (key !== 'box-permissions' || isOwner));
+  return base.filter(([key]) => canAccessBusinessPage(key));
 }
 
 function renderBoxNav() {
@@ -606,7 +602,6 @@ function renderBoxPage(pageKey) {
     'box-members': renderBoxMembers,
     'box-prospects': renderBoxProspects,
     'box-guardians': renderBoxGuardians,
-    'box-groups': renderBoxGroups,
     'box-attendance': renderBoxAttendance,
     'box-attendance-history': renderBoxAttendanceHistory,
     'box-attendance-trials': renderBoxAttendanceTrials,
@@ -627,7 +622,6 @@ function renderBoxPage(pageKey) {
     'box-admin': renderBoxAdmin,
     'box-admin-expenses': renderBoxAdminExpenses,
     'box-admin-folios': renderBoxAdminFolios,
-    'box-permissions': renderBoxPermissions,
     'box-audit': renderBoxAudit,
     'box-settings': renderBoxSettings
   };
@@ -1006,13 +1000,14 @@ function renderBoxStudents() {
 function renderBoxMembers() {
   const cfg = boxBusinessConfig();
   const members = Object.values(boxState.members).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
-  const groupOptions = Object.values(boxState.groups).map((g) => `<option value="${g.id}">${g.name}</option>`).join('');
   boxSetPage('box-members', `
     ${boxSectionHeader('Alumnos', 'Registro, edicion y control mensual de alumnos.')}
     ${boxTabs('students', 'box-members')}
-    <div class="box-grid box-grid-2">
-      <section class="card">
-        <div class="sh"><div class="st">Alta de alumno</div><div class="sl"></div></div>
+    <div class="box-action-row box-member-toolbar">
+      <button class="btn btn-g" onclick="startNewBoxMember()">Registrar alumno</button>
+    </div>
+    <section class="card box-member-form" id="boxMemberForm">
+        <div class="sh"><div class="st" id="bm_form_title">Registrar alumno</div><div class="sl"></div></div>
         <input type="hidden" id="bm_id"/>
         <div class="form-2">
           <div class="fg"><label class="fl">Nombre y apellido</label><input class="fi" id="bm_name"/></div>
@@ -1021,7 +1016,6 @@ function renderBoxMembers() {
           <div class="fg"><label class="fl">Fecha de ingreso</label><input class="fi" id="bm_start" type="date" value="${boxNowISO()}"/></div>
           <div class="fg"><label class="fl">Telefono</label><input class="fi" id="bm_phone" inputmode="tel"/></div>
           <div class="fg"><label class="fl">Estado</label><select class="fi" id="bm_status">${Object.entries(BOX_MEMBER_STATUS_LABELS).map(([k, v]) => `<option value="${k}" ${k === 'active' ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
-          <div class="fg"><label class="fl">Grupo</label><select class="fi" id="bm_group"><option value="">Sin grupo</option>${groupOptions}</select></div>
           <div class="fg"><label class="fl">Mensualidad</label><input class="fi" id="bm_fee" type="number" min="0" value="${Number(cfg.monthlyFee || 400)}"/></div>
           <div class="fg"><label class="fl">Descuento</label><input class="fi" id="bm_discount" type="number" min="0" value="0"/></div>
         </div>
@@ -1032,8 +1026,12 @@ function renderBoxMembers() {
           <div class="fg"><label class="fl">Relacion</label><input class="fi" id="bm_relation" placeholder="Mama, papa, tutor"/></div>
           <div class="fg"><label class="fl">WhatsApp</label><input class="fi" id="bm_whatsapp" inputmode="tel"/></div>
         </div>
-        <button class="btn btn-g btn-full" onclick="saveBoxMember()">Guardar alumno</button>
+        <div class="box-action-row">
+          <button class="btn btn-g" onclick="saveBoxMember()">Guardar alumno</button>
+          <button class="btn btn-out" onclick="closeBoxMemberForm()">Cancelar</button>
+        </div>
       </section>
+    <div class="box-grid">
       <section class="card">
         <div class="sh"><div class="st">Alumnos</div><div class="sl"></div></div>
         ${members.length ? members.map(renderBoxMemberCard).join('') : boxEmpty('Sin alumnos registrados')}
@@ -1043,7 +1041,6 @@ function renderBoxMembers() {
 
 function renderBoxMemberCard(member) {
   const guardians = (member.guardianIds || []).map((id) => boxState.guardians[id]?.fullName).filter(Boolean).join(', ') || 'Sin tutor';
-  const group = boxState.groups[member.groupId]?.name || 'Sin grupo';
   const lastPayment = Object.values(boxState.payments).filter((p) => p.memberId === member.id).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt))[0];
   const pending = Object.values(boxState.charges).filter((c) => c.memberId === member.id && Number(c.balance || 0) > 0);
   const payState = boxMemberPaymentState(member);
@@ -1056,7 +1053,7 @@ function renderBoxMemberCard(member) {
   return `<div class="box-row">
     <div>
       <strong>${member.fullName || '-'}</strong>
-      <span>${BOX_MEMBER_STATUS_LABELS[member.status] || member.status} · ${boxPublicGender(member)} · ${member.age ?? '-'} anos · ${group}</span>
+      <span>${BOX_MEMBER_STATUS_LABELS[member.status] || member.status} · ${boxPublicGender(member)} · ${member.age ?? '-'} anos</span>
       <span>Ingreso ${member.startDate || '-'} · Tel. ${member.phone || boxState.guardians[(member.guardianIds || [])[0]]?.primaryPhone || '-'} · mensualidad ${boxMoney(member.monthlyFee)}</span>
       <span>Ultimo pago: ${lastPayment ? boxMoney(lastPayment.paidAmount) : '-'} · vence ${payState.dueDate || '-'}</span>
     </div>
@@ -1090,7 +1087,7 @@ async function saveBoxMember() {
     age,
     phone,
     status: document.getElementById('bm_status')?.value || 'active',
-    groupId: document.getElementById('bm_group')?.value || '',
+    groupId: 'all',
     monthlyFee: Number(document.getElementById('bm_fee')?.value || boxBusinessConfig().monthlyFee || 400),
     discountAmount: Number(document.getElementById('bm_discount')?.value || 0),
     scholarshipType: null,
@@ -1137,6 +1134,41 @@ async function saveBoxMember() {
   renderBoxMembers();
 }
 
+function openBoxMemberForm() {
+  const form = document.getElementById('boxMemberForm');
+  if (!form) return;
+  form.classList.add('is-open');
+  const title = document.getElementById('bm_form_title');
+  if (title) title.textContent = document.getElementById('bm_id')?.value ? 'Editar alumno' : 'Registrar alumno';
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function startNewBoxMember() {
+  closeBoxMemberForm();
+  openBoxMemberForm();
+}
+
+function closeBoxMemberForm() {
+  const form = document.getElementById('boxMemberForm');
+  if (form) form.classList.remove('is-open');
+  ['bm_id', 'bm_name', 'bm_phone', 'bm_age', 'bm_notes', 'bm_guardian', 'bm_relation', 'bm_whatsapp'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const gender = document.getElementById('bm_gender');
+  if (gender) gender.value = '';
+  const status = document.getElementById('bm_status');
+  if (status) status.value = 'active';
+  const start = document.getElementById('bm_start');
+  if (start) start.value = boxNowISO();
+  const fee = document.getElementById('bm_fee');
+  if (fee) fee.value = Number(boxBusinessConfig().monthlyFee || 400);
+  const discount = document.getElementById('bm_discount');
+  if (discount) discount.value = 0;
+  const title = document.getElementById('bm_form_title');
+  if (title) title.textContent = 'Registrar alumno';
+}
+
 function fillBoxMember(id) {
   const member = boxState.members[id];
   if (!member) return;
@@ -1147,7 +1179,6 @@ function fillBoxMember(id) {
   document.getElementById('bm_age').value = member.age || '';
   document.getElementById('bm_start').value = member.startDate || boxNowISO();
   document.getElementById('bm_status').value = member.status || 'active';
-  document.getElementById('bm_group').value = member.groupId || '';
   document.getElementById('bm_fee').value = Number(member.monthlyFee || boxBusinessConfig().monthlyFee || 400);
   document.getElementById('bm_discount').value = Number(member.discountAmount || 0);
   document.getElementById('bm_notes').value = member.notes || '';
@@ -1155,7 +1186,7 @@ function fillBoxMember(id) {
   document.getElementById('bm_relation').value = guardian.relationship || '';
   document.getElementById('bm_phone').value = member.phone || guardian.primaryPhone || '';
   document.getElementById('bm_whatsapp').value = guardian.whatsappNumber || '';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  openBoxMemberForm();
 }
 
 async function deactivateBoxMember(id) {
@@ -1213,59 +1244,6 @@ function renderBoxGuardians() {
     <div class="box-row"><div><strong>${g.fullName}</strong><span>${g.relationship || 'Tutor'} Â· ${g.primaryPhone || '-'} Â· WhatsApp ${g.whatsappNumber || '-'}</span><span>Alumnos: ${(g.memberIds || []).map((id) => boxState.members[id]?.fullName).filter(Boolean).join(', ') || '-'}</span></div></div>`).join('') : boxEmpty('Sin tutores')}</div>`);
 }
 
-function renderBoxGroups() {
-  const groups = Object.values(boxState.groups).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const tabsGroup = boxState.activeSecondaryGroup === 'admin' ? 'admin' : 'students';
-  boxSetPage('box-groups', `
-    ${boxSectionHeader('Grupos y horarios', 'Organiza alumnos por grupo, capacidad y horario de entrenamiento.')}
-    ${boxTabs(tabsGroup, 'box-groups')}
-    <div class="box-grid box-grid-2">
-      <section class="card">
-        <div class="sh"><div class="st">Grupo</div><div class="sl"></div></div>
-        <div class="fg"><label class="fl">Nombre</label><input class="fi" id="bg_name" placeholder="Grupo infantil vespertino"/></div>
-        <div class="form-2">
-          <div class="fg"><label class="fl">Dias</label><input class="fi" id="bg_days" placeholder="Lun, Mie, Vie"/></div>
-          <div class="fg"><label class="fl">Capacidad</label><input class="fi" id="bg_capacity" type="number" min="0"/></div>
-          <div class="fg"><label class="fl">Inicio</label><input class="fi" id="bg_start" type="time"/></div>
-          <div class="fg"><label class="fl">Fin</label><input class="fi" id="bg_end" type="time"/></div>
-        </div>
-        <button class="btn btn-g btn-full" onclick="saveBoxGroup()">Guardar grupo</button>
-      </section>
-      <section class="card">
-        <div class="sh"><div class="st">Grupos activos</div><div class="sl"></div></div>
-        ${groups.length ? groups.map((g) => `<div class="box-row"><div><strong>${g.name}</strong><span>${(g.daysOfWeek || []).join(', ')} Â· ${g.startTime || '-'}-${g.endTime || '-'} Â· Capacidad ${g.capacity || '-'}</span></div><button class="btn btn-out btn-sm" onclick="disableBoxGroup('${g.id}')">Desactivar</button></div>`).join('') : boxEmpty('Sin grupos')}
-      </section>
-    </div>`);
-}
-
-async function saveBoxGroup() {
-  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede guardar horarios', 'tr');
-  const name = document.getElementById('bg_name')?.value.trim();
-  if (!name) return showToast('Nombre del grupo requerido', 'ta');
-  const payload = {
-    businessId: BOX_LOMBARDO_BUSINESS_ID,
-    name,
-    trainerIds: [],
-    daysOfWeek: String(document.getElementById('bg_days')?.value || '').split(',').map((d) => d.trim()).filter(Boolean),
-    startTime: document.getElementById('bg_start')?.value || '',
-    endTime: document.getElementById('bg_end')?.value || '',
-    capacity: Number(document.getElementById('bg_capacity')?.value || 0) || null,
-    status: 'active',
-    createdBy: currentUser?.uid || '',
-    createdAt: boxServerTimestamp(),
-    updatedAt: boxServerTimestamp()
-  };
-  const ref = await boxPath('groups').add(payload);
-  await boxAudit('group_created', 'group', ref.id, null, payload);
-  showToast('Grupo guardado', 'tg');
-}
-
-async function disableBoxGroup(id) {
-  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede desactivar horarios', 'tr');
-  await boxPath('groups', id).set({ status: 'inactive', updatedAt: boxServerTimestamp(), updatedBy: currentUser?.uid || '' }, { merge: true });
-  await boxAudit('group_disabled', 'group', id, null, { status: 'inactive' });
-}
-
 function renderBoxAttendance() {
   const selectedDate = document.getElementById('ba_date')?.value || boxNowISO();
   const historyDate = document.getElementById('ba_history_date')?.value || selectedDate;
@@ -1319,8 +1297,8 @@ function renderBoxAttendance() {
 
 function renderBoxAttendanceHistory() {
   const records = Object.values(boxState.attendance).sort((a, b) => boxTs(b.capturedAt) - boxTs(a.capturedAt)).slice(0, 80);
-  boxSetPage('box-attendance-history', `${boxSectionHeader('Historial de asistencia', 'Ultimos registros capturados por fecha, grupo y alumno.')}${boxTabs('attendance', 'box-attendance-history')}
-    <div class="card">${records.length ? records.map((a) => `<div class="box-row compact"><div><strong>${a.memberName || boxState.members[a.memberId]?.fullName || a.memberId}</strong><span>${a.date || '-'} · ${boxState.groups[a.groupId]?.name || 'Sin grupo'} · ${BOX_ATTENDANCE_LABELS[a.status] || a.status}</span></div></div>`).join('') : boxEmpty('Sin asistencias registradas')}</div>`);
+  boxSetPage('box-attendance-history', `${boxSectionHeader('Historial de asistencia', 'Ultimos registros capturados por fecha y alumno.')}${boxTabs('attendance', 'box-attendance-history')}
+    <div class="card">${records.length ? records.map((a) => `<div class="box-row compact"><div><strong>${a.memberName || boxState.members[a.memberId]?.fullName || a.memberId}</strong><span>${a.date || '-'} · ${BOX_ATTENDANCE_LABELS[a.status] || a.status}</span></div></div>`).join('') : boxEmpty('Sin asistencias registradas')}</div>`);
 }
 
 function renderBoxAttendanceTrials() {
@@ -1347,14 +1325,13 @@ function renderBoxAttendanceAudits() {
         <div class="sh"><div class="st">Nueva auditoria fisica</div><div class="sl"></div></div>
         <div class="form-2">
           <div class="fg"><label class="fl">Fecha</label><input class="fi" id="ba_date" type="date" value="${boxNowISO()}"/></div>
-          <div class="fg"><label class="fl">Grupo</label><select class="fi" id="ba_group">${Object.values(boxState.groups).map((g) => `<option value="${g.id}">${g.name}</option>`).join('')}</select></div>
           <div class="fg"><label class="fl">Alumnos observados</label><input class="fi" id="bpa_observed" type="number" min="0"/></div>
           <div class="fg"><label class="fl">Foto opcional URL</label><input class="fi" id="bpa_photo" placeholder="https://..."/></div>
         </div>
         <div class="fg"><label class="fl">Observaciones</label><textarea class="fi" id="bpa_notes"></textarea></div>
         <button class="btn btn-g btn-full" onclick="saveBoxPhysicalAudit()">Guardar auditoria fisica</button>
       </section>
-      <section class="card"><div class="sh"><div class="st">Auditorias recientes</div><div class="sl"></div></div>${audits.length ? audits.map((a) => `<div class="box-row compact"><div><strong>${a.date || '-'}</strong><span>${boxState.groups[a.groupId]?.name || 'Sin grupo'} · observados ${a.observedCount || 0} · diferencia ${a.difference || 0}</span></div><span class="box-pill">${a.result || '-'}</span></div>`).join('') : boxEmpty('Sin auditorias fisicas')}</section>
+      <section class="card"><div class="sh"><div class="st">Auditorias recientes</div><div class="sl"></div></div>${audits.length ? audits.map((a) => `<div class="box-row compact"><div><strong>${a.date || '-'}</strong><span>Observados ${a.observedCount || 0} · diferencia ${a.difference || 0}</span></div><span class="box-pill">${a.result || '-'}</span></div>`).join('') : boxEmpty('Sin auditorias fisicas')}</section>
     </div>`);
 }
 
@@ -1450,7 +1427,7 @@ async function registerTrialClass() {
 async function saveBoxPhysicalAudit() {
   if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('No tienes permiso para auditoria fisica', 'tr');
   const date = document.getElementById('ba_date')?.value || boxNowISO();
-  const groupId = document.getElementById('ba_group')?.value || '';
+  const groupId = 'all';
   const observedCount = Number(document.getElementById('bpa_observed')?.value || 0);
   const registeredCount = Object.values(boxState.attendance).filter((a) => a.date === date && (!groupId || a.groupId === groupId) && a.status !== 'absent').length;
   const difference = observedCount - registeredCount;
@@ -1886,11 +1863,6 @@ function renderBoxAdmin() {
         <p class="box-muted">Agrega, edita o elimina gastos. Todo se refleja en resumen y auditoria.</p>
         <button class="btn btn-g btn-full" onclick="boxOpenPage('box-expenses','finance',this)">Abrir gastos</button>
       </section>
-      ${isOwner ? `<section class="card box-config-card">
-        <div class="sh"><div class="st">Permisos</div><div class="sl"></div></div>
-        <p class="box-muted">Asigna acceso de owner, admin, entrenador o auditor para Shark Boxing Gym.</p>
-        <button class="btn btn-out btn-full" onclick="boxOpenPage('box-permissions','admin',this)">Abrir permisos</button>
-      </section>` : ''}
       <section class="card box-config-card">
         <div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>
         <p class="box-muted">Consulta cambios del negocio con fecha, hora, usuario y entidad afectada.</p>
@@ -1940,24 +1912,6 @@ async function saveBoxAdminSettings() {
   } catch (error) {
     showToast(error.message || 'No se pudo guardar configuracion', 'tr');
   }
-}
-
-function renderBoxPermissions() {
-  const users = Object.values(C.usuarios || {}).sort((a, b) => (a.nombre || a.email || '').localeCompare(b.nombre || b.email || ''));
-  boxSetPage('box-permissions', `${boxSectionHeader('Personal y permisos', 'Gestiona roles del box sin exponer opciones a usuarios sin permiso.')}${boxTabs('admin', 'box-permissions')}<div class="card"><div class="sh"><div class="st">Personal y permisos</div><div class="sl"></div></div>${users.length ? users.map((u) => {
-    const role = u.businessRoles?.[BOX_LOMBARDO_BUSINESS_ID]?.role || '';
-    return `<div class="box-row"><div><strong>${u.nombre || u.email}</strong><span>${u.email || ''} Â· rol box: ${role || 'sin acceso'}</span></div>${isOwner ? `<select class="fi box-role-select" id="role_${u.uid}"><option value="">Sin acceso</option><option value="owner" ${role === 'owner' ? 'selected' : ''}>Dueno</option><option value="box_admin" ${role === 'box_admin' ? 'selected' : ''}>Admin box</option><option value="trainer" ${role === 'trainer' ? 'selected' : ''}>Entrenador</option><option value="auditor" ${role === 'auditor' ? 'selected' : ''}>Auditor</option></select><button class="btn btn-g btn-sm" onclick="saveBoxUserRole('${u.uid}')">Guardar</button>` : ''}</div>`;
-  }).join('') : boxEmpty('Sin usuarios')}</div>`);
-}
-
-async function saveBoxUserRole(uid) {
-  if (!isOwner) return showToast('Solo propietario', 'tr');
-  const role = document.getElementById(`role_${uid}`)?.value || null;
-  const patch = {};
-  patch[`businessRoles.${BOX_LOMBARDO_BUSINESS_ID}`] = role ? { role, assignedAt: boxServerTimestamp(), assignedBy: currentUser.uid } : firebase.firestore.FieldValue.delete();
-  await fs.collection('usuarios').doc(uid).set(patch, { merge: true });
-  await boxAudit('business_role_changed', 'user', uid, null, { role });
-  showToast('Rol actualizado', 'tg');
 }
 
 function renderBoxAudit() {

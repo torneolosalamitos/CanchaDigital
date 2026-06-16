@@ -268,8 +268,8 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
 /* Business / Box Lombardo */
 .box-page{max-width:1120px;}
 .box-hero{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:28px;align-items:center;background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:8px;padding:28px;margin-bottom:14px;box-shadow:none;}
-.box-hero h1{font-family:'Montserrat',sans-serif;font-size:38px;font-weight:950;letter-spacing:.25px;text-transform:uppercase;color:#111827;line-height:1.08;margin:4px 0 10px;text-wrap:balance;}
-.box-hero p{font-size:14px;font-weight:800;line-height:1.58;color:#4b5563;max-width:560px;text-wrap:balance;}
+.box-hero h1{font-family:'Montserrat',sans-serif;font-size:34px;font-weight:950;letter-spacing:.15px;text-transform:uppercase;color:#111827;line-height:1.12;margin:4px 0 9px;text-wrap:balance;}
+.box-hero p{font-size:13px;font-weight:800;line-height:1.55;color:#4b5563;max-width:520px;text-wrap:balance;}
 .box-kicker{font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--emerald);}
 .box-hero-logo{display:flex;justify-content:center;align-items:center;}
 .box-hero-logo img{width:190px;height:190px;object-fit:contain;filter:none;}
@@ -414,6 +414,9 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
 .box-config-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
 .box-config-card{min-height:180px;display:flex;flex-direction:column;}
 .box-config-card .btn-full,.box-config-card .box-action-grid{margin-top:auto;}
+.box-member-toolbar{margin:0 0 12px;}
+.box-member-form{display:none;margin-bottom:12px;}
+.box-member-form.is-open{display:block;}
 .box-page .fi{background:#f9fafb;border-color:rgba(17,24,39,.12);border-radius:8px;}
 .box-page .fl{color:#4b5563;}
 .box-page .btn-g{background:#111827;box-shadow:none;}
@@ -430,8 +433,8 @@ body.box-mode .nav-tab.active{background:#111827;border-color:#111827;color:#fff
 .box-home-rules .box-list-item::before,.box-home-contact .box-list-item::before{content:'•';position:absolute;left:2px;color:#111827;font-weight:900;}
 @media (max-width:760px){
   .box-hero{grid-template-columns:1fr;padding:20px 16px 22px;text-align:center;gap:14px;}
-  .box-hero h1{font-size:28px;line-height:1.12;letter-spacing:.1px;margin:6px auto 8px;max-width:330px;text-wrap:balance;}
-  .box-hero p{font-size:12px;line-height:1.5;margin:0 auto;max-width:310px;text-wrap:balance;}
+  .box-hero h1{font-size:24px;line-height:1.14;letter-spacing:0;margin:6px auto 7px;max-width:300px;text-wrap:balance;}
+  .box-hero p{font-size:11px;line-height:1.5;margin:0 auto;max-width:290px;text-wrap:balance;}
   .box-hero-logo{display:flex;justify-content:center;order:-1;}
   .box-hero-logo img{width:116px;height:116px;}
   .box-home-hero::before{left:14px;top:14px;}
@@ -1877,7 +1880,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   .hdr-name{
     max-width:calc(100vw - 134px);
     font-family:'Montserrat',sans-serif;
-    font-size:20px;
+    font-size:18px;
     font-weight:950;
     letter-spacing:.2px;
     line-height:1.08;
@@ -1888,7 +1891,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
   .hdr-cat{
     max-width:calc(100vw - 134px);
     margin-top:7px;
-    font-size:8.5px;
+    font-size:8px;
     font-weight:900;
     letter-spacing:.8px;
     line-height:1.38;
@@ -1971,7 +1974,7 @@ border:1px solid #c2d5f5;box-shadow:0 14px 30px rgba(37,84,212,.08);}
     max-width:calc(100vw - 122px);
   }
   .hdr-name{
-    font-size:19px;
+    font-size:17px;
   }
   .ico-btn{
     min-width:38px;
