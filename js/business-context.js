@@ -26,7 +26,7 @@ const BUSINESS_CATALOG = {
     type: 'boxing_gym',
     status: 'active',
     logo: SHARK_BOXING_GYM_LOGO,
-    splashSubtitle: 'INFORMACION · ALUMNOS',
+    splashSubtitle: 'INFORMACION - ALUMNOS',
     monthlyFee: 400,
     currency: 'MXN',
     paymentMethodsEnabled: ['cash'],
@@ -125,7 +125,7 @@ function canAccessBusinessPage(pageKey) {
   if (['box-public', 'box-public-students'].includes(pageKey)) return true;
   const role = getBusinessRole(BOX_LOMBARDO_BUSINESS_ID);
   const managerPages = [
-    'box-dashboard', 'box-students', 'box-members', 'box-prospects', 'box-guardians',
+    'box-dashboard', 'box-students', 'box-members', 'box-prospects',
     'box-attendance', 'box-attendance-history', 'box-attendance-trials', 'box-attendance-audits',
     'box-finance', 'box-upcoming', 'box-billing', 'box-payments', 'box-cash', 'box-expenses',
     'box-reports', 'box-report-debts', 'box-report-attendance', 'box-report-money',

@@ -151,7 +151,6 @@ const BOX_PAGES = [
   ['box-students', 'Alumnos'],
   ['box-members', 'Alumnos'],
   ['box-prospects', 'Prospectos'],
-  ['box-guardians', 'Tutores'],
   ['box-attendance', 'Asistencia'],
   ['box-attendance-history', 'Historial asistencia'],
   ['box-attendance-trials', 'Clases de prueba'],
@@ -199,10 +198,7 @@ const BOX_PUBLIC_NAV = [
 ];
 
 const BOX_SECONDARY_NAV = {
-  students: [
-    ['box-members', 'Padron'],
-    ['box-guardians', 'Responsables']
-  ],
+  students: [],
   attendance: [
     ['box-attendance', 'Lista'],
     ['box-attendance-history', 'Progreso'],
@@ -601,7 +597,6 @@ function renderBoxPage(pageKey) {
     'box-students': renderBoxStudents,
     'box-members': renderBoxMembers,
     'box-prospects': renderBoxProspects,
-    'box-guardians': renderBoxGuardians,
     'box-attendance': renderBoxAttendance,
     'box-attendance-history': renderBoxAttendanceHistory,
     'box-attendance-trials': renderBoxAttendanceTrials,
@@ -691,14 +686,13 @@ function boxUpcomingRows(limit = 20, compact = false) {
   const items = boxUpcomingPaymentItems().slice(0, limit);
   if (!items.length) return boxEmpty('Sin pagos proximos o vencidos');
   return items.map(({ member, state }) => {
-    const guardian = boxState.guardians[(member.guardianIds || [])[0]] || {};
     const daysLabel = state.days === 0 ? 'vence hoy' : state.days < 0 ? `${Math.abs(state.days)} dia(s) vencido` : `faltan ${state.days} dia(s)`;
-    const phone = boxNormalizePhone(guardian.whatsappNumber || guardian.primaryPhone || '');
+    const phone = boxNormalizePhone(member.phone || '');
     const message = encodeURIComponent(`Hola, te recordamos la mensualidad de ${member.fullName || 'alumno'} en ${BOX_PUBLIC_BRAND}. Saldo pendiente: ${boxMoney(state.balance)}.`);
     return `<div class="box-row ${compact ? 'compact' : ''}">
       <div>
         <strong>${member.fullName || '-'}</strong>
-        <span>${guardian.fullName || 'Tutor sin registrar'} · ${phone || 'sin telefono'} · ${state.dueDate || 'sin vencimiento'}</span>
+        <span>Tel. ${phone || 'sin telefono'} · ${state.dueDate || 'sin vencimiento'}</span>
         <span>${daysLabel} · pendiente ${boxMoney(state.balance)}</span>
       </div>
       <div class="box-row-actions">
@@ -721,13 +715,12 @@ function renderBoxUpcomingPayments() {
 async function logBoxPaymentNotice(memberId, chargeId = '') {
   if (!fs || !currentUser) return;
   const member = boxState.members[memberId] || {};
-  const guardian = boxState.guardians[(member.guardianIds || [])[0]] || {};
   const payload = {
     businessId: BOX_LOMBARDO_BUSINESS_ID,
     type: 'payment_reminder',
     memberId,
     chargeId,
-    to: boxNormalizePhone(guardian.whatsappNumber || guardian.primaryPhone || ''),
+    to: boxNormalizePhone(member.phone || ''),
     status: 'opened_whatsapp',
     lastMessage: `Recordatorio de mensualidad para ${member.fullName || memberId}`,
     noticeDate: boxNowISO(),
@@ -886,17 +879,17 @@ async function saveBoxProspect() {
   if (!fs) return showToast('Firestore no disponible', 'tr');
   const fullName = document.getElementById('bp_child')?.value.trim();
   const age = Number(document.getElementById('bp_age')?.value || 0);
-  const guardianName = document.getElementById('bp_guardian')?.value.trim();
+  const contactName = document.getElementById('bp_guardian')?.value.trim();
   const phone = boxNormalizePhone(document.getElementById('bp_phone')?.value);
   const interestedSchedule = document.getElementById('bp_schedule')?.value.trim();
   const notes = document.getElementById('bp_notes')?.value.trim();
   const consent = document.getElementById('bp_consent')?.checked;
-  if (!fullName || !guardianName || phone.length !== 10 || !consent) return showToast('Completa nombre, tutor, telefono y consentimiento', 'ta');
+  if (!fullName || phone.length !== 10 || !consent) return showToast('Completa nombre, telefono y consentimiento', 'ta');
   await boxPath('prospects').add({
     businessId: BOX_LOMBARDO_BUSINESS_ID,
     fullName,
     age,
-    guardianName,
+    guardianName: contactName || '',
     guardianPhone: phone,
     interestedSchedule,
     notes,
@@ -939,27 +932,15 @@ function renderBoxDashboard() {
 }
 
 function renderBoxPublicStudents() {
-  const cfg = boxBusinessConfig();
-  const configured = Array.isArray(cfg.publicStudents) ? cfg.publicStudents : [];
-  const source = configured.length ? configured : (Object.keys(boxState.members).length ? Object.values(boxState.members) : []);
-  const members = source
-    .filter((m) => (!m.status || ['active', 'active_with_debt', 'trial'].includes(m.status)) && m.publicVisible !== false)
-    .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
   boxSetPage('box-public-students', `
     <div class="box-section-head box-section-head-simple">
       <div><h2>Alumnos</h2></div>
     </div>
-    <div class="box-grid box-grid-2 box-student-directory">
-      ${members.length ? members.map((member) => {
-        return `<section class="card box-public-student box-public-student-minimal">
-          <div>
-            <strong>${boxPublicStudentName(member)}</strong>
-            <span>Genero: ${boxPublicGender(member)}</span>
-            <span>Ingreso: ${boxPublicAdmissionDate(member)}</span>
-          </div>
-        </section>`;
-      }).join('') : boxEmpty('Aun no hay alumnos visibles')}
-    </div>`);
+    <section class="card box-public-restricted">
+      <div class="box-public-lock">🔒</div>
+      <strong>Listado reservado</strong>
+      <span>La informacion completa de alumnos solo esta disponible para entrenador y administracion.</span>
+    </section>`);
 }
 
 function buildBoxAlerts() {
@@ -1020,12 +1001,6 @@ function renderBoxMembers() {
           <div class="fg"><label class="fl">Descuento</label><input class="fi" id="bm_discount" type="number" min="0" value="0"/></div>
         </div>
         <div class="fg"><label class="fl">Notas</label><textarea class="fi" id="bm_notes"></textarea></div>
-        <hr class="divider"/>
-        <div class="form-2">
-          <div class="fg"><label class="fl">Contacto / tutor</label><input class="fi" id="bm_guardian" placeholder="Opcional"/></div>
-          <div class="fg"><label class="fl">Relacion</label><input class="fi" id="bm_relation" placeholder="Mama, papa, tutor"/></div>
-          <div class="fg"><label class="fl">WhatsApp</label><input class="fi" id="bm_whatsapp" inputmode="tel"/></div>
-        </div>
         <div class="box-action-row">
           <button class="btn btn-g" onclick="saveBoxMember()">Guardar alumno</button>
           <button class="btn btn-out" onclick="closeBoxMemberForm()">Cancelar</button>
@@ -1040,7 +1015,6 @@ function renderBoxMembers() {
 }
 
 function renderBoxMemberCard(member) {
-  const guardians = (member.guardianIds || []).map((id) => boxState.guardians[id]?.fullName).filter(Boolean).join(', ') || 'Sin tutor';
   const lastPayment = Object.values(boxState.payments).filter((p) => p.memberId === member.id).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt))[0];
   const pending = Object.values(boxState.charges).filter((c) => c.memberId === member.id && Number(c.balance || 0) > 0);
   const payState = boxMemberPaymentState(member);
@@ -1054,8 +1028,9 @@ function renderBoxMemberCard(member) {
     <div>
       <strong>${member.fullName || '-'}</strong>
       <span>${BOX_MEMBER_STATUS_LABELS[member.status] || member.status} · ${boxPublicGender(member)} · ${member.age ?? '-'} anos</span>
-      <span>Ingreso ${member.startDate || '-'} · Tel. ${member.phone || boxState.guardians[(member.guardianIds || [])[0]]?.primaryPhone || '-'} · mensualidad ${boxMoney(member.monthlyFee)}</span>
-      <span>Ultimo pago: ${lastPayment ? boxMoney(lastPayment.paidAmount) : '-'} · vence ${payState.dueDate || '-'}</span>
+      <span>Ingreso ${member.startDate || '-'} · Tel. ${member.phone || '-'} · mensualidad ${boxMoney(member.monthlyFee)}</span>
+      <span>Descuento ${boxMoney(member.discountAmount)} · proximo cobro ${payState.dueDate || '-'} · ultimo pago ${lastPayment ? boxMoney(lastPayment.paidAmount) : '-'}</span>
+      ${member.notes ? `<span>Notas: ${boxAttr(member.notes)}</span>` : ''}
     </div>
     <div class="box-row-actions">
       <span class="box-pill ${payState.tone || ''}">${payState.label}</span>
@@ -1071,12 +1046,8 @@ async function saveBoxMember() {
   const memberId = document.getElementById('bm_id')?.value || '';
   const fullName = document.getElementById('bm_name')?.value.trim();
   const phone = boxNormalizePhone(document.getElementById('bm_phone')?.value);
-  const guardianName = document.getElementById('bm_guardian')?.value.trim() || `Contacto de ${fullName}`;
   if (!fullName || phone.length !== 10) return showToast('Nombre, apellido y telefono son obligatorios', 'ta');
-  const guardianExisting = Object.values(boxState.guardians).find((g) => boxNormalizePhone(g.primaryPhone) === phone);
-  const guardianRef = guardianExisting ? boxPath('guardians', guardianExisting.id) : boxPath('guardians').doc();
   const memberRef = memberId ? boxPath('members', memberId) : boxPath('members').doc();
-  const guardianId = guardianRef.id;
   const prev = memberId ? boxState.members[memberId] : null;
   const age = Number(document.getElementById('bm_age')?.value || 0) || null;
   const startDate = document.getElementById('bm_start')?.value || prev?.startDate || boxNowISO();
@@ -1095,7 +1066,7 @@ async function saveBoxMember() {
     billingAnchorDay: Number(String(startDate).slice(-2)) || null,
     nextDueDate: startDate,
     endDate: null,
-    guardianIds: [...new Set([...(prev?.guardianIds || []), guardianId])],
+    guardianIds: prev?.guardianIds || [],
     notes: document.getElementById('bm_notes')?.value.trim() || '',
     updatedBy: currentUser.uid,
     updatedAt: boxServerTimestamp()
@@ -1106,21 +1077,6 @@ async function saveBoxMember() {
     payload.createdAt = boxServerTimestamp();
   }
   const batch = fs.batch();
-  batch.set(guardianRef, {
-    businessId: BOX_LOMBARDO_BUSINESS_ID,
-    fullName: guardianName,
-    relationship: document.getElementById('bm_relation')?.value.trim() || 'Tutor',
-    primaryPhone: phone,
-    alternatePhone: '',
-    whatsappNumber: boxNormalizePhone(document.getElementById('bm_whatsapp')?.value) || phone,
-    messagingConsent: true,
-    address: '',
-    notes: '',
-    memberIds: firebase.firestore.FieldValue.arrayUnion(memberRef.id),
-    createdBy: guardianExisting?.createdBy || currentUser.uid,
-    createdAt: guardianExisting?.createdAt || boxServerTimestamp(),
-    updatedAt: boxServerTimestamp()
-  }, { merge: true });
   batch.set(memberRef, payload, { merge: true });
   await batch.commit();
   await boxAudit(prev ? 'member_updated' : 'member_created', 'member', memberRef.id, prev, payload);
@@ -1151,7 +1107,7 @@ function startNewBoxMember() {
 function closeBoxMemberForm() {
   const form = document.getElementById('boxMemberForm');
   if (form) form.classList.remove('is-open');
-  ['bm_id', 'bm_name', 'bm_phone', 'bm_age', 'bm_notes', 'bm_guardian', 'bm_relation', 'bm_whatsapp'].forEach((id) => {
+  ['bm_id', 'bm_name', 'bm_phone', 'bm_age', 'bm_notes'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -1172,7 +1128,6 @@ function closeBoxMemberForm() {
 function fillBoxMember(id) {
   const member = boxState.members[id];
   if (!member) return;
-  const guardian = boxState.guardians[(member.guardianIds || [])[0]] || {};
   document.getElementById('bm_id').value = id;
   document.getElementById('bm_name').value = member.fullName || '';
   document.getElementById('bm_gender').value = member.gender || member.genero || '';
@@ -1182,10 +1137,7 @@ function fillBoxMember(id) {
   document.getElementById('bm_fee').value = Number(member.monthlyFee || boxBusinessConfig().monthlyFee || 400);
   document.getElementById('bm_discount').value = Number(member.discountAmount || 0);
   document.getElementById('bm_notes').value = member.notes || '';
-  document.getElementById('bm_guardian').value = guardian.fullName || '';
-  document.getElementById('bm_relation').value = guardian.relationship || '';
-  document.getElementById('bm_phone').value = member.phone || guardian.primaryPhone || '';
-  document.getElementById('bm_whatsapp').value = guardian.whatsappNumber || '';
+  document.getElementById('bm_phone').value = member.phone || '';
   openBoxMemberForm();
 }
 
@@ -1230,18 +1182,12 @@ async function reactivateBoxMember(id) {
 function renderBoxProspects() {
   const prospects = Object.values(boxState.prospects).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
   boxSetPage('box-prospects', `${boxSectionHeader('Prospectos', 'Seguimiento de interesados registrados desde el formulario publico.')}${boxTabs('students', 'box-prospects')}<div class="card"><div class="sh"><div class="st">Prospectos</div><div class="sl"></div></div>${prospects.length ? prospects.map((p) => `
-    <div class="box-row"><div><strong>${p.fullName}</strong><span>${p.age || '-'} anos Â· Tutor: ${p.guardianName || '-'} Â· ${p.guardianPhone || '-'}</span><span>${p.interestedSchedule || '-'} Â· ${p.notes || ''}</span></div><button class="btn btn-out btn-sm" onclick="markProspectReviewed('${p.id}')">En revision</button></div>`).join('') : boxEmpty('Sin prospectos')}</div>`);
+    <div class="box-row"><div><strong>${p.fullName}</strong><span>${p.age || '-'} anos · Contacto: ${p.guardianName || '-'} · ${p.guardianPhone || '-'}</span><span>${p.interestedSchedule || '-'} · ${p.notes || ''}</span></div><button class="btn btn-out btn-sm" onclick="markProspectReviewed('${p.id}')">En revision</button></div>`).join('') : boxEmpty('Sin prospectos')}</div>`);
 }
 
 async function markProspectReviewed(id) {
   await boxPath('prospects', id).set({ status: 'reviewing', updatedAt: boxServerTimestamp(), updatedBy: currentUser?.uid || '' }, { merge: true });
   await boxAudit('prospect_reviewing', 'prospect', id, null, { status: 'reviewing' });
-}
-
-function renderBoxGuardians() {
-  const guardians = Object.values(boxState.guardians).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
-  boxSetPage('box-guardians', `${boxSectionHeader('Tutores', 'Contactos responsables, consentimiento y relacion con alumnos.')}${boxTabs('students', 'box-guardians')}<div class="card"><div class="sh"><div class="st">Tutores</div><div class="sl"></div></div>${guardians.length ? guardians.map((g) => `
-    <div class="box-row"><div><strong>${g.fullName}</strong><span>${g.relationship || 'Tutor'} Â· ${g.primaryPhone || '-'} Â· WhatsApp ${g.whatsappNumber || '-'}</span><span>Alumnos: ${(g.memberIds || []).map((id) => boxState.members[id]?.fullName).filter(Boolean).join(', ') || '-'}</span></div></div>`).join('') : boxEmpty('Sin tutores')}</div>`);
 }
 
 function renderBoxAttendance() {
@@ -1309,7 +1255,7 @@ function renderBoxAttendanceTrials() {
         <div class="sh"><div class="st">Registrar clase de prueba</div><div class="sl"></div></div>
         <div class="form-2">
           <div class="fg"><label class="fl">Nombre</label><input class="fi" id="bt_name"/></div>
-          <div class="fg"><label class="fl">Tutor telefono</label><input class="fi" id="bt_phone" inputmode="tel"/></div>
+          <div class="fg"><label class="fl">Telefono</label><input class="fi" id="bt_phone" inputmode="tel"/></div>
         </div>
         <button class="btn btn-g btn-full" onclick="registerTrialClass()">Registrar clase de prueba</button>
       </section>
