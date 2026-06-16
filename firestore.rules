@@ -328,6 +328,13 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      match /cashCuts/{id} {
+        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
+        allow create: if businessMoneyManager(businessId) &&
+          boxDocHasBusiness(request.resource.data, businessId);
+        allow update, delete: if false;
+      }
+
       match /cashClosings/{id} {
         allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
         allow create, update, delete: if false;

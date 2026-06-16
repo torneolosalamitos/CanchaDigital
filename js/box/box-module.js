@@ -13,6 +13,7 @@
   charges: {},
   payments: {},
   cashDeliveries: {},
+  cashCuts: {},
   expenses: {},
   physicalAudits: {},
   inconsistencies: {},
@@ -81,6 +82,7 @@ const BOX_COLLECTIONS = [
   'charges',
   'payments',
   'cashDeliveries',
+  'cashCuts',
   'expenses',
   'physicalAudits',
   'inconsistencies',
@@ -107,6 +109,7 @@ const BOX_AUDITOR_COLLECTIONS = [
   'billingPeriods',
   'charges',
   'payments',
+  'cashCuts',
   'expenses',
   'physicalAudits',
   'inconsistencies',
@@ -160,6 +163,7 @@ const BOX_PAGES = [
   ['box-payments', 'Pagos'],
   ['box-upcoming', 'Proximos pagos'],
   ['box-cash', 'Entregas de efectivo'],
+  ['box-cuts', 'Cortes'],
   ['box-expenses', 'Gastos'],
   ['box-reports', 'Resumen'],
   ['box-report-debts', 'Adeudos'],
@@ -168,11 +172,7 @@ const BOX_PAGES = [
   ['box-report-workers', 'Cobros por trabajador'],
   ['box-inconsistencies', 'Inconsistencias'],
   ['box-receipts', 'Comprobantes'],
-  ['box-admin', 'Configuracion'],
-  ['box-admin-expenses', 'Categorias de gastos'],
-  ['box-admin-folios', 'Folios y parametros'],
-  ['box-audit', 'Auditoria'],
-  ['box-settings', 'Configuracion']
+  ['box-audit', 'Auditoria']
 ];
 
 const BOX_ADMIN_MAIN_NAV = [
@@ -180,8 +180,7 @@ const BOX_ADMIN_MAIN_NAV = [
   ['box-members', 'Alumnos'],
   ['box-attendance', 'Asistencia'],
   ['box-finance', 'Mensualidades'],
-  ['box-reports', 'Resumen'],
-  ['box-admin', 'Configuracion']
+  ['box-reports', 'Resumen']
 ];
 
 const BOX_TRAINER_MAIN_NAV = [
@@ -213,10 +212,7 @@ const BOX_SECONDARY_NAV = {
   reports: [
     ['box-reports', 'General'],
     ['box-report-attendance', 'Asistencia'],
-    ['box-report-money', 'Cobranza']
-  ],
-  admin: [
-    ['box-admin', 'Configuracion'],
+    ['box-report-money', 'Cobranza'],
     ['box-audit', 'Auditoria']
   ]
 };
@@ -606,6 +602,7 @@ function renderBoxPage(pageKey) {
     'box-payments': renderBoxPayments,
     'box-upcoming': renderBoxUpcomingPayments,
     'box-cash': renderBoxCash,
+    'box-cuts': renderBoxReports,
     'box-expenses': renderBoxExpenses,
     'box-reports': renderBoxReports,
     'box-report-debts': renderBoxReportDebts,
@@ -614,11 +611,7 @@ function renderBoxPage(pageKey) {
     'box-report-workers': renderBoxReportWorkers,
     'box-inconsistencies': renderBoxInconsistencies,
     'box-receipts': renderBoxReceipts,
-    'box-admin': renderBoxAdmin,
-    'box-admin-expenses': renderBoxAdminExpenses,
-    'box-admin-folios': renderBoxAdminFolios,
-    'box-audit': renderBoxAudit,
-    'box-settings': renderBoxSettings
+    'box-audit': renderBoxAudit
   };
   (renderers[pageKey] || renderBoxPublic)();
 }
@@ -946,8 +939,8 @@ function renderBoxPublicStudents() {
 function buildBoxAlerts() {
   const alerts = [];
   const members = Object.values(boxState.members);
-  members.filter((m) => ['active', 'active_with_debt'].includes(m.status) && (!m.guardianIds || !m.guardianIds.length)).forEach((m) => {
-    alerts.push({ severity: 'warning', label: 'Alumno activo sin tutor', detail: m.fullName });
+  members.filter((m) => ['active', 'active_with_debt'].includes(m.status) && !boxNormalizePhone(m.phone || '')).forEach((m) => {
+    alerts.push({ severity: 'warning', label: 'Alumno activo sin telefono', detail: m.fullName });
   });
   Object.values(boxState.charges).filter((c) => Number(c.balance || 0) > 0 && c.status !== 'canceled').forEach((c) => {
     const member = boxState.members[c.memberId];
@@ -1683,44 +1676,229 @@ async function deleteBoxExpense(id) {
   renderBoxExpenses();
 }
 
+function boxCurrentMonthRange() {
+  const today = boxNowISO();
+  const year = Number(today.slice(0, 4));
+  const monthIndex = Number(today.slice(5, 7)) - 1;
+  return {
+    start: `${today.slice(0, 8)}01`,
+    end: boxDateOnly(new Date(year, monthIndex + 1, 0))
+  };
+}
+
+function boxWeekRange() {
+  const now = new Date(`${boxNowISO()}T00:00:00`);
+  const day = now.getDay() || 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - day + 1);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  return { start: boxDateOnly(monday), end: boxDateOnly(friday) };
+}
+
+function boxSelectedRange(prefix = 'br') {
+  const fallback = boxCurrentMonthRange();
+  const start = document.getElementById(`${prefix}_start`)?.value || fallback.start;
+  const end = document.getElementById(`${prefix}_end`)?.value || fallback.end;
+  return start <= end ? { start, end } : { start: end, end: start };
+}
+
+function boxInDateRange(dateISO, start, end) {
+  const date = String(dateISO || '').slice(0, 10);
+  return Boolean(date) && date >= start && date <= end;
+}
+
+function boxPaymentDate(payment) {
+  return payment.paymentDate || payment.createdAtDate || boxDateOnly(boxTs(payment.createdAt));
+}
+
+function boxExpenseDate(expense) {
+  return expense.date || expense.createdAtDate || boxDateOnly(boxTs(expense.createdAt));
+}
+
+function boxChargeDate(charge) {
+  if (charge.dueDate) return String(charge.dueDate).slice(0, 10);
+  const period = charge.billingPeriodId || charge.period || String(charge.periodLabel || '').slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(period) ? `${period}-01` : boxNowISO();
+}
+
+function boxRangeSummary(start, end) {
+  const payments = Object.values(boxState.payments)
+    .filter((p) => p.paymentStatus !== 'reverted' && boxInDateRange(boxPaymentDate(p), start, end));
+  const expenses = Object.values(boxState.expenses)
+    .filter((e) => !['canceled', 'rejected'].includes(e.status) && boxInDateRange(boxExpenseDate(e), start, end));
+  const charges = Object.values(boxState.charges)
+    .filter((c) => c.status !== 'canceled' && boxInDateRange(boxChargeDate(c), start, end));
+  const attendance = Object.values(boxState.attendance)
+    .filter((a) => boxInDateRange(a.date, start, end));
+  const cashPayments = payments.filter((p) => boxPaymentMethodCode(p.paymentMethod) === 'cash');
+  const transferPayments = payments.filter((p) => boxPaymentMethodCode(p.paymentMethod) === 'transfer');
+  const income = payments.reduce((sum, payment) => sum + Number(payment.paidAmount || 0), 0);
+  const cash = cashPayments.reduce((sum, payment) => sum + Number(payment.paidAmount || 0), 0);
+  const transfer = transferPayments.reduce((sum, payment) => sum + Number(payment.paidAmount || 0), 0);
+  const expenseTotal = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const expected = charges.reduce((sum, charge) => sum + Number(charge.expectedAmount || 0), 0);
+  const collected = charges.reduce((sum, charge) => sum + Number(charge.totalPaid || 0), 0);
+  const pending = charges.reduce((sum, charge) => sum + Math.max(Number(charge.balance || 0), 0), 0);
+  const paidCharges = charges.filter((charge) => Number(charge.balance || 0) <= 0).length;
+  const unpaidCharges = charges.length - paidCharges;
+  const presentLike = (a) => ['present', 'trial_class', 'late'].includes(a.status);
+  return {
+    payments,
+    expenses,
+    charges,
+    attendance,
+    income,
+    cash,
+    transfer,
+    expenseTotal,
+    net: income - expenseTotal,
+    expected,
+    collected,
+    pending,
+    paidCharges,
+    unpaidCharges,
+    present: attendance.filter(presentLike).length,
+    absent: attendance.filter((a) => !presentLike(a)).length
+  };
+}
+
+function boxLatestCashCut() {
+  return Object.values(boxState.cashCuts)
+    .sort((a, b) => String(b.endDate || '').localeCompare(String(a.endDate || '')) || boxTs(b.createdAt) - boxTs(a.createdAt))[0] || null;
+}
+
+function boxBar(label, value, total, tone = '') {
+  const pct = Math.max(0, Math.min(100, Math.round((Number(value || 0) / Math.max(Number(total || 0), 1)) * 100)));
+  return `<div class="box-chart-row ${tone}">
+    <div><strong>${label}</strong><span>${typeof value === 'number' ? boxMoney(value) : value}</span></div>
+    <div class="box-chart-track"><i style="width:${pct}%"></i></div>
+    <em>${pct}%</em>
+  </div>`;
+}
+
+function boxMiniStat(label, value, tone = '') {
+  return `<div class="box-mini-stat ${tone}"><strong>${value}</strong><span>${label}</span></div>`;
+}
+
+async function createBoxCashCut() {
+  if (!fs || !currentUser) return showToast('Inicia sesion para guardar cortes', 'ta');
+  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede crear cortes', 'tr');
+  const { start, end } = boxSelectedRange('bcut');
+  const summary = boxRangeSummary(start, end);
+  const payload = {
+    businessId: BOX_LOMBARDO_BUSINESS_ID,
+    startDate: start,
+    endDate: end,
+    cashAmount: summary.cash,
+    transferAmount: summary.transfer,
+    totalIncome: summary.income,
+    expensesAmount: summary.expenseTotal,
+    netAmount: summary.net,
+    paymentsCount: summary.payments.length,
+    expensesCount: summary.expenses.length,
+    attendanceCount: summary.present,
+    status: 'closed',
+    createdBy: currentUser.uid,
+    createdByName: currentUser.email || currentUser.displayName || '',
+    createdAt: boxServerTimestamp()
+  };
+  const ref = await boxPath('cashCuts').add(payload);
+  await boxAudit('cash_cut_created', 'cashCut', ref.id, null, payload);
+  showToast('Corte guardado', 'tg');
+  renderBoxReports();
+}
+
 function renderBoxReports() {
   const s = boxStats();
-  const att = boxAttendanceStats();
-  const collectionPct = Math.round((s.income / Math.max(s.expected, 1)) * 100);
-  const presentToday = att.todayPresent;
+  const month = boxCurrentMonthRange();
+  const range = boxSelectedRange('br');
+  const cutRange = boxSelectedRange('bcut');
+  const selected = boxRangeSummary(range.start, range.end);
+  const cutPreview = boxRangeSummary(cutRange.start, cutRange.end);
+  const today = boxNowISO();
+  const week = boxWeekRange();
+  const todaySummary = boxRangeSummary(today, today);
+  const weekSummary = boxRangeSummary(week.start, week.end);
+  const monthSummary = boxRangeSummary(month.start, month.end);
+  const collectionPct = Math.round((selected.collected / Math.max(selected.expected, 1)) * 100);
   const activeTotal = s.activeMembers.length;
-  const pendingBalance = s.pendingCharges.reduce((sum, c) => sum + Number(c.balance || 0), 0);
-  const cashPendingTotal = s.pendingCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0);
-  const cashConfirmedTotal = s.confirmedCash.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0);
-  const previousMethodTotal = s.transferPayments.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0);
-  const recentPayments = s.payments.sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt)).slice(0, 6);
-  const recentExpenses = s.expenses.sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt)).slice(0, 5);
-  const topDebts = s.pendingCharges.sort((a, b) => Number(b.balance || 0) - Number(a.balance || 0)).slice(0, 5);
-  const deliveries = Object.values(boxState.cashDeliveries);
-  const auditCount = Object.keys(boxState.auditLogs).length;
-  const inactiveCount = s.members.filter((m) => ['inactive', 'permanent_leave', 'temporary_leave'].includes(m.status)).length;
-  boxSetPage('box-reports', `${boxSectionHeader('Resumen', 'Indicadores operativos del negocio en tiempo real.')}
+  const latestCut = boxLatestCashCut();
+  const afterCutStart = latestCut?.endDate ? boxDateOnly(new Date(`${latestCut.endDate}T00:00:00`).getTime() + 86400000) : month.start;
+  const afterCut = boxRangeSummary(afterCutStart, today);
+  const cuts = Object.values(boxState.cashCuts).sort((a, b) => String(b.endDate || '').localeCompare(String(a.endDate || '')) || boxTs(b.createdAt) - boxTs(a.createdAt));
+  const topDebts = selected.charges.filter((c) => Number(c.balance || 0) > 0).sort((a, b) => Number(b.balance || 0) - Number(a.balance || 0)).slice(0, 5);
+  boxSetPage('box-reports', `${boxSectionHeader('Resumen', 'Lectura clara de cobranza, asistencia, efectivo y cortes.')}
+    <section class="card box-summary-toolbar">
+      <div class="form-3">
+        <div class="fg"><label class="fl">Desde</label><input class="fi" id="br_start" type="date" value="${range.start}" onchange="renderBoxReports()"/></div>
+        <div class="fg"><label class="fl">Hasta</label><input class="fi" id="br_end" type="date" value="${range.end}" onchange="renderBoxReports()"/></div>
+        <div class="fg"><label class="fl">Periodo</label><button class="btn btn-out btn-full" onclick="renderBoxReports()">Actualizar</button></div>
+      </div>
+    </section>
     <div class="box-kpi-grid primary">
-      ${boxKpi('Alumnos activos', activeTotal)}
-      ${boxKpi('Asistencia hoy', `${presentToday}/${activeTotal}`)}
-      ${boxKpi('Cobranza mensual', `${collectionPct}%`)}
-      ${boxKpi('Saldo pendiente', boxMoney(pendingBalance), pendingBalance ? 'warning' : '')}
-    </div>
-    <div class="box-kpi-grid secondary">
-      ${boxKpi('Ingresos', boxMoney(s.income), 'success')}
-      ${boxKpi('Metodos anteriores', boxMoney(previousMethodTotal))}
-      ${boxKpi('Efectivo pendiente', boxMoney(cashPendingTotal), cashPendingTotal ? 'warning' : '')}
-      ${boxKpi('Neto', boxMoney(s.net), s.net < 0 ? 'danger' : 'success')}
+      ${boxKpi('Cobrado', boxMoney(selected.income), 'success')}
+      ${boxKpi('Pendiente', boxMoney(selected.pending), selected.pending ? 'warning' : '')}
+      ${boxKpi('Asistencia hoy', `${todaySummary.present}/${activeTotal}`)}
+      ${boxKpi('Desde ultimo corte', boxMoney(afterCut.cash), afterCut.cash ? 'success' : '')}
     </div>
     <div class="box-grid box-grid-2">
-      <section class="card box-panel"><div class="sh"><div class="st">Asistencia</div><div class="sl"></div></div>${boxMeter('Hoy', att.todayPct)}${boxMeter('Semana', att.weekPct)}${boxMeter('Mes', att.monthPct)}<div class="box-info-list"><div><strong>Baja asistencia</strong><span>${att.low.map((i) => i.member.fullName).join(', ') || 'Sin alertas'}</span></div></div></section>
-      <section class="card box-panel"><div class="sh"><div class="st">Mensualidades</div><div class="sl"></div></div>${boxMeter('Cobrado del mes', collectionPct, collectionPct < 70 ? 'warning' : 'success')}<div class="box-info-list"><div><strong>Al corriente</strong><span>${s.currentMembers}</span></div><div><strong>Proximos a pagar</strong><span>${s.upcomingMembers}</span></div><div><strong>Vencidos</strong><span>${s.overdueMembers}</span></div></div></section>
-      <section class="card box-panel"><div class="sh"><div class="st">Ingresos y caja</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Efectivo confirmado</strong><span>${boxMoney(cashConfirmedTotal)}</span></div><div><strong>Efectivo por entregar</strong><span>${boxMoney(cashPendingTotal)}</span></div><div><strong>Metodos anteriores</strong><span>${boxMoney(previousMethodTotal)}</span></div><div><strong>Gastos</strong><span>${boxMoney(s.expenseTotal)}</span></div></div></section>
-      <section class="card box-panel"><div class="sh"><div class="st">Alumnos</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Total registrados</strong><span>${s.members.length}</span></div><div><strong>Activos</strong><span>${s.activeMembers.length}</span></div><div><strong>Clases de prueba</strong><span>${s.members.filter((m) => m.status === 'trial').length}</span></div><div><strong>Bajas</strong><span>${inactiveCount}</span></div></div></section>
-      <section class="card box-panel"><div class="sh"><div class="st">Adeudos principales</div><div class="sl"></div></div>${topDebts.length ? topDebts.map((c) => `<div class="box-row compact"><div><strong>${boxState.members[c.memberId]?.fullName || c.memberId}</strong><span>${c.periodLabel || c.billingPeriodId} · vence ${c.dueDate || '-'}</span></div><span class="box-pill warning">${boxMoney(c.balance)}</span></div>`).join('') : boxEmpty('Sin adeudos')}</section>
-      <section class="card box-panel"><div class="sh"><div class="st">Pagos recientes</div><div class="sl"></div></div>${recentPayments.length ? recentPayments.map((p) => `<div class="box-row compact"><div><strong>${boxState.members[p.memberId]?.fullName || p.memberId}</strong><span>${boxMoney(p.paidAmount)} · ${boxPaymentMethodLabel(p.paymentMethod)} · ${p.paymentDate || boxDateOnly(boxTs(p.createdAt))}</span></div><span class="box-pill">${p.folio || p.id}</span></div>`).join('') : boxEmpty('Sin pagos')}</section>
-      <section class="card box-panel"><div class="sh"><div class="st">Entregas y auditoria</div><div class="sl"></div></div><div class="box-info-list"><div><strong>Entregas preparadas</strong><span>${deliveries.filter((d) => d.status === 'prepared').length}</span></div><div><strong>Entregas confirmadas</strong><span>${deliveries.filter((d) => d.status === 'confirmed').length}</span></div><div><strong>Inconsistencias</strong><span>${Object.keys(boxState.inconsistencies).length}</span></div><div><strong>Eventos auditados</strong><span>${auditCount}</span></div></div></section>
-      <section class="card box-panel"><div class="sh"><div class="st">Gastos recientes</div><div class="sl"></div></div>${recentExpenses.length ? recentExpenses.map((e) => `<div class="box-row compact"><div><strong>${e.concept}</strong><span>${e.category || '-'} · ${e.date || '-'}</span></div><span class="box-pill">${boxMoney(e.amount)}</span></div>`).join('') : boxEmpty('Sin gastos')}</section>
+      <section class="card box-panel box-span-2">
+        <div class="sh"><div class="st">Mensualidades</div><div class="sl"></div></div>
+        <div class="box-summary-split">
+          <div class="box-donut" style="--pct:${collectionPct}"><strong>${collectionPct}%</strong><span>cobrado</span></div>
+          <div class="box-chart-stack">
+            ${boxBar('Cobrado', selected.collected, Math.max(selected.expected, selected.collected + selected.pending), 'success')}
+            ${boxBar('Pendiente', selected.pending, Math.max(selected.expected, selected.collected + selected.pending), selected.pending ? 'warning' : '')}
+            <div class="box-mini-grid">
+              ${boxMiniStat('cargos pagados', selected.paidCharges)}
+              ${boxMiniStat('cargos pendientes', selected.unpaidCharges, selected.unpaidCharges ? 'warning' : '')}
+              ${boxMiniStat('esperado', boxMoney(selected.expected))}
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="card box-panel">
+        <div class="sh"><div class="st">Asistencia</div><div class="sl"></div></div>
+        <div class="box-mini-grid">
+          ${boxMiniStat('hoy', todaySummary.present)}
+          ${boxMiniStat(`semana ${week.start} / ${week.end}`, weekSummary.present)}
+          ${boxMiniStat(`mes ${month.start} / ${month.end}`, monthSummary.present)}
+        </div>
+        ${boxBar('Presentes del rango', selected.present, Math.max(selected.present + selected.absent, 1), 'success')}
+        ${boxBar('Ausentes del rango', selected.absent, Math.max(selected.present + selected.absent, 1), selected.absent ? 'warning' : '')}
+      </section>
+      <section class="card box-panel">
+        <div class="sh"><div class="st">Caja</div><div class="sl"></div></div>
+        ${boxBar('Efectivo', selected.cash, Math.max(selected.income, 1), 'success')}
+        ${boxBar('Transferencia', selected.transfer, Math.max(selected.income, 1))}
+        ${boxBar('Gastos', selected.expenseTotal, Math.max(selected.income, selected.expenseTotal, 1), selected.expenseTotal ? 'warning' : '')}
+        <div class="box-mini-grid">${boxMiniStat('neto', boxMoney(selected.net), selected.net < 0 ? 'warning' : 'success')}${boxMiniStat('pagos', selected.payments.length)}${boxMiniStat('gastos', selected.expenses.length)}</div>
+      </section>
+      <section class="card box-panel box-span-2">
+        <div class="sh"><div class="st">Cortes</div><div class="sl"></div></div>
+        <div class="form-3">
+          <div class="fg"><label class="fl">Desde</label><input class="fi" id="bcut_start" type="date" value="${cutRange.start}"/></div>
+          <div class="fg"><label class="fl">Hasta</label><input class="fi" id="bcut_end" type="date" value="${cutRange.end}"/></div>
+          <div class="fg"><label class="fl">Vista previa</label><button class="btn btn-g btn-full" onclick="createBoxCashCut()">Guardar corte</button></div>
+        </div>
+        <div class="box-mini-grid">
+          ${boxMiniStat('efectivo del corte', boxMoney(cutPreview.cash), 'success')}
+          ${boxMiniStat('transferencia', boxMoney(cutPreview.transfer))}
+          ${boxMiniStat('neto', boxMoney(cutPreview.net), cutPreview.net < 0 ? 'warning' : 'success')}
+        </div>
+        <div class="box-cut-list">
+          ${cuts.length ? cuts.slice(0, 8).map((cut) => `<div class="box-row compact"><div><strong>${cut.startDate || '-'} / ${cut.endDate || '-'}</strong><span>Efectivo ${boxMoney(cut.cashAmount)} · Transferencia ${boxMoney(cut.transferAmount)} · Gastos ${boxMoney(cut.expensesAmount)}</span><span>Guardado: ${boxDateLabel(cut.createdAt)}</span></div><span class="box-pill">${boxMoney(cut.netAmount)}</span></div>`).join('') : boxEmpty('Sin cortes guardados')}
+        </div>
+      </section>
+      <section class="card box-panel">
+        <div class="sh"><div class="st">Adeudos principales</div><div class="sl"></div></div>
+        ${topDebts.length ? topDebts.map((c) => `<div class="box-row compact"><div><strong>${boxState.members[c.memberId]?.fullName || c.memberId}</strong><span>${c.periodLabel || c.billingPeriodId} · vence ${c.dueDate || '-'}</span></div><span class="box-pill warning">${boxMoney(c.balance)}</span></div>`).join('') : boxEmpty('Sin adeudos en el rango')}
+      </section>
+      <section class="card box-panel">
+        <div class="sh"><div class="st">Actividad reciente</div><div class="sl"></div></div>
+        ${selected.payments.sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt)).slice(0, 5).map((p) => `<div class="box-row compact"><div><strong>${boxState.members[p.memberId]?.fullName || p.memberId}</strong><span>${boxMoney(p.paidAmount)} · ${boxPaymentMethodLabel(p.paymentMethod)} · ${boxPaymentDate(p)}</span></div><span class="box-pill">${p.folio || p.id}</span></div>`).join('') || boxEmpty('Sin pagos en el rango')}
+      </section>
     </div>`);
 }
 
@@ -1775,154 +1953,15 @@ function renderBoxReceipts() {
   boxSetPage('box-receipts', `${boxSectionHeader('Comprobantes WhatsApp', 'Envios, errores y reintentos de recibos.')}${boxTabs(canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) ? 'admin' : 'finance', 'box-receipts')}<div class="card"><div class="sh"><div class="st">Comprobantes WhatsApp</div><div class="sl"></div></div>${notifications.length ? notifications.map((n) => `<div class="box-row"><div><strong>${n.paymentId || n.id}</strong><span>${n.to || '-'} Â· ${n.status || '-'}</span><span>${n.error || ''}</span></div>${n.paymentId ? `<button class="btn btn-out btn-sm" onclick="sendBoxReceipt('${n.paymentId}')">Reenviar</button>` : ''}</div>`).join('') : boxEmpty('Sin comprobantes')}</div>`);
 }
 
-function renderBoxAdmin() {
-  const cfg = boxBusinessConfig();
-  const info = cfg.publicInfo || {};
-  const enabledMethods = boxEnabledPaymentMethods();
-  const expenseCategories = Array.isArray(cfg.expenseCategories) && cfg.expenseCategories.length
-    ? cfg.expenseCategories
-    : ['Equipo deportivo', 'Guantes y material', 'Mantenimiento', 'Limpieza', 'Reparaciones', 'Publicidad', 'Servicios', 'Personal', 'Eventos', 'Otros'];
-  boxSetPage('box-admin', boxPageShell('admin', 'box-admin', 'Configuracion', 'Ajustes del box visibles solo para administradores.', `
-    <div class="box-config-layout">
-      <section class="card box-config-card">
-        <div class="sh"><div class="st">Informacion publica</div><div class="sl"></div></div>
-        <div class="form-2">
-          <div class="fg"><label class="fl">Nombre del box</label><input class="fi" id="badmin_display" value="${boxAttr(cfg.displayName || BOX_PUBLIC_BRAND)}"/></div>
-          <div class="fg"><label class="fl">Entrenador</label><input class="fi" id="badmin_coach" value="${boxAttr((info.coaches || [BOX_PUBLIC_COACH])[0] || BOX_PUBLIC_COACH)}"/></div>
-          <div class="fg"><label class="fl">Ubicacion</label><input class="fi" id="badmin_location" value="${boxAttr(info.location || BOX_PUBLIC_LOCATION)}"/></div>
-          <div class="fg"><label class="fl">WhatsApp informes</label><input class="fi" id="badmin_whatsapp" inputmode="tel" value="${boxAttr(cfg.contactWhatsApp || BOX_OWNER_CONTACT_PHONE)}"/></div>
-        </div>
-        <div class="fg"><label class="fl">Frase principal</label><input class="fi" id="badmin_description" value="${boxAttr(info.description || BOX_PUBLIC_DESCRIPTION)}"/></div>
-      </section>
-      <section class="card box-config-card">
-        <div class="sh"><div class="st">Cobros</div><div class="sl"></div></div>
-        <div class="form-2">
-          <div class="fg"><label class="fl">Mensualidad base</label><input class="fi" id="badmin_fee" type="number" min="0" value="${Number(cfg.monthlyFee || 400)}"/></div>
-          <div class="fg"><label class="fl">Clases de prueba</label><input class="fi" id="badmin_trials" type="number" min="0" value="${Number(cfg.trialClassesAllowed || 1)}"/></div>
-        </div>
-        <div class="box-check-grid">
-          <label class="box-check"><input type="checkbox" id="badmin_cash" ${enabledMethods.includes('cash') ? 'checked' : ''}/> Efectivo</label>
-          <label class="box-check"><input type="checkbox" id="badmin_transfer" ${enabledMethods.includes('transfer') ? 'checked' : ''}/> Transferencia</label>
-        </div>
-      </section>
-      <section class="card box-config-card box-span-2">
-        <div class="sh"><div class="st">Categorias de gastos</div><div class="sl"></div></div>
-        <div class="fg"><label class="fl">Separalas con coma</label><textarea class="fi" id="badmin_expenses">${boxAttr(expenseCategories.join(', '))}</textarea></div>
-      </section>
-      <section class="card box-config-card box-span-2">
-        <div class="sh"><div class="st">Acciones rapidas</div><div class="sl"></div></div>
-        <div class="box-action-grid">
-          <button class="btn btn-out btn-full" onclick="boxOpenPage('box-members','students',this)">Alumnos</button>
-          <button class="btn btn-out btn-full" onclick="boxOpenPage('box-expenses','finance',this)">Gastos</button>
-          <button class="btn btn-out btn-full" onclick="boxOpenPage('box-audit','admin',this)">Auditoria</button>
-        </div>
-        <button class="btn btn-g btn-full" onclick="saveBoxAdminSettings()">Guardar configuracion</button>
-      </section>
-    </div>`));
-}
-
-async function saveBoxAdminSettings() {
-  if (!fs || !currentUser) return showToast('Inicia sesion para guardar', 'ta');
-  if (!canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID)) return showToast('Solo administracion puede cambiar configuracion', 'tr');
-  try {
-    const monthlyFee = Number(document.getElementById('badmin_fee')?.value || 0);
-    const trialClassesAllowed = Number(document.getElementById('badmin_trials')?.value || 0);
-    const contactWhatsApp = boxNormalizePhone(document.getElementById('badmin_whatsapp')?.value || BOX_OWNER_CONTACT_PHONE);
-    const displayName = document.getElementById('badmin_display')?.value.trim() || BOX_PUBLIC_BRAND;
-    const paymentMethodsEnabled = [];
-    if (document.getElementById('badmin_cash')?.checked) paymentMethodsEnabled.push('cash');
-    if (document.getElementById('badmin_transfer')?.checked) paymentMethodsEnabled.push('transfer');
-    const expenseCategories = (document.getElementById('badmin_expenses')?.value || '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-    const publicInfo = {
-      ...(boxBusinessConfig().publicInfo || {}),
-      location: document.getElementById('badmin_location')?.value.trim() || BOX_PUBLIC_LOCATION,
-      schedule: BOX_PUBLIC_SCHEDULE,
-      coaches: [document.getElementById('badmin_coach')?.value.trim() || BOX_PUBLIC_COACH],
-      description: document.getElementById('badmin_description')?.value.trim() || BOX_PUBLIC_DESCRIPTION
-    };
-    if (monthlyFee < 0 || trialClassesAllowed < 0) return showToast('Captura valores validos', 'ta');
-    if (!paymentMethodsEnabled.length) return showToast('Activa al menos un metodo de pago', 'ta');
-    if (!expenseCategories.length) return showToast('Agrega al menos una categoria de gasto', 'ta');
-    const prev = boxBusinessConfig();
-    const patch = {
-      displayName,
-      monthlyFee,
-      trialClassesAllowed,
-      contactWhatsApp,
-      publicInfo,
-      expenseCategories,
-      paymentMethodsEnabled,
-      updatedBy: currentUser.uid,
-      updatedAt: boxServerTimestamp()
-    };
-    await fs.collection('businesses').doc(BOX_LOMBARDO_BUSINESS_ID).set(patch, { merge: true });
-    Object.assign(BUSINESS_CATALOG[BOX_LOMBARDO_BUSINESS_ID], patch);
-    await boxAudit('business_settings_updated', 'business', BOX_LOMBARDO_BUSINESS_ID, {
-      monthlyFee: prev.monthlyFee,
-      trialClassesAllowed: prev.trialClassesAllowed,
-      contactWhatsApp: prev.contactWhatsApp,
-      expenseCategories: prev.expenseCategories || null,
-      paymentMethodsEnabled: prev.paymentMethodsEnabled || null,
-      publicInfo: prev.publicInfo || null
-    }, patch).catch((error) => console.warn('box settings audit', error));
-    showToast('Configuracion guardada', 'tg');
-    renderBoxAdmin();
-  } catch (error) {
-    showToast(error.message || 'No se pudo guardar configuracion', 'tr');
-  }
-}
-
 function renderBoxAudit() {
   const logs = Object.values(boxState.auditLogs).sort((a, b) => boxTs(b.createdAt) - boxTs(a.createdAt));
-  boxSetPage('box-audit', `${boxSectionHeader('Auditoria', 'Registro completo de acciones con fecha, hora, usuario y entidad afectada.')}${boxTabs('admin', 'box-audit')}<div class="card"><div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>${logs.length ? logs.map((l) => `<div class="box-row"><div><strong>${l.action}</strong><span>Fecha y hora: ${boxDateLabel(l.createdAt)}</span><span>Usuario: ${l.actorName || l.actorUserId || '-'} · Entidad: ${l.entityType || '-'} · ${l.entityId || '-'}</span>${l.reason ? `<span>Motivo: ${l.reason}</span>` : ''}</div></div>`).join('') : boxEmpty('Sin auditoria')}</div>`);
-}
-
-function renderBoxSettings() {
-  const cfg = boxBusinessConfig();
-  boxSetPage('box-settings', `${boxSectionHeader('Configuracion del box', 'Parametros administrativos visibles solo para perfiles autorizados.')}${boxTabs('admin', 'box-settings')}<div class="card"><div class="sh"><div class="st">Configuracion</div><div class="sl"></div></div>
-    <div class="box-info-list">
-      <div><strong>Mensualidad</strong><span>${boxMoney(cfg.monthlyFee)}</span></div>
-      <div><strong>Nombre publico de alumnos</strong><span>${cfg.publicStudentNameMode || 'first'} (full, abbreviated o first)</span></div>
-      <div><strong>Metodos habilitados</strong><span>Efectivo</span></div>
-      <div><strong>Clases de prueba</strong><span>${cfg.trialClassesAllowed}</span></div>
-    </div>
-    <button class="btn btn-g btn-full" onclick="boxSeedBusiness()">Crear/actualizar configuracion inicial segura</button>
-  </div>`);
-}
-
-function renderBoxAdminExpenses() {
-  const cfg = boxBusinessConfig();
-  boxSetPage('box-admin-expenses', `${boxSectionHeader('Categorias de gastos', 'Catalogo operativo utilizado al registrar gastos.')}${boxTabs('admin', 'box-admin-expenses')}
-    <div class="card"><div class="sh"><div class="st">Categorias activas</div><div class="sl"></div></div>
-      <div class="box-chip-row">${(cfg.expenseCategories || []).map((category) => `<span class="box-chip">${category}</span>`).join('') || boxEmpty('Sin categorias')}</div>
-      <p class="box-muted">La actualizacion segura del catalogo se realiza desde la configuracion inicial del box.</p>
-    </div>`);
-}
-
-function renderBoxAdminFolios() {
-  const counters = {
-    payments: Object.keys(boxState.payments).length,
-    deliveries: Object.keys(boxState.cashDeliveries).length,
-    expenses: Object.keys(boxState.expenses).length,
-    members: Object.keys(boxState.members).length
-  };
-  boxSetPage('box-admin-folios', `${boxSectionHeader('Folios y parametros', 'Lectura de secuencias operativas actuales.')}${boxTabs('admin', 'box-admin-folios')}
-    <div class="box-kpi-grid secondary">
-      ${boxKpi('Pagos registrados', counters.payments)}
-      ${boxKpi('Entregas', counters.deliveries)}
-      ${boxKpi('Gastos', counters.expenses)}
-      ${boxKpi('Alumnos', counters.members)}
-    </div>
-    <div class="card"><p class="box-muted">Los folios se generan desde los flujos existentes de pagos, entregas, gastos y alumnos. No se exponen identificadores tecnicos al usuario final.</p></div>`);
+  boxSetPage('box-audit', `${boxSectionHeader('Auditoria', 'Registro completo de acciones con fecha, hora, usuario y entidad afectada.')}${boxTabs('reports', 'box-audit')}<div class="card"><div class="sh"><div class="st">Auditoria</div><div class="sl"></div></div>${logs.length ? logs.map((l) => `<div class="box-row"><div><strong>${l.action}</strong><span>Fecha y hora: ${boxDateLabel(l.createdAt)}</span><span>Usuario: ${l.actorName || l.actorUserId || '-'} · Entidad: ${l.entityType || '-'} · ${l.entityId || '-'}</span>${l.reason ? `<span>Motivo: ${l.reason}</span>` : ''}</div></div>`).join('') : boxEmpty('Sin auditoria')}</div>`);
 }
 
 async function boxSeedBusiness() {
   try {
     await boxCallable('boxSeedBusiness', {});
-    showToast('Configuracion inicial verificada', 'tg');
+    showToast('Datos iniciales verificados', 'tg');
   } catch (error) {
     showToast(error.message || 'No se pudo inicializar', 'tr');
   }

@@ -141,7 +141,7 @@ function canAccessBusinessPage(pageKey) {
       (role === 'trainer' && trainerPages.includes(pageKey)) ||
       (role === 'auditor' && auditorPages.includes(pageKey));
   }
-  if (['box-admin', 'box-audit'].includes(pageKey)) {
+  if (pageKey === 'box-audit') {
     return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID);
   }
   return false;
