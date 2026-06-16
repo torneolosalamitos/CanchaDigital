@@ -245,7 +245,7 @@ function renderAfterFirestoreCollection(collectionName) {
     return;
   }
   if (collectionName === 'productos') {
-    if (!Object.keys(C.productos || {}).length && typeof seedProducts === 'function') seedProducts();
+    if (typeof canSeedProducts === 'function' && canSeedProducts() && !Object.keys(C.productos || {}).length && typeof seedProducts === 'function') seedProducts();
     if (isAdmin && isPageActive('tienda')) renderTienda();
     return;
   }
@@ -309,13 +309,10 @@ function setupFirestoreAllListeners() {
     'arbitros',
     'trabajadores',
     'gastosTrab',
-    'usuarios',
-    'solicitudes',
     'mercadotecnia',
     'temporadas',
     'categorias',
-    'usuarios_autorizados',
-    'bot_sessions'
+    ...((isAdmin || isOwner) ? ['usuarios', 'solicitudes', 'usuarios_autorizados', 'bot_sessions'] : [])
   ];
 
   firestoreCollections.forEach((collectionName) => {
@@ -385,7 +382,7 @@ function setupListeners() {
   db.ref('productos').on('value', (snapshot) => {
     Object.keys(C.productos).forEach((key) => delete C.productos[key]);
     if (snapshot.exists()) Object.assign(C.productos, snapshot.val());
-    else seedProducts();
+    else if (typeof canSeedProducts === 'function' && canSeedProducts()) seedProducts();
     if (isAdmin && isPageActive('tienda')) renderTienda();
   });
 

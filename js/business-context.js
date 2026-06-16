@@ -21,27 +21,44 @@ const BUSINESS_CATALOG = {
   },
   [BOX_LOMBARDO_BUSINESS_ID]: {
     id: BOX_LOMBARDO_BUSINESS_ID,
-    name: 'Box Lombardo Toledano',
-    displayName: 'BOX LOMBARDO TOLEDANO',
+    name: 'Shark Boxing Gym',
+    displayName: 'SHARK BOXING GYM',
     type: 'boxing_gym',
     status: 'active',
-    logo: CD_LOGO_SHIELD,
+    logo: SHARK_BOXING_GYM_LOGO,
     splashSubtitle: 'BOX · ALUMNOS · MENSUALIDADES',
     monthlyFee: 400,
     currency: 'MXN',
     timezone: 'America/Mazatlan',
-    paymentMethodsEnabled: ['cash'],
+    paymentMethodsEnabled: ['cash', 'transfer'],
     trialClassesAllowed: 1,
-    contactWhatsApp: '',
+    contactWhatsApp: '6674585275',
     publicInfo: {
-      description: 'Escuela de box para alumnos infantiles y juveniles, con control de asistencia, mensualidades y seguimiento de tutores.',
-      location: 'Lombardo Toledano',
-      schedule: 'Lunes a viernes · horarios por grupo',
-      coaches: ['Entrenador por asignar'],
-      requirements: ['Guantes o vendas', 'Ropa deportiva', 'Tutor responsable para menores'],
-      rules: ['Respeto al entrenador y companeros', 'Llegar a tiempo', 'No entrenar sin autorizacion si hay lesion'],
+      description: 'Boxeo para todas las edades, enfocado en tecnica, acondicionamiento fisico, disciplina, confianza y constancia.',
+      location: 'Unidad Deportiva Lombardo Toledano',
+      schedule: 'Lunes a viernes de 5:00 pm a 8:00 pm',
+      coaches: ['Orlando Requena'],
+      requirements: [
+        'Nombre completo del alumno y fecha de ingreso para el registro interno.',
+        'Datos de contacto del tutor o responsable cuando el alumno sea menor de edad.',
+        'Ropa deportiva comoda, tenis limpios, vendas o guantes cuando ya cuente con ellos.',
+        'Botella de agua personal y disposicion para seguir indicaciones del entrenador.',
+        'Avisar cualquier lesion, condicion medica o situacion que limite el entrenamiento.',
+        'Cubrir la mensualidad vigente o acordar el seguimiento administrativo correspondiente.'
+      ],
+      rules: [
+        'Llegar con puntualidad, saludar al entrenador y esperar indicaciones antes de iniciar.',
+        'Mantener respeto hacia companeros, tutores, entrenador y personal del espacio deportivo.',
+        'No realizar sparring, ejercicios de contacto o uso de equipo sin autorizacion del entrenador.',
+        'Cuidar guantes, costales, cuerdas y material compartido; dejar el area ordenada al terminar.',
+        'Entrenar con higiene, vendas limpias y sin objetos que puedan causar lesiones.',
+        'Reportar molestias fisicas de inmediato y descansar cuando el entrenador lo indique.',
+        'Los tutores deben mantenerse localizables y apoyar la asistencia constante del alumno.',
+        'La clase busca formar disciplina y constancia; cualquier conflicto se resuelve hablando con respeto.'
+      ],
       enrollmentStatus: 'Inscripciones abiertas'
     },
+    publicStudents: [],
     expenseCategories: [
       'Equipo deportivo',
       'Guantes y material',
@@ -107,20 +124,28 @@ function isBusinessPage(pageKey = '') {
 function canAccessBusinessPage(pageKey) {
   if (!isBusinessPage(pageKey)) return true;
   if (['box-public', 'box-public-students'].includes(pageKey)) return true;
-  if (['box-dashboard', 'box-students'].includes(pageKey)) return canAccessBusinessAdmin(BOX_LOMBARDO_BUSINESS_ID);
-  if (['box-attendance', 'box-attendance-history', 'box-attendance-trials', 'box-attendance-audits', 'box-members', 'box-prospects', 'box-guardians', 'box-groups', 'box-payments', 'box-cash'].includes(pageKey)) {
-    return canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID) || getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) === 'auditor';
-  }
-  if (['box-finance', 'box-upcoming', 'box-billing', 'box-expenses', 'box-receipts'].includes(pageKey)) {
-    return canWriteBusinessOperations(BOX_LOMBARDO_BUSINESS_ID) || getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) === 'auditor';
-  }
-  if (['box-reports', 'box-report-debts', 'box-report-attendance', 'box-report-money', 'box-report-workers', 'box-inconsistencies'].includes(pageKey)) {
-    return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) || getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) === 'auditor';
+  const role = getBusinessRole(BOX_LOMBARDO_BUSINESS_ID);
+  const managerPages = [
+    'box-dashboard', 'box-students', 'box-members', 'box-prospects', 'box-guardians', 'box-groups',
+    'box-attendance', 'box-attendance-history', 'box-attendance-trials', 'box-attendance-audits',
+    'box-finance', 'box-upcoming', 'box-billing', 'box-payments', 'box-cash', 'box-expenses',
+    'box-reports', 'box-report-debts', 'box-report-attendance', 'box-report-money',
+    'box-report-workers', 'box-inconsistencies', 'box-receipts'
+  ];
+  const trainerPages = ['box-attendance', 'box-finance'];
+  const auditorPages = [
+    'box-attendance', 'box-attendance-history', 'box-reports',
+    'box-report-debts', 'box-report-attendance', 'box-report-money', 'box-inconsistencies'
+  ];
+  if (managerPages.includes(pageKey)) {
+    return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) ||
+      (role === 'trainer' && trainerPages.includes(pageKey)) ||
+      (role === 'auditor' && auditorPages.includes(pageKey));
   }
   if (['box-admin', 'box-permissions', 'box-audit', 'box-settings', 'box-admin-expenses', 'box-admin-folios'].includes(pageKey)) {
     return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID);
   }
-  return canManageBusinessMoney(BOX_LOMBARDO_BUSINESS_ID) || getBusinessRole(BOX_LOMBARDO_BUSINESS_ID) === 'auditor';
+  return false;
 }
 
 function renderSplashBusinessCard(business) {

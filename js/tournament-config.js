@@ -3,6 +3,7 @@ const CD_LOGO_SHIELD = '/CanchaDigital/img/logo-cancha-shield.png';
 const SPLASH_BIG_LOGO = '/CanchaDigital/img/logo-cancha-splash.png';
 const LOMBARDO_TOLEDANO_LOGO = 'img/logo-lombardo-toledano.png';
 const NUEVOS_VALORES_LOGO = 'img/logo-nuevos-valores.png';
+const SHARK_BOXING_GYM_LOGO = 'img/logo-shark-boxing-gym.png';
 
 const TORNEO_CONFIG = {
   lombardo_toledano: {

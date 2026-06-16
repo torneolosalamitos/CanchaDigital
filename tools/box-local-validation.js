@@ -11,6 +11,7 @@ const VALIDATION_GUARDIAN_ID = `guardian-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_ID = `member-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_2_ID = `member-validation-cash-${VALIDATION_SUFFIX}`;
 const VALIDATION_MEMBER_3_ID = `member-validation-wa-${VALIDATION_SUFFIX}`;
+const VALIDATION_MEMBER_TRANSFER_ID = `member-validation-transfer-${VALIDATION_SUFFIX}`;
 const VALIDATION_GROUP_ID = `group-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_ATTENDANCE_ID = `attendance-validation-${VALIDATION_SUFFIX}`;
 const VALIDATION_SESSION_ID = `session-validation-${VALIDATION_SUFFIX}`;
@@ -21,6 +22,7 @@ const VALIDATION_PERIOD = '2026-07';
 const VALIDATION_CHARGE_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_ID}`;
 const VALIDATION_CHARGE_2_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_2_ID}`;
 const VALIDATION_CHARGE_3_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_3_ID}`;
+const VALIDATION_CHARGE_TRANSFER_ID = `${VALIDATION_PERIOD}_${VALIDATION_MEMBER_TRANSFER_ID}`;
 
 const results = [];
 const tokenMeta = new Map();
@@ -219,7 +221,7 @@ async function validate() {
       createdBy: TEST_USERS.admin.uid,
       updatedBy: TEST_USERS.admin.uid
     }, adminToken);
-    for (const [id, name] of [[VALIDATION_MEMBER_2_ID, 'Alumno Validacion Entrega'], [VALIDATION_MEMBER_3_ID, 'Alumno Validacion WhatsApp']]) {
+    for (const [id, name] of [[VALIDATION_MEMBER_2_ID, 'Alumno Validacion Entrega'], [VALIDATION_MEMBER_3_ID, 'Alumno Validacion WhatsApp'], [VALIDATION_MEMBER_TRANSFER_ID, 'Alumno Validacion Transferencia']]) {
       await fsSet(`${rootPath}/members/${id}`, {
         businessId: BOX_BUSINESS_ID,
         folio: `BOX-ALU-${id}`,
@@ -273,7 +275,7 @@ async function validate() {
     return { status: 'present' };
   });
 
-  await step('Clase de prueba via reglas Firestore', async () => {
+  await step('Clase de prueba con alta administrativa y asistencia de entrenador', async () => {
     await fsSet(`${rootPath}/members/${VALIDATION_TRIAL_MEMBER_ID}`, {
       businessId: BOX_BUSINESS_ID,
       folio: 'BOX-TRI-VALID-1',
@@ -283,8 +285,9 @@ async function validate() {
       guardianIds: [],
       trialPhone: '6672220002',
       startDate: '2026-06-14',
-      createdBy: TEST_USERS.trainer.uid
-    }, trainerToken);
+      createdBy: TEST_USERS.admin.uid,
+      updatedBy: TEST_USERS.admin.uid
+    }, adminToken);
     await fsSet(`${rootPath}/attendance/${VALIDATION_TRIAL_ATTENDANCE_ID}`, {
       businessId: BOX_BUSINESS_ID,
       memberId: VALIDATION_TRIAL_MEMBER_ID,
@@ -307,6 +310,7 @@ async function validate() {
     const result = await callFunction('boxCreatePayment', trainerToken, {
       chargeId: VALIDATION_CHARGE_ID,
       paidAmount: 400,
+      paymentMethod: 'cash',
       notes: 'Pago validacion entrenador'
     });
     const charge = await adminDoc(`${rootPath}/charges/${VALIDATION_CHARGE_ID}`);
@@ -316,12 +320,27 @@ async function validate() {
     return { paymentId: result.paymentId, folio: result.folio, balance: charge.balance, cashDeliveryStatus: payment.cashDeliveryStatus };
   });
 
+  await step('Registro de pago por transferencia sin entrega de efectivo', async () => {
+    const result = await callFunction('boxCreatePayment', trainerToken, {
+      chargeId: VALIDATION_CHARGE_TRANSFER_ID,
+      paidAmount: 400,
+      paymentMethod: 'transfer',
+      notes: 'Transferencia validacion entrenador'
+    });
+    const charge = await adminDoc(`${rootPath}/charges/${VALIDATION_CHARGE_TRANSFER_ID}`);
+    const payment = await adminDoc(`${rootPath}/payments/${result.paymentId}`);
+    if (charge.balance !== 0 || charge.status !== 'paid') throw new Error('Transferencia no actualizo saldo');
+    if (payment.paymentMethod !== 'transfer' || payment.cashDeliveryStatus !== 'not_required') throw new Error(`Transferencia con estado incorrecto: ${JSON.stringify(payment)}`);
+    return { paymentId: result.paymentId, paymentMethod: payment.paymentMethod, cashDeliveryStatus: payment.cashDeliveryStatus };
+  });
+
   let trainerPaymentId = '';
   let deliveryId = '';
   await step('Pago pendiente y preparacion de entrega', async () => {
     const paymentResult = await callFunction('boxCreatePayment', trainerToken, {
       chargeId: VALIDATION_CHARGE_2_ID,
       paidAmount: 400,
+      paymentMethod: 'cash',
       notes: 'Pago para entrega'
     });
     trainerPaymentId = paymentResult.paymentId;
@@ -391,7 +410,8 @@ async function validate() {
     const invalid = await callFunction('boxCreatePayment', adminToken, {
       businessId: 'lombardo_toledano',
       chargeId: VALIDATION_CHARGE_3_ID,
-      paidAmount: 100
+      paidAmount: 100,
+      paymentMethod: 'cash'
     }, false);
     return { rejected: invalid.error?.message || 'invalid business rejected' };
   });
@@ -405,6 +425,7 @@ async function validate() {
     const paymentResult = await callFunction('boxCreatePayment', adminToken, {
       chargeId: VALIDATION_CHARGE_3_ID,
       paidAmount: 400,
+      paymentMethod: 'cash',
       notes: 'Pago para comprobante fallido'
     });
     await admin.firestore().doc(`${rootPath}/guardians/guardian-local-2`).set({
@@ -428,6 +449,7 @@ if (require.main === module) {
       console.log('\nVALIDATION_SUMMARY');
       console.log(JSON.stringify(summary, null, 2));
       if (failed.length) process.exit(1);
+      process.exit(0);
     })
     .catch((error) => {
       console.error('\nVALIDATION_FAILED');

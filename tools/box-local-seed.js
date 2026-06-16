@@ -107,21 +107,21 @@ async function seed() {
 
   await root.set({
     id: BOX_BUSINESS_ID,
-    name: 'Box Lombardo Toledano',
-    displayName: 'BOX LOMBARDO TOLEDANO',
+    name: 'Shark Boxing Gym',
+    displayName: 'SHARK BOXING GYM',
     type: 'boxing_gym',
     status: 'active',
     monthlyFee: 400,
     currency: 'MXN',
     timezone: 'America/Mazatlan',
-    paymentMethodsEnabled: ['cash'],
+    paymentMethodsEnabled: ['cash', 'transfer'],
     trialClassesAllowed: 1,
-    contactWhatsApp: '526671111111',
+    contactWhatsApp: '6674585275',
     publicInfo: {
-      description: 'Seed local para validacion de Box Lombardo Toledano.',
-      location: 'Lombardo Toledano',
-      schedule: 'Lunes a viernes 17:00-19:00',
-      coaches: ['Entrenador Local Box'],
+      description: 'Seed local para validacion de Shark Boxing Gym.',
+      location: 'Unidad Deportiva Lombardo Toledano',
+      schedule: 'Lunes a viernes de 5:00 pm a 8:00 pm',
+      coaches: ['Orlando Requena'],
       requirements: ['Vendas', 'Agua', 'Tutor responsable'],
       rules: ['Respeto', 'Puntualidad', 'Entrenar con autorizacion'],
       enrollmentStatus: 'Inscripciones abiertas'
@@ -143,6 +143,19 @@ async function seed() {
   ];
   const groupId = 'group-local-infantil';
   const period = '2026-06';
+
+  await root.set({
+    publicStudents: members.map(([id, fullName], index) => ({
+      id,
+      publicName: fullName,
+      publicGender: index % 2 === 0 ? 'Masculino' : 'Femenino',
+      publicStartDate: '2026-06-01',
+      status: 'active',
+      publicVisible: true
+    })),
+    publicStudentsUpdatedAt: FieldValue.serverTimestamp(),
+    publicStudentsUpdatedBy: 'local-seed'
+  }, { merge: true });
 
   const batch = firestore.batch();
   guardians.forEach(([id, fullName, relationship, phone]) => {

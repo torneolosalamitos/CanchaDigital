@@ -21,10 +21,10 @@ const FIREBASE_EMULATOR_PORTS = {
 function isLocalFirebaseEnvironment() {
   const host = window.location.hostname;
   const params = new URLSearchParams(window.location.search || '');
-  return params.get('emulators') === '1' ||
-    host === 'localhost' ||
+  const isLocalHost = host === 'localhost' ||
     host === '127.0.0.1' ||
     host === '::1';
+  return isLocalHost || (window.location.protocol === 'file:' && params.get('emulators') === '1');
 }
 
 function connectFirebaseEmulators({ authInstance, fsInstance, dbInstance }) {

@@ -74,6 +74,14 @@ service cloud.firestore {
       return isOwner() || businessRole(businessId) in ['owner', 'box_admin'];
     }
 
+    function businessTrainer(businessId) {
+      return businessRole(businessId) == 'trainer';
+    }
+
+    function businessAuditor(businessId) {
+      return businessRole(businessId) == 'auditor';
+    }
+
     function isBoxBusiness(businessId) {
       return businessId == 'box-lombardo-toledano';
     }
@@ -219,7 +227,7 @@ service cloud.firestore {
       allow delete: if false;
 
       match /prospects/{id} {
-        allow read: if businessMember(businessId);
+        allow read: if businessMoneyManager(businessId);
         allow create: if isBoxBusiness(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId) &&
           request.resource.data.contactConsent == true;
@@ -230,24 +238,24 @@ service cloud.firestore {
 
       match /members/{id} {
         allow read: if businessMember(businessId);
-        allow create: if businessWriter(businessId) &&
+        allow create: if businessMoneyManager(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId);
-        allow update: if businessWriter(businessId) &&
+        allow update: if businessMoneyManager(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId) &&
           request.resource.data.createdAt == resource.data.createdAt;
         allow delete: if false;
       }
 
       match /guardians/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update: if businessWriter(businessId) &&
+        allow read: if businessMoneyManager(businessId);
+        allow create, update: if businessMoneyManager(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId);
         allow delete: if false;
       }
 
       match /groups/{id} {
         allow read: if businessMember(businessId);
-        allow create, update: if businessWriter(businessId) &&
+        allow create, update: if businessMoneyManager(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId);
         allow delete: if false;
       }
@@ -269,8 +277,8 @@ service cloud.firestore {
       }
 
       match /expenses/{id} {
-        allow read: if businessMember(businessId);
-        allow create: if businessWriter(businessId) &&
+        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
+        allow create: if businessMoneyManager(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId) &&
           request.resource.data.paymentMethod == 'cash';
         allow update: if businessMoneyManager(businessId) &&
@@ -279,7 +287,7 @@ service cloud.firestore {
       }
 
       match /physicalAudits/{id} {
-        allow read: if businessMember(businessId);
+        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
         allow create, update: if businessMoneyManager(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId);
         allow delete: if false;
@@ -308,22 +316,26 @@ service cloud.firestore {
       }
 
       match /payments/{id} {
-        allow read: if businessMember(businessId);
+        allow read: if businessMoneyManager(businessId) ||
+          businessAuditor(businessId) ||
+          (businessTrainer(businessId) && resource.data.receivedByUserId == request.auth.uid);
         allow create, update, delete: if false;
       }
 
       match /cashDeliveries/{id} {
-        allow read: if businessMember(businessId);
+        allow read: if businessMoneyManager(businessId) ||
+          businessAuditor(businessId) ||
+          (businessTrainer(businessId) && resource.data.deliveredByUserId == request.auth.uid);
         allow create, update, delete: if false;
       }
 
       match /cashClosings/{id} {
-        allow read: if businessMember(businessId);
+        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
         allow create, update, delete: if false;
       }
 
       match /auditLogs/{id} {
-        allow read: if businessMember(businessId);
+        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
         allow create: if businessWriter(businessId) &&
           boxDocHasBusiness(request.resource.data, businessId) &&
           request.resource.data.actorUserId == request.auth.uid;

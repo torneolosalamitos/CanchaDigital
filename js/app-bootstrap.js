@@ -6,6 +6,11 @@ const LS_LAST_PAGE = 'ld_last_page';
 const ADMIN_ONLY_PAGES = new Set(['tienda','inscripciones','arbitros','calendario','resumen','admin-arbitrajes','mercadotecnia']);
 const OWNER_EMAILS = ['edanchra@gmail.com','admincanchadigital@gmail.com'];
 
+function canSeedProducts(){
+  const inBox = typeof isBoxBusiness === 'function' && isBoxBusiness(currentBusinessId);
+  return (isAdmin || isOwner) && !inBox;
+}
+
 // Resize handler for mobile tabla
 (function(){
   let resizeTimer;
@@ -52,6 +57,7 @@ const DEFAULT_PRODUCTS = [
 ];
 
 function onAuthChange(user){
+  if (typeof resetBoxListenersForAuthChange === 'function') resetBoxListenersForAuthChange();
   currentUser = user;
   isOwner = !!(user && OWNER_EMAILS.includes((user.email||'').toLowerCase()));
 
@@ -87,6 +93,9 @@ function onAuthChange(user){
     const capFlag = (role === 'captain');
     const capKey  = userData.equipoKey || null;
     updateAdminUI(isAdmin, isOwner, capFlag, capKey);
+    if (typeof isBoxBusiness === 'function' && isBoxBusiness(currentBusinessId) && typeof enterBoxBusiness === 'function') {
+      setTimeout(() => enterBoxBusiness(), 0);
+    }
   };
   if(fs){
     const ref = fs.collection('usuarios').doc(uid);
@@ -141,7 +150,7 @@ function updateAdminUI(adminFlag, ownerFlag, captainFlag, capEquipoKey){
   const userChip   = document.getElementById('userChip');
   const userChipName = document.getElementById('userChipName');
   if(adminBadge) adminBadge.style.display = canAct?'block':'none';
-  if(loginBtn)   loginBtn.style.display   = canAct?'none':'block';
+  if(loginBtn)   loginBtn.style.display   = currentUser ? 'none' : 'block';
   if(logoutBtn)  logoutBtn.style.display  = currentUser ? 'block' : 'none';
   if(usersBtn)   usersBtn.style.display   = adminFlag?'':'none';
   if(userChip){
@@ -276,33 +285,38 @@ function renderViewerProfile(){
 }
 
 async function seedProducts(){
-  if(fs){
-    const snap = await fs.collection('productos').limit(1).get();
-    if(!snap.empty) return;
-    const batch = fs.batch();
-    DEFAULT_PRODUCTS.forEach(p=>{
-      batch.set(fs.collection('productos').doc(newDocId('producto', p.nombre)), {
-        ...p,
-        creadoEn: firestoreServerTimestamp(),
-        actualizadoEn: firestoreServerTimestamp()
-      }, { merge:true });
-    });
-    await batch.commit();
-    return;
-  }
-  db.ref('productos').once('value', snap=>{
-    if(snap.exists()){
-      // Migration: fix any product with broken/light emoji named "Medias"
-      snap.forEach(child=>{
-        const p = child.val();
-        if(p.nombre==='Medias' && (p.emoji==='💡'||p.emoji==='🧦'||!p.emoji)){
-          db.ref('productos/'+child.key+'/emoji').set('🧦');
-        }
+  if (!canSeedProducts()) return;
+  try {
+    if(fs){
+      const snap = await fs.collection('productos').limit(1).get();
+      if(!snap.empty) return;
+      const batch = fs.batch();
+      DEFAULT_PRODUCTS.forEach(p=>{
+        batch.set(fs.collection('productos').doc(newDocId('producto', p.nombre)), {
+          ...p,
+          creadoEn: firestoreServerTimestamp(),
+          actualizadoEn: firestoreServerTimestamp()
+        }, { merge:true });
       });
+      await batch.commit();
       return;
     }
-    DEFAULT_PRODUCTS.forEach(p=>db.ref('productos').push(p));
-  });
+    db.ref('productos').once('value', snap=>{
+      if(snap.exists()){
+        // Migration: fix any product with broken/light emoji named "Medias"
+        snap.forEach(child=>{
+          const p = child.val();
+          if(p.nombre==='Medias' && (p.emoji==='💡'||p.emoji==='🧦'||!p.emoji)){
+            db.ref('productos/'+child.key+'/emoji').set('🧦');
+          }
+        });
+        return;
+      }
+      DEFAULT_PRODUCTS.forEach(p=>db.ref('productos').push(p));
+    });
+  } catch (error) {
+    console.warn('Seed productos omitido:', error?.code || error?.message || error);
+  }
 }
 
 async function resetProductos(){

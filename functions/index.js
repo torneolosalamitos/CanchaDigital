@@ -45,6 +45,16 @@ function money(value) {
   return '$' + amount.toLocaleString('es-MX');
 }
 
+function normalizeBoxPaymentMethod(value) {
+  const method = normalizeText(value);
+  if (method.includes('transfer')) return 'transfer';
+  return 'cash';
+}
+
+function boxPaymentMethodLabel(value) {
+  return normalizeBoxPaymentMethod(value) === 'transfer' ? 'Transferencia' : 'Efectivo';
+}
+
 function firstAllowed(value) {
   if (Array.isArray(value)) return value[0] || null;
   if (value && typeof value === 'object') return Object.keys(value).find((key) => value[key]) || Object.keys(value)[0] || null;
@@ -1754,7 +1764,7 @@ function boxReceiptText({ business, payment, member, guardian, charge }) {
     `Concepto: ${titleCase(payment.concept || 'monthly_fee')}`,
     `Periodo: ${charge.periodLabel || payment.billingPeriodId || '-'}`,
     `Monto recibido: ${money(payment.paidAmount)}`,
-    'Metodo: Efectivo',
+    `Metodo: ${boxPaymentMethodLabel(payment.paymentMethod)}`,
     `Fecha: ${payment.paymentDate || todayISO()}`,
     `Recibido por: ${payment.receivedByName || payment.receivedByUserId || '-'}`,
     `Saldo pendiente: ${money(payment.remainingBalance)}`,
@@ -1770,15 +1780,23 @@ exports.boxSeedBusiness = functions.https.onCall(async (data, context) => {
   const { auth } = await assertBoxPermission(call.context, ['owner', 'box_admin'], payload);
   const business = {
     id: BOX_BUSINESS_ID,
-    name: 'Box Lombardo Toledano',
-    displayName: 'BOX LOMBARDO TOLEDANO',
+    name: 'Shark Boxing Gym',
+    displayName: 'SHARK BOXING GYM',
     type: 'boxing_gym',
     status: 'active',
     monthlyFee: 400,
     currency: 'MXN',
     timezone: 'America/Mazatlan',
-    paymentMethodsEnabled: ['cash'],
+    paymentMethodsEnabled: ['cash', 'transfer'],
     trialClassesAllowed: 1,
+    contactWhatsApp: '6674585275',
+    publicInfo: {
+      description: 'Boxeo para todas las edades, enfocado en tecnica, acondicionamiento fisico, disciplina, confianza y constancia.',
+      location: 'Unidad Deportiva Lombardo Toledano',
+      schedule: 'Lunes a viernes de 5:00 pm a 8:00 pm',
+      coaches: ['Orlando Requena'],
+      enrollmentStatus: 'Inscripciones abiertas'
+    },
     updatedAt: FieldValue.serverTimestamp()
   };
   await db.runTransaction(async (transaction) => {
@@ -1792,7 +1810,7 @@ exports.boxSeedBusiness = functions.https.onCall(async (data, context) => {
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     transaction.set(root.collection('settings').doc('paymentMethods'), {
-      enabled: ['cash'],
+      enabled: ['cash', 'transfer'],
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     await boxAuditBackend(transaction, {
@@ -1887,6 +1905,7 @@ exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
   const { auth } = await assertBoxPermission(call.context, ['owner', 'box_admin', 'trainer'], payload);
   const chargeId = String(payload.chargeId || '').trim();
   const paidAmount = Number(payload.paidAmount || 0);
+  const paymentMethod = normalizeBoxPaymentMethod(payload.paymentMethod || 'cash');
   if (!chargeId || paidAmount <= 0) throw new functions.https.HttpsError('invalid-argument', 'Cargo y monto requeridos.');
   const root = boxRootRef();
   let paymentId = '';
@@ -1917,6 +1936,7 @@ exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
     const newPaid = Number(charge.totalPaid || 0) + paidAmount;
     const remainingBalance = Math.max(0, balance - paidAmount);
     const status = remainingBalance === 0 ? 'paid' : 'partial';
+    const cashDeliveryStatus = paymentMethod === 'cash' ? 'pending_delivery' : 'not_required';
     transaction.set(root.collection('payments').doc(paymentId), {
       id: paymentId,
       folio,
@@ -1929,9 +1949,9 @@ exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
       expectedAmount: Number(charge.expectedAmount || business.monthlyFee || 400),
       paidAmount,
       remainingBalance,
-      paymentMethod: 'cash',
+      paymentMethod,
       paymentStatus: 'registered',
-      cashDeliveryStatus: 'pending_delivery',
+      cashDeliveryStatus,
       receivedByUserId: auth.uid,
       receivedByName: auth.token.name || auth.token.email || auth.uid,
       registeredByUserId: auth.uid,
@@ -1953,7 +1973,7 @@ exports.boxCreatePayment = functions.https.onCall(async (data, context) => {
       action: 'payment_created',
       entityType: 'payment',
       entityId: paymentId,
-      newValue: { folio, chargeId, paidAmount, remainingBalance }
+      newValue: { folio, chargeId, paidAmount, remainingBalance, paymentMethod, cashDeliveryStatus }
     });
   });
   return { ok: true, paymentId, folio };
@@ -1978,6 +1998,7 @@ exports.boxPrepareCashDelivery = functions.https.onCall(async (data, context) =>
       const snap = await transaction.get(ref);
       if (!snap.exists) throw new functions.https.HttpsError('not-found', `Pago ${id} no encontrado.`);
       const payment = snap.data() || {};
+      if (normalizeBoxPaymentMethod(payment.paymentMethod) !== 'cash') throw new functions.https.HttpsError('failed-precondition', `Pago ${payment.folio || id} no es efectivo.`);
       if (payment.cashDeliveryStatus !== 'pending_delivery') throw new functions.https.HttpsError('failed-precondition', `Pago ${payment.folio || id} no esta pendiente.`);
       if (role === 'trainer' && payment.receivedByUserId !== auth.uid) throw new functions.https.HttpsError('permission-denied', 'El entrenador solo puede entregar pagos que recibio.');
       payments.push({ id, ref, data: payment });
