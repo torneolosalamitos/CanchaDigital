@@ -108,7 +108,8 @@ function normalizeScopedRecord(record = {}) {
     torneo,
     cat,
     torneoId: record.torneoId || firestoreTorneoId(torneo),
-    categoriaId: record.categoriaId || firestoreCatId(cat)
+    categoriaId: record.categoriaId || firestoreCatId(cat),
+    seasonId: record.seasonId || record.temporadaId || ''
   };
 }
 
@@ -232,13 +233,42 @@ async function updateDoc(collection, id, data) {
 
 function scopedPayload(data = {}) {
   const scoped = normalizeScopedRecord(data);
+  const activeSeason = getActiveSeason(scoped.torneo, scoped.cat);
+  const seasonId = data.seasonId || data.temporadaId || activeSeason?.seasonId || activeSeason?._key || '';
   return {
     ...data,
     torneo: scoped.torneo,
     cat: scoped.cat,
     torneoId: scoped.torneoId,
-    categoriaId: scoped.categoriaId
+    categoriaId: scoped.categoriaId,
+    ...(seasonId ? { seasonId } : {})
   };
+}
+
+function getActiveSeason(torneo = currentTorneo, cat = currentCat) {
+  const normalizedTorneo = appTorneoId(torneo);
+  const normalizedCat = appCatId(cat);
+  return Object.entries(C.temporadas || {})
+    .map(([key, value]) => normalizeScopedRecord({ ...value, _key: key }))
+    .filter((season) => {
+      if (season.estado !== 'active') return false;
+      if (season.torneo !== normalizedTorneo) return false;
+      const cats = Array.isArray(season.categorias) ? season.categorias.map(appCatId) : [season.cat].filter(Boolean);
+      return !cats.length || cats.includes(normalizedCat);
+    })
+    .sort((a, b) => (b.createdAtMs || b.ts || b.inicioMs || 0) - (a.createdAtMs || a.ts || a.inicioMs || 0))[0] || null;
+}
+
+function getActiveSeasonId(torneo = currentTorneo, cat = currentCat) {
+  const season = getActiveSeason(torneo, cat);
+  return season ? (season.seasonId || season._key) : '';
+}
+
+function recordMatchesActiveSeason(record = {}, torneo = currentTorneo, cat = currentCat) {
+  const activeSeasonId = getActiveSeasonId(torneo, cat);
+  if (!activeSeasonId) return true;
+  const recordSeasonId = record.seasonId || record.temporadaId || '';
+  return recordSeasonId === activeSeasonId;
 }
 
 function normalizeLookupText(value) {
@@ -391,7 +421,7 @@ function syncFixedSelectors() {
     el.value = TORNEO_NAMES[currentTorneo] ? currentTorneo : (getAllowedTorneos()[0] || currentTorneo);
   });
 
-  const catIds = ['gen_cat', 'mp_cat', 'eq_cat', 'ie_cat', 'temp_cat', 'rc_cat'];
+  const catIds = ['gen_cat', 'mp_cat', 'eq_cat', 'ie_cat', 'rc_cat'];
   const catOptions = catOrderKeys
     .filter((key) => CAT_NAMES[key])
     .map((key) => `<option value="${key}">${CAT_NAMES[key]}</option>`)

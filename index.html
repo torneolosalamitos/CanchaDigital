@@ -290,6 +290,8 @@
 
   <div id="adminAddTemporada" style="display:none;margin-bottom:14px">
     <button class="btn btn-g btn-full" onclick="openFinalizarTemporada()">🏁 FINALIZAR TEMPORADA</button>
+    <button class="btn btn-out btn-full" style="margin-top:8px" onclick="openCrearTemporada()">✨ CREAR NUEVA TEMPORADA</button>
+    <button class="btn btn-out btn-full" style="margin-top:8px" onclick="openReutilizarEquipo()">♻️ REUTILIZAR EQUIPO HISTÓRICO</button>
   </div>
 
   <div class="card card-g" style="margin-bottom:14px">
@@ -1685,6 +1687,51 @@
     <div class="fg"><label class="fl">Resumen / observaciones de cierre</label><textarea class="fi" id="temp_notas" placeholder="Resumen de la final, formato de competencia, notas documentales..."></textarea></div>
     <div class="fg"><label class="fl">Confirmación</label><input class="fi" id="temp_confirm" placeholder="Escribe FINALIZAR"/></div>
     <button class="btn btn-g btn-full" onclick="guardarTemporada()">💾 Finalizar y guardar snapshot</button>
+  </div>
+</div>
+
+<!-- Modal Crear Nueva Temporada -->
+<div class="modal-overlay" id="modalCrearTemporada">
+  <div class="modal" style="border-top-color:var(--emerald)">
+    <div class="modal-head"><div class="modal-title" style="color:var(--emerald)">✨ Crear nueva temporada</div><button class="modal-close" onclick="closeModal('modalCrearTemporada')">✕</button></div>
+    <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:14px">Crea una temporada activa vacía. No copia equipos, partidos, pagos ni estadísticas.</div>
+    <div class="fg"><label class="fl">Nombre</label><input class="fi" id="new_temp_nombre" placeholder="Ej: Apertura 2026"/></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Torneo</label><select class="fi" id="new_temp_torneo" onchange="renderNewSeasonCategoryChecks()"></select></div>
+      <div class="fg"><label class="fl">Fecha de inicio</label><input class="fi" id="new_temp_inicio" type="date"/></div>
+    </div>
+    <div class="fg"><label class="fl">Categorías</label><div id="new_temp_cat_checks" class="resumen-cat-grid"></div></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Costo inscripción</label><input class="fi" id="new_temp_insc" type="number" min="0" placeholder="0"/></div>
+      <div class="fg"><label class="fl">Costo arbitraje por equipo</label><input class="fi" id="new_temp_arb" type="number" min="0" placeholder="250"/></div>
+    </div>
+    <label class="resumen-cat-check" style="margin-bottom:10px"><input id="new_temp_public" type="checkbox" checked/><span>Visible públicamente</span></label>
+    <div class="fg"><label class="fl">Confirmación</label><input class="fi" id="new_temp_confirm" placeholder="Escribe CREAR"/></div>
+    <button class="btn btn-g btn-full" onclick="crearNuevaTemporada()">Crear temporada limpia</button>
+  </div>
+</div>
+
+<!-- Modal Reutilizar Equipo Histórico -->
+<div class="modal-overlay" id="modalReutilizarEquipo">
+  <div class="modal" style="border-top-color:var(--blue)">
+    <div class="modal-head"><div class="modal-title" style="color:var(--blue)">♻️ Reutilizar equipo histórico</div><button class="modal-close" onclick="closeModal('modalReutilizarEquipo')">✕</button></div>
+    <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:14px">Copia solo identidad o plantilla. Las estadísticas, pagos, arbitrajes y partidos siempre inician en cero.</div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Torneo activo</label><select class="fi" id="reuse_torneo" onchange="renderReuseEquipoOptions()"></select></div>
+      <div class="fg"><label class="fl">Categoría activa</label><select class="fi" id="reuse_cat" onchange="renderReuseEquipoOptions()"></select></div>
+    </div>
+    <div class="fg"><label class="fl">Equipo histórico</label><select class="fi" id="reuse_equipo" onchange="renderReuseEquipoPreview()"></select></div>
+    <div id="reuse_preview" class="card" style="display:none;margin-bottom:10px"></div>
+    <div class="fg"><label class="fl">Datos a copiar</label>
+      <div class="resumen-cat-grid">
+        <label class="resumen-cat-check"><input type="checkbox" id="reuse_nombre" checked/><span>Nombre</span></label>
+        <label class="resumen-cat-check"><input type="checkbox" id="reuse_logo" checked/><span>Logo</span></label>
+        <label class="resumen-cat-check"><input type="checkbox" id="reuse_color" checked/><span>Color</span></label>
+        <label class="resumen-cat-check"><input type="checkbox" id="reuse_contacto"/><span>Contacto</span></label>
+        <label class="resumen-cat-check"><input type="checkbox" id="reuse_plantilla"/><span>Plantilla</span></label>
+      </div>
+    </div>
+    <button class="btn btn-g btn-full" onclick="crearEquipoDesdeHistorial()">Registrar en temporada activa</button>
   </div>
 </div>
 

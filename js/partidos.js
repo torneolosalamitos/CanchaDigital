@@ -782,6 +782,7 @@ async function savePartido() {
     cat,
     torneoId: firestoreTorneoId(torneo),
     categoriaId: firestoreCatId(cat),
+    ...(getActiveSeasonId(torneo, cat) ? { seasonId: getActiveSeasonId(torneo, cat) } : {}),
     local: localKey,
     localNombre: eqL.nombre,
     visita: visitaKey,

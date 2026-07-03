@@ -817,9 +817,35 @@ function buildSeasonCategorySnapshot(torneo, cat) {
         id: e._key || '',
         nombre: e.nombre || '',
         escudo: e.logo || '',
-        capitan: e.capitan || ''
+        capitan: e.capitan || '',
+        color: e.color || '',
+        portero: e.portero || '',
+        telefonoCapitan: e.telefonoCapitan || e.tel || '',
+        plantillaFinal: Array.isArray(e.alineacion) ? e.alineacion.slice() : []
       }));
     const parts = getParts().filter((p) => p.torneo === torneo && p.cat === cat);
+    const matches = parts.map((p) => ({
+      id: p._key || '',
+      fecha: p.fecha || '',
+      horaIni: p.horaIni || '',
+      cancha: p.cancha || '',
+      local: p.localNombre || p.local || '',
+      visitante: p.visitaNombre || p.visita || '',
+      gL: Number(p.gL || 0),
+      gV: Number(p.gV || 0),
+      status: p.status || '',
+      porDefault: !!p.porDefault
+    }));
+    const inscs = getInsc().filter((i) => i.torneo === torneo && i.cat === cat);
+    const financialPrivate = {
+      inscripcionesTotal: inscs.reduce((sum, i) => sum + Number(i.montoTotal || i.monto || 0), 0),
+      inscripcionesPagado: inscs.reduce((sum, i) => sum + Number(i.montoPagado || 0), 0),
+      inscripcionesPendiente: inscs.reduce((sum, i) => sum + Math.max(Number(i.saldo || 0), 0), 0),
+      arbitrajesPendientes: parts.reduce((acc, p) => {
+        if (typeof getArbitrajeEstado !== 'function') return acc;
+        return acc + (getArbitrajeEstado(p, 'local') === 'pagado' ? 0 : 1) + (getArbitrajeEstado(p, 'visitante') === 'pagado' ? 0 : 1);
+      }, 0)
+    };
     return {
       cat,
       catNombre: CAT_NAMES[cat] || DEFAULT_TOURNAMENT_CATEGORY_LABELS[cat] || cat,
@@ -828,6 +854,8 @@ function buildSeasonCategorySnapshot(torneo, cat) {
       tablaFinal: tableData,
       goleadoresFinal: scorers,
       equiposParticipantes: teams,
+      partidosJugados: matches,
+      financialPrivate,
       warnings: buildSeasonWarningsForCategory(torneo, cat, tableData, scorers)
     };
   });
@@ -890,11 +918,324 @@ function openFinalizarTemporada() {
   openModal('modalGuardarTemporada');
 }
 
+function renderNewSeasonCategoryChecks() {
+  const wrap = document.getElementById('new_temp_cat_checks');
+  if (!wrap) return;
+  const torneo = appTorneoId(document.getElementById('new_temp_torneo')?.value || currentTorneo);
+  wrap.innerHTML = getSeasonCategoryOptions(torneo).map((cat) => `
+    <label class="resumen-cat-check">
+      <input type="checkbox" value="${cat.key}" ${cat.key === currentCat ? 'checked' : ''}/>
+      <span>${escapeHtml(cat.label)}</span>
+    </label>`).join('');
+}
+
+function openCrearTemporada() {
+  if (!isAdmin) {
+    showToast('Solo administradores pueden crear temporadas', 'tr');
+    return;
+  }
+  const torneoSel = document.getElementById('new_temp_torneo');
+  if (torneoSel) {
+    torneoSel.innerHTML = TOURNAMENT_OPTION_ORDER
+      .filter((torneo) => canAccessTorneo(torneo))
+      .map((torneo) => `<option value="${torneo}">${TORNEO_NAMES[torneo]}</option>`)
+      .join('');
+    torneoSel.value = currentTorneo;
+  }
+  const name = document.getElementById('new_temp_nombre');
+  const start = document.getElementById('new_temp_inicio');
+  const arb = document.getElementById('new_temp_arb');
+  const confirmInput = document.getElementById('new_temp_confirm');
+  if (name && !name.value) name.value = `${TORNEO_NAMES[currentTorneo] || 'Torneo'} ${new Date().getFullYear()}`;
+  if (start && !start.value) start.value = todayISO();
+  if (arb && !arb.value) arb.value = 250;
+  if (confirmInput) confirmInput.value = '';
+  renderNewSeasonCategoryChecks();
+  openModal('modalCrearTemporada');
+}
+
+function getSelectedNewSeasonCats() {
+  return Array.from(document.querySelectorAll('#new_temp_cat_checks input:checked')).map((input) => appCatId(input.value));
+}
+
+async function crearNuevaTemporada() {
+  if (!isAdmin) {
+    showToast('Solo administradores pueden crear temporadas', 'tr');
+    return;
+  }
+  const confirmInput = document.getElementById('new_temp_confirm')?.value.trim().toUpperCase();
+  if (confirmInput !== 'CREAR') {
+    showToast('Escribe CREAR para confirmar', 'ta');
+    return;
+  }
+  const torneo = appTorneoId(document.getElementById('new_temp_torneo')?.value || currentTorneo);
+  const cats = getSelectedNewSeasonCats();
+  if (!cats.length) {
+    showToast('Selecciona al menos una categoría', 'ta');
+    return;
+  }
+  if (!isOwner && (!canAccessTorneo(torneo) || cats.some((cat) => !canAccessCat(cat, torneo)))) {
+    showToast('No tienes permiso para una o más categorías', 'tr');
+    return;
+  }
+  const activeConflicts = cats
+    .map((cat) => getActiveSeason(torneo, cat))
+    .filter(Boolean);
+  if (activeConflicts.length) {
+    const names = [...new Set(activeConflicts.map((season) => season.nombre || season.seasonName || 'Temporada activa'))].join(', ');
+    showToast(`Finaliza primero la temporada activa: ${names}`, 'ta');
+    return;
+  }
+  const nombre = document.getElementById('new_temp_nombre')?.value.trim();
+  if (!nombre) {
+    showToast('Ingresa nombre de temporada', 'ta');
+    return;
+  }
+  const now = Date.now();
+  const seasonId = newDocId('season', `${torneo}_${nombre}_${now}`);
+  const data = {
+    seasonId,
+    nombre,
+    seasonName: nombre,
+    torneo,
+    cat: cats[0],
+    torneoId: firestoreTorneoId(torneo),
+    categoriaId: firestoreCatId(cats[0]),
+    categorias: cats,
+    estado: 'active',
+    visibility: document.getElementById('new_temp_public')?.checked ? 'public' : 'private',
+    fechaInicio: document.getElementById('new_temp_inicio')?.value || todayISO(),
+    inicioMs: now,
+    createdAtMs: now,
+    costos: {
+      inscripcion: Number(document.getElementById('new_temp_insc')?.value || 0),
+      arbitrajeEquipo: Number(document.getElementById('new_temp_arb')?.value || 250)
+    },
+    equiposIniciales: 0,
+    audit: [{
+      action: 'create_season',
+      at: now,
+      uid: currentUser?.uid || '',
+      email: currentUser?.email || ''
+    }],
+    ts: now
+  };
+  if (fs) await saveDoc('temporadas', seasonId, data);
+  else await db.ref(`temporadas/${seasonId}`).set(data);
+  C.temporadas[seasonId] = data;
+  closeModal('modalCrearTemporada');
+  currentTorneo = torneo;
+  currentCat = cats[0];
+  showToast('Temporada limpia creada. Ahora registra equipos nuevos o reutiliza históricos.', 'tg');
+  renderHistorial();
+  renderTabla();
+  renderEquiposPage();
+  renderPartidos();
+  renderGoleadores();
+}
+
+function getHistoricTeamCandidates() {
+  const activeId = getActiveSeasonId(document.getElementById('reuse_torneo')?.value || currentTorneo, document.getElementById('reuse_cat')?.value || currentCat);
+  return getAllEqs()
+    .filter((equipo) => !activeId || (equipo.seasonId || '') !== activeId)
+    .filter((equipo) => equipo.nombre)
+    .sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'));
+}
+
+function openReutilizarEquipo() {
+  if (!isAdmin) {
+    showToast('Solo administradores pueden reutilizar equipos', 'tr');
+    return;
+  }
+  const torneoSel = document.getElementById('reuse_torneo');
+  const catSel = document.getElementById('reuse_cat');
+  if (torneoSel) {
+    torneoSel.innerHTML = TOURNAMENT_OPTION_ORDER
+      .filter((torneo) => canAccessTorneo(torneo))
+      .map((torneo) => `<option value="${torneo}">${TORNEO_NAMES[torneo]}</option>`)
+      .join('');
+    torneoSel.value = currentTorneo;
+  }
+  if (catSel) {
+    catSel.innerHTML = getSeasonCategoryOptions(currentTorneo)
+      .filter((cat) => canAccessCat(cat.key, currentTorneo))
+      .map((cat) => `<option value="${cat.key}">${escapeHtml(cat.label)}</option>`)
+      .join('');
+    catSel.value = currentCat;
+  }
+  renderReuseEquipoOptions();
+  openModal('modalReutilizarEquipo');
+}
+
+function renderReuseEquipoOptions() {
+  const catSel = document.getElementById('reuse_cat');
+  const torneo = appTorneoId(document.getElementById('reuse_torneo')?.value || currentTorneo);
+  if (catSel) {
+    const prev = catSel.value;
+    catSel.innerHTML = getSeasonCategoryOptions(torneo)
+      .filter((cat) => canAccessCat(cat.key, torneo))
+      .map((cat) => `<option value="${cat.key}">${escapeHtml(cat.label)}</option>`)
+      .join('');
+    if (prev && Array.from(catSel.options).some((option) => option.value === prev)) catSel.value = prev;
+  }
+  const select = document.getElementById('reuse_equipo');
+  if (!select) return;
+  const candidates = getHistoricTeamCandidates();
+  select.innerHTML = '<option value="">Selecciona equipo anterior</option>' +
+    candidates.map((equipo) => `<option value="${equipo._key}">${escapeHtml(equipo.nombre)} · ${escapeHtml(TORNEO_NAMES[equipo.torneo] || equipo.torneo)} · ${escapeHtml(CAT_NAMES[equipo.cat] || equipo.cat)}</option>`).join('');
+  renderReuseEquipoPreview();
+}
+
+function renderReuseEquipoPreview() {
+  const wrap = document.getElementById('reuse_preview');
+  const key = document.getElementById('reuse_equipo')?.value;
+  const equipo = key ? C.equipos[key] : null;
+  if (!wrap || !equipo) {
+    if (wrap) {
+      wrap.style.display = 'none';
+      wrap.innerHTML = '';
+    }
+    return;
+  }
+  const normalized = normalizeScopedRecord({ ...equipo, _key: key });
+  const appearances = getAllEqs().filter((e) => e.nombre === normalized.nombre).length;
+  const historicParts = getAllParts().filter((p) => p.local === key || p.visita === key || p.localNombre === normalized.nombre || p.visitaNombre === normalized.nombre);
+  wrap.style.display = '';
+  wrap.innerHTML = `<div style="display:flex;gap:12px;align-items:center">
+    ${normalized.logo ? `<img src="${escapeHtml(normalized.logo)}" style="width:58px;height:58px;object-fit:contain;border-radius:12px"/>` : '<div class="eq-ph">⚽</div>'}
+    <div>
+      <div style="font-size:15px;font-weight:900;color:var(--text)">${escapeHtml(normalized.nombre)}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted)">${escapeHtml(TORNEO_NAMES[normalized.torneo] || normalized.torneo)} · ${escapeHtml(CAT_NAMES[normalized.cat] || normalized.cat)}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted)">Participaciones detectadas: ${appearances} · Partidos históricos: ${historicParts.length}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted)">Plantilla: ${(normalized.alineacion || []).length} jugador(es)</div>
+    </div>
+  </div>`;
+}
+
+async function crearEquipoDesdeHistorial() {
+  const sourceKey = document.getElementById('reuse_equipo')?.value;
+  const source = sourceKey ? normalizeScopedRecord({ ...(C.equipos[sourceKey] || {}), _key: sourceKey }) : null;
+  if (!source) {
+    showToast('Selecciona un equipo histórico', 'ta');
+    return;
+  }
+  const torneo = appTorneoId(document.getElementById('reuse_torneo')?.value || currentTorneo);
+  const cat = appCatId(document.getElementById('reuse_cat')?.value || currentCat);
+  const seasonId = getActiveSeasonId(torneo, cat);
+  if (!seasonId) {
+    showToast('Primero crea una temporada activa para esa categoría', 'ta');
+    return;
+  }
+  if (!isOwner && (!canAccessTorneo(torneo) || !canAccessCat(cat, torneo))) {
+    showToast('No tienes permiso para esa categoría', 'tr');
+    return;
+  }
+  const copyNombre = document.getElementById('reuse_nombre')?.checked;
+  const copyLogo = document.getElementById('reuse_logo')?.checked;
+  const copyColor = document.getElementById('reuse_color')?.checked;
+  const copyContacto = document.getElementById('reuse_contacto')?.checked;
+  const copyPlantilla = document.getElementById('reuse_plantilla')?.checked;
+  const nombre = copyNombre ? source.nombre : `${source.nombre || 'Equipo'} nuevo`;
+  const equipoId = `equipo_${slugifyId(`${seasonId}_${cat}_${nombre}`)}`;
+  const activeSeason = getActiveSeason(torneo, cat) || {};
+  const precioInscripcion = Number(activeSeason.costos?.inscripcion || 0);
+  const equipoData = {
+    nombre,
+    nombreNormalizado: String(nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\./g, '').trim(),
+    torneo,
+    cat,
+    torneoId: firestoreTorneoId(torneo),
+    categoriaId: firestoreCatId(cat),
+    seasonId,
+    logo: copyLogo ? (source.logo || null) : null,
+    color: copyColor ? (source.color || '#1a3a8a') : '#1a3a8a',
+    tel: copyContacto ? (source.tel || source.telefonoCapitan || '') : '',
+    telefonoCapitan: copyContacto ? (source.telefonoCapitan || source.tel || '') : '',
+    portero: copyPlantilla ? (source.portero || null) : null,
+    alineacion: copyPlantilla && Array.isArray(source.alineacion) ? source.alineacion.slice() : [],
+    reusedFromEquipoId: sourceKey,
+    reusedFromSeasonId: source.seasonId || '',
+    estado: 'activo',
+    actualizadoEn: firestoreServerTimestamp()
+  };
+  const inscId = `inscripcion_${slugifyId(equipoId)}`;
+  if (fs) {
+    const batch = fs.batch();
+    batch.set(fs.collection('equipos').doc(equipoId), { ...equipoData, creadoEn: firestoreServerTimestamp() }, { merge: true });
+    batch.set(fs.collection('inscripciones').doc(inscId), {
+      torneo,
+      cat,
+      torneoId: firestoreTorneoId(torneo),
+      categoriaId: firestoreCatId(cat),
+      seasonId,
+      equipoId,
+      equipoKey: equipoId,
+      equipoNombre: nombre,
+      nombre,
+      logo: equipoData.logo,
+      montoTotal: precioInscripcion,
+      montoPagado: 0,
+      saldo: precioInscripcion,
+      estado: precioInscripcion > 0 ? 'pendiente' : 'sin_costo',
+      origen: 'reutilizado',
+      creadoEn: firestoreServerTimestamp(),
+      actualizadoEn: firestoreServerTimestamp()
+    }, { merge: true });
+    await batch.commit();
+  } else {
+    await db.ref().update({
+      [`equipos/${equipoId}`]: equipoData,
+      [`inscripciones/${inscId}`]: {
+        torneo, cat, seasonId, equipoId, equipoKey: equipoId, equipoNombre: nombre, nombre,
+        montoTotal: precioInscripcion, montoPagado: 0, saldo: precioInscripcion,
+        estado: precioInscripcion > 0 ? 'pendiente' : 'sin_costo', origen: 'reutilizado'
+      }
+    });
+  }
+  closeModal('modalReutilizarEquipo');
+  showToast('Equipo reutilizado en temporada activa sin copiar estadísticas', 'tg');
+  renderEquiposPage();
+  renderTabla();
+}
+
 function getFinishedSeasonDocs() {
   return Object.entries(C.temporadas || {})
     .map(([k, v]) => ({ ...v, _key: k }))
     .filter((t) => ['finished', undefined, null, ''].includes(t.estado))
     .sort((a, b) => (b.finishedAtMs || b.ts || 0) - (a.finishedAtMs || a.ts || 0));
+}
+
+function getAllSeasonDocs() {
+  return Object.entries(C.temporadas || {})
+    .map(([k, v]) => ({ ...v, _key: k }))
+    .sort((a, b) => (b.createdAtMs || b.finishedAtMs || b.ts || 0) - (a.createdAtMs || a.finishedAtMs || a.ts || 0));
+}
+
+function renderSeasonAdminStatePanel(torneo) {
+  if (!isAdmin) return '';
+  const seasons = getAllSeasonDocs().filter((t) => appTorneoId(t.torneo || t.torneoId) === appTorneoId(torneo));
+  const active = seasons.filter((t) => t.estado === 'active');
+  const archived = seasons.filter((t) => t.estado === 'archived');
+  const line = (t, status) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:8px;background:rgba(255,255,255,.78)">
+      <div>
+        <div style="font-size:12px;font-weight:900;color:var(--text)">${escapeHtml(t.nombre || t.seasonName || 'Temporada')}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--muted)">${escapeHtml((t.categorias || [t.cat]).map((cat) => CAT_NAMES[cat] || cat).join(' · ') || 'Sin categorías')} · ${escapeHtml(status)}</div>
+      </div>
+      ${isOwner && t.estado === 'archived' ? `<button class="btn btn-out btn-sm" onclick="reabrirTemporada('${t._key}')">Reabrir</button>` : ''}
+    </div>`;
+  return `
+    <div class="card card-g" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--text)">Control de temporadas</div>
+          <div style="font-size:10px;font-weight:800;color:var(--muted)">Activas: ${active.length} · Archivadas: ${archived.length}</div>
+        </div>
+        <span style="font-size:22px">🗂️</span>
+      </div>
+      ${active.length ? active.map((t) => line(t, 'activa')).join('') : '<div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:10px">No hay temporada activa registrada para este torneo.</div>'}
+      ${archived.length ? `<div style="font-size:10px;color:var(--muted);font-weight:900;margin-top:12px">ARCHIVADAS</div>${archived.map((t) => line(t, 'archivada')).join('')}` : ''}
+    </div>`;
 }
 
 function renderHistorial(){
@@ -931,9 +1272,10 @@ function renderHistorial(){
   }
   const selectedCat = catSel?.value || '';
   const filteredTemps = torneoTemps.filter((t) => (!selectedSeason || t._key === selectedSeason));
+  const adminStatePanel = renderSeasonAdminStatePanel(selectedTorneo);
   const renderTemps = (temps=[]) => {
-    if(!temps.length){el.innerHTML='<div class="empty"><span class="empty-icon">🏆</span>Sin temporadas guardadas aún.<br/><span style="font-size:11px;color:var(--muted)">Guarda la temporada actual desde el botón de arriba.</span></div>';return;}
-    el.innerHTML=temps.map(t=>`
+    if(!temps.length){el.innerHTML=adminStatePanel + '<div class="empty"><span class="empty-icon">🏆</span>Sin temporadas finalizadas aún.<br/><span style="font-size:11px;color:var(--muted)">Finaliza una temporada para guardar su historial público.</span></div>';return;}
+    el.innerHTML=adminStatePanel + temps.map(t=>`
       <div style="background:var(--card);border:2px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden">
         <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--gold),var(--amber))"></div>
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
@@ -1036,6 +1378,8 @@ async function guardarTemporada(){
   if (!confirm(summary)) return;
   const now = Date.now();
   const mainCat = draft.cats[0] || currentCat;
+  const activeSeason = getActiveSeason(torneo, mainCat);
+  const finalSeasonId = activeSeason?.seasonId || activeSeason?._key || newDocId('season', `${torneo}_${anio}_${nombre}`);
   const data={
     nombre,
     seasonName:nombre,
@@ -1043,7 +1387,7 @@ async function guardarTemporada(){
     estado:'finished',
     immutable:true,
     version:1,
-    seasonId:newDocId('season', `${torneo}_${anio}_${nombre}`),
+    seasonId:finalSeasonId,
     torneo,
     cat:mainCat,
     torneoId:firestoreTorneoId(torneo),
@@ -1088,7 +1432,7 @@ async function guardarTemporada(){
     subcampeon:document.getElementById('temp_subcampeon').value.trim(),
     goleador:document.getElementById('temp_goleador').value.trim(),
     notas:document.getElementById('temp_notas').value.trim(),
-    audit:[{
+    audit:[...(activeSeason?.audit || []), {
       action:'finish_season',
       at:now,
       uid:currentUser?.uid || '',
@@ -1098,8 +1442,10 @@ async function guardarTemporada(){
     fecha:new Date(now).toISOString().split('T')[0],
     ts:now
   };
-  if(fs) await saveDoc('temporadas', newDocId('temporada', `${nombre}_${Date.now()}`), data);
+  const temporadaKey = activeSeason?._key || finalSeasonId || newDocId('temporada', `${nombre}_${Date.now()}`);
+  if(fs) await saveDoc('temporadas', temporadaKey, data);
   else await db.ref('historial').push(data);
+  C.temporadas[temporadaKey] = data;
   closeModal('modalGuardarTemporada');
   ['temp_campeon','temp_subcampeon','temp_goleador','temp_notas','temp_confirm'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   showToast('✅ Temporada finalizada y guardada','tg');
@@ -1116,6 +1462,7 @@ async function deleteTemporada(key){
   };
   if(fs) await updateDoc('temporadas', key, patch);
   else await db.ref(`historial/${key}`).update(patch);
+  if (C.temporadas[key]) Object.assign(C.temporadas[key], patch);
   showToast('Temporada archivada','ta');
   renderHistorial();
 }
@@ -1134,6 +1481,7 @@ async function reabrirTemporada(key){
   };
   if(fs) await updateDoc('temporadas', key, patch);
   else await db.ref(`historial/${key}`).update(patch);
+  if (C.temporadas[key]) Object.assign(C.temporadas[key], patch);
   showToast('Temporada reabierta con auditoría','ta');
   renderHistorial();
 }

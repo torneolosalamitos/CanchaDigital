@@ -58,6 +58,32 @@ function allowedList(value) {
   return value ? [value] : [];
 }
 
+async function getActiveSeasonIdForScope(torneoId, categoriaId) {
+  const snap = await db.collection('temporadas').get();
+  const seasons = snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((season) => {
+      if (season.estado !== 'active') return false;
+      if (season.torneo !== torneoId && season.torneoId !== torneoId) return false;
+      const cats = Array.isArray(season.categorias)
+        ? season.categorias
+        : [season.cat, season.categoriaId].filter(Boolean);
+      return !cats.length || cats.includes(categoriaId);
+    })
+    .sort((a, b) => Number(b.createdAtMs || b.ts || b.inicioMs || 0) - Number(a.createdAtMs || a.ts || a.inicioMs || 0));
+  const active = seasons[0] || null;
+  return active ? (active.seasonId || active.id) : '';
+}
+
+async function getActiveSeasonIdForSession(session = {}) {
+  return getActiveSeasonIdForScope(session.torneoActivo || session.torneoId, session.categoriaActiva || session.categoriaId);
+}
+
+function filterByActiveSeason(records, activeSeasonId) {
+  if (!activeSeasonId) return records;
+  return records.filter((record) => (record.seasonId || record.temporadaId || '') === activeSeasonId);
+}
+
 async function sendWhatsAppText(to, body) {
   const token = process.env.WHATSAPP_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -360,16 +386,18 @@ function normalizeTeamKey(value) {
 async function getInscripcionesActivas(session) {
   const torneoActivo = session.torneoActivo || session.torneoId;
   const categoriaActiva = session.categoriaActiva || session.categoriaId;
+  const activeSeasonId = await getActiveSeasonIdForSession(session);
   const snap = await db.collection('inscripciones')
     .where('torneoId', '==', torneoActivo)
     .where('categoriaId', '==', categoriaActiva)
     .get();
 
-  return snap.docs.map((doc) => ({
+  const records = snap.docs.map((doc) => ({
     id: doc.id,
     _key: doc.id,
     ...doc.data()
   }));
+  return filterByActiveSeason(records, activeSeasonId);
 }
 
 async function getEquiposMapForInscripciones(inscripciones) {
@@ -631,11 +659,13 @@ function getPartidoSortValue(partido) {
 async function getPartidosActivos(session) {
   const torneoActivo = session.torneoActivo || session.torneoId;
   const categoriaActiva = session.categoriaActiva || session.categoriaId;
+  const activeSeasonId = await getActiveSeasonIdForSession(session);
   const snap = await db.collection('partidos')
     .where('torneoId', '==', torneoActivo)
     .where('categoriaId', '==', categoriaActiva)
     .get();
-  return snap.docs.map((doc) => ({ id: doc.id, _key: doc.id, ...doc.data() }));
+  const records = snap.docs.map((doc) => ({ id: doc.id, _key: doc.id, ...doc.data() }));
+  return filterByActiveSeason(records, activeSeasonId);
 }
 
 function equipoParticipaEnPartido(partido, insc) {

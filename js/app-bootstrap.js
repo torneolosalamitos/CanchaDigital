@@ -350,12 +350,15 @@ const canReadScopedRecord = (record, useCat = true) => {
   const cat = scopeCatOf(record);
   return canAccessTorneo(torneo) && (!useCat || canAccessCat(cat, torneo));
 };
-const getParts = () => Object.entries(C.partidos).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k }));
-const getEqs = () => Object.entries(C.equipos).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k }));
+const getAllParts = () => Object.entries(C.partidos).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k }));
+const getAllEqs = () => Object.entries(C.equipos).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k }));
+const getParts = () => getAllParts().filter((v)=>recordMatchesActiveSeason(v, v.torneo, v.cat));
+const getEqs = () => getAllEqs().filter((v)=>recordMatchesActiveSeason(v, v.torneo, v.cat));
 const getProd = () => Object.entries(C.productos).map(([k,v])=>({ ...v, _key: k }));
 const getVentas = () => Object.entries(C.ventas).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k })).filter((v)=>canReadScopedRecord(v)).sort((a,b)=>b.ts-a.ts);
 const getArbs = () => Object.entries(C.arbitros).map(([k,v])=>({ ...v, _key: k }));
-const getInsc = () => Object.entries(C.inscripciones).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k })).filter((v)=>canReadScopedRecord(v));
+const getAllInsc = () => Object.entries(C.inscripciones).map(([k,v])=>normalizeScopedRecord({ ...v, _key: k })).filter((v)=>canReadScopedRecord(v));
+const getInsc = () => getAllInsc().filter((v)=>recordMatchesActiveSeason(v, v.torneo, v.cat));
 const fmt = s=>{ const m=Math.floor(s/60),ss=Math.floor(s%60); return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; };
 const fmtDate = d=>{ if(!d)return'—'; const dt=new Date(d+'T12:00:00'); const days=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']; const months=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`; };
 

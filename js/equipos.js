@@ -426,7 +426,8 @@ async function saveEquipo() {
     const appCat = appCatId(cat || currentCat || 'cat_libre_varonil');
     const torneoId = firestoreTorneoId(appTorneo);
     const categoriaId = firestoreCatId(appCat);
-    const equipoId = key || ('equipo_' + slugifyId(n));
+    const activeSeasonId = getActiveSeasonId(appTorneo, appCat);
+    const equipoId = key || ('equipo_' + slugifyId(`${activeSeasonId || appTorneo}_${appCat}_${n}`));
     const isNew = !key;
     const nombreNormalizado = String(n || '')
       .normalize('NFD')
@@ -455,6 +456,7 @@ async function saveEquipo() {
         cat: appCat,
         torneoId,
         categoriaId,
+        ...(activeSeasonId ? { seasonId: activeSeasonId } : {}),
         color,
         logo,
         portero,
@@ -480,6 +482,7 @@ async function saveEquipo() {
           cat: appCat,
           torneoId,
           categoriaId,
+          ...(activeSeasonId ? { seasonId: activeSeasonId } : {}),
           equipoId,
           equipoKey: equipoId,
           equipoNombre: n,
@@ -518,6 +521,7 @@ async function saveEquipo() {
     cat,
     torneoId: firestoreTorneoId(torneo),
     categoriaId: firestoreCatId(cat),
+    ...(getActiveSeasonId(torneo, cat) ? { seasonId: getActiveSeasonId(torneo, cat) } : {}),
     color,
     logo,
     portero,
