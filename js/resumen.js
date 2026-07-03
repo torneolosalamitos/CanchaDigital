@@ -882,3 +882,269 @@ function renderAdminPagosTable(id, pagos, isArbitraje) {
   }
   el.innerHTML = `<thead><tr><th>Fecha</th><th>Equipo</th>${isArbitraje ? '<th>Partido</th><th>Esperado</th><th>Pendiente</th>' : ''}<th>Monto</th><th>Método</th><th>Recibió</th><th>Nota</th><th>Origen</th><th>Usuario</th><th>Estado</th></tr></thead><tbody>${pagos.sort((a, b) => (getPaymentDate(b) || '').localeCompare(getPaymentDate(a) || '')).map((pago) => `<tr><td>${fmtDate(getPaymentDate(pago)) || 'Sin fecha'}</td><td>${escapeHtml(pago.equipoNombre || pago.nombreEquipo || 'Equipo')}</td>${isArbitraje ? `<td>${escapeHtml(pago.partidoTexto || pago.partidoId || '')}</td><td>${formatMoney(pago.montoEsperado || 0)}</td><td>${formatMoney(pago.montoPendienteDespues || 0)}</td>` : ''}<td><strong>${formatMoney(pago.monto || 0)}</strong></td><td>${escapeHtml(normalizePaymentMethod(pago.metodoPago || pago.metodo))}</td><td>${escapeHtml(pago.recibidoPor || 'no_especificado')}</td><td>${escapeHtml(pago.nota || '')}</td><td>${escapeHtml(pago.origen || 'web')}</td><td>${escapeHtml(pago.createdByPhone || pago.telefonoWhatsapp || pago.registradoPor || '')}</td><td>${arbStatusChip(pago.cancelado ? 'cancelado' : 'pagado')}</td></tr>`).join('')}</tbody>`;
 }
+// Vista administrativa exclusiva para arbitrajes. Estas funciones reemplazan
+// la vista anterior de control de pagos mixto sin afectar el resto del resumen.
+function getAdminArbitrajesFilters() {
+  seedAdminArbitrajesFilters();
+  return {
+    periodo: document.getElementById('aa_periodo')?.value || 'semana',
+    torneo: document.getElementById('aa_torneo')?.value || currentTorneo,
+    cat: document.getElementById('aa_cat')?.value || currentCat,
+    desde: document.getElementById('aa_desde')?.value || '',
+    hasta: document.getElementById('aa_hasta')?.value || '',
+    equipo: normalizeLookupText(document.getElementById('aa_equipo')?.value || ''),
+    estadoArb: document.getElementById('aa_estado_arb')?.value || 'todos',
+    metodo: document.getElementById('aa_metodo')?.value || 'todos',
+    recibido: normalizeLookupText(document.getElementById('aa_recibido')?.value || '')
+  };
+}
+
+function getAdminArbPeriodRange(type = 'semana') {
+  const now = new Date();
+  const toISO = (date) => date.toISOString().split('T')[0];
+  if (type === 'semana') {
+    const monday = new Date(now);
+    const day = monday.getDay() || 7;
+    monday.setDate(monday.getDate() - day + 1);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { from: toISO(monday), to: toISO(sunday), label: 'Semana actual (lunes a domingo)' };
+  }
+  if (type === 'mes') {
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { from: toISO(first), to: toISO(last), label: 'Mes actual' };
+  }
+  return { from: '0000-01-01', to: '9999-12-31', label: 'Torneo completo seleccionado' };
+}
+
+function adminArbDateInRange(date, range) {
+  if (!date) return range.from === '0000-01-01';
+  return date >= range.from && date <= range.to;
+}
+
+function adminArbUiEstado(estado) {
+  if (estado === 'pagado') return 'pagado';
+  if (estado === 'parcial') return 'abonado';
+  return 'no_pagado';
+}
+
+function buildArbitrajeSides(partido) {
+  return ['local', 'visitante'].map((role) => {
+    const node = getArbitrajeNode(partido, role);
+    const estado = getArbitrajeEstado(partido, role);
+    return {
+      role,
+      partido,
+      partidoId: partido._key,
+      fecha: partido.fecha || '',
+      hora: partido.horaIni || partido.hora || '--:--',
+      cat: appCatId(partido.cat || partido.categoriaId || currentCat),
+      torneo: appTorneoId(partido.torneo || partido.torneoId || currentTorneo),
+      equipoNombre: getEquipoNombreFromPartido(partido, role),
+      estado,
+      estadoUi: adminArbUiEstado(estado),
+      esperado: getMontoEsperadoArbitraje(partido, role),
+      pagado: getMontoPagadoArbitraje(partido, role),
+      pendiente: getMontoPendienteArbitraje(partido, role),
+      metodoPago: normalizePaymentMethod(node.metodoPago || ''),
+      recibidoPor: node.recibidoPor || 'no_especificado',
+      nota: node.nota || '',
+      partidoTexto: getPartidoDisplayName(partido),
+      status: partido.status || 'pendiente'
+    };
+  });
+}
+
+function adminPagoPassesFilters(pago, filters, tipo) {
+  const pagoTipo = (pago.tipo || pago.concepto || '').toLowerCase();
+  if (tipo && pagoTipo !== tipo) return false;
+  if (pago.cancelado === true) return false;
+  if (appTorneoId(pago.torneo || pago.torneoId || currentTorneo) !== filters.torneo) return false;
+  if (filters.cat !== 'todas' && appCatId(pago.cat || pago.categoriaId || currentCat) !== filters.cat) return false;
+  if (!datePassesAdminFilter(getPaymentDate(pago), filters)) return false;
+  if (filters.equipo && !normalizeLookupText(pago.equipoNombre || pago.equipo || pago.nombreEquipo || '').includes(filters.equipo)) return false;
+  const metodo = normalizePaymentMethod(pago.metodoPago || pago.metodo);
+  if (filters.metodo !== 'todos' && metodo !== filters.metodo) return false;
+  if (filters.recibido && !normalizeLookupText(pago.recibidoPor || '').includes(filters.recibido)) return false;
+  return true;
+}
+
+function adminArbRowPassesFilters(row, filters) {
+  if (row.torneo !== filters.torneo) return false;
+  if (filters.cat !== 'todas' && row.cat !== filters.cat) return false;
+  if (!datePassesAdminFilter(row.fecha, filters)) return false;
+  if (filters.equipo && !normalizeLookupText(`${row.equipoNombre} ${row.partidoTexto}`).includes(filters.equipo)) return false;
+  if (filters.estadoArb !== 'todos' && row.estadoUi !== filters.estadoArb) return false;
+  if (filters.metodo !== 'todos' && row.metodoPago !== filters.metodo) return false;
+  if (filters.recibido && !normalizeLookupText(row.recibidoPor || '').includes(filters.recibido)) return false;
+  return true;
+}
+
+function getAdminArbRowsForScope(filters) {
+  return adminArbScopedParts()
+    .flatMap(buildArbitrajeSides)
+    .filter((row) => row.torneo === filters.torneo)
+    .filter((row) => filters.cat === 'todas' || row.cat === filters.cat);
+}
+
+function getAdminArbMetrics(rows, pagosArb = []) {
+  const esperado = rows.reduce((sum, row) => sum + Number(row.esperado || 0), 0);
+  const cobrado = rows.reduce((sum, row) => sum + Number(row.pagado || 0), 0);
+  const pendiente = rows.reduce((sum, row) => sum + Number(row.pendiente || 0), 0);
+  return {
+    esperado,
+    cobrado,
+    pendiente,
+    pctCobranza: pct(cobrado, esperado),
+    partidos: new Set(rows.map((row) => row.partidoId)).size,
+    equiposPagados: rows.filter((row) => row.estadoUi === 'pagado').length,
+    equiposAbonados: rows.filter((row) => row.estadoUi === 'abonado').length,
+    equiposPendientes: rows.filter((row) => row.estadoUi === 'no_pagado').length,
+    efectivo: pagosArb.filter((pago) => normalizePaymentMethod(pago.metodoPago || pago.metodo) === 'efectivo').reduce((sum, pago) => sum + Number(pago.monto || 0), 0),
+    transferencia: pagosArb.filter((pago) => normalizePaymentMethod(pago.metodoPago || pago.metodo) === 'transferencia').reduce((sum, pago) => sum + Number(pago.monto || 0), 0)
+  };
+}
+
+function renderAdminArbitrajes() {
+  if (!isAdmin) return;
+  const filters = getAdminArbitrajesFilters();
+  const scopedRows = getAdminArbRowsForScope(filters);
+  const rows = scopedRows.filter((row) => adminArbRowPassesFilters(row, filters));
+  const pagos = Object.entries(C.pagos || {}).map(([key, pago]) => ({ _key: key, ...pago }));
+  const pagosArb = pagos.filter((pago) => adminPagoPassesFilters(pago, filters, 'arbitraje'));
+  const period = getAdminArbPeriodRange(filters.periodo);
+  const periodRows = rows.filter((row) => adminArbDateInRange(row.fecha, period));
+  const periodPagos = pagosArb.filter((pago) => adminArbDateInRange(getPaymentDate(pago), period));
+  renderAdminArbitrajesPeriodCards(scopedRows);
+  renderAdminArbitrajesKpis(getAdminArbMetrics(periodRows, periodPagos), period);
+  renderAdminArbitrajesCharts(periodRows, periodPagos);
+  renderAdminArbitrajesPartidosTable(rows);
+  renderAdminPagosTable('adminArbPagosTable', pagosArb, true);
+}
+
+function renderAdminArbitrajesPeriodCards(rows) {
+  const el = document.getElementById('adminArbPeriodCards');
+  if (!el) return;
+  el.innerHTML = [
+    ['semana', 'Semana', 'Lunes a domingo'],
+    ['mes', 'Mes', '1 al ultimo dia'],
+    ['torneo', 'Torneo completo', 'Todo lo registrado']
+  ].map(([key, label, sub]) => {
+    const range = getAdminArbPeriodRange(key);
+    const m = getAdminArbMetrics(rows.filter((row) => adminArbDateInRange(row.fecha, range)), []);
+    return `<button class="admin-period-card" onclick="document.getElementById('aa_periodo').value='${key}';renderAdminArbitrajes()">
+      <span>${label}</span>
+      <strong>${formatMoney(m.cobrado)} / ${formatMoney(m.esperado)}</strong>
+      <small>${sub} · ${m.pctCobranza}% cobrado</small>
+      <i style="width:${m.pctCobranza}%"></i>
+    </button>`;
+  }).join('');
+}
+
+function renderAdminArbitrajesKpis(kpis, period) {
+  const el = document.getElementById('adminArbKpis');
+  if (!el) return;
+  const moneyLabels = new Set(['Esperado', 'Cobrado', 'Pendiente', 'Efectivo', 'Transferencia']);
+  const items = [
+    ['Esperado', kpis.esperado, period.label],
+    ['Cobrado', kpis.cobrado, `${kpis.pctCobranza}% de cobranza`],
+    ['Pendiente', kpis.pendiente, 'Por cobrar'],
+    ['Partidos', kpis.partidos, 'En el periodo'],
+    ['Pagados', kpis.equiposPagados, 'Equipos al corriente'],
+    ['Abonados', kpis.equiposAbonados, 'Pagos parciales'],
+    ['No pagados', kpis.equiposPendientes, 'Sin pago registrado'],
+    ['Efectivo', kpis.efectivo, 'Cobrado en efectivo'],
+    ['Transferencia', kpis.transferencia, 'Cobrado por transferencia']
+  ];
+  el.innerHTML = items.map(([label, value, sub]) => `<div class="admin-kpi-card"><span>${label}</span><strong>${moneyLabels.has(label) ? formatMoney(value) : value}</strong><small>${sub}</small></div>`).join('');
+}
+
+function renderAdminArbitrajesCharts(rows, pagosArb) {
+  const el = document.getElementById('adminArbCharts');
+  if (!el) return;
+  const metrics = getAdminArbMetrics(rows, pagosArb);
+  const byStatus = {
+    Pagado: rows.filter((row) => row.estadoUi === 'pagado').length,
+    Abonado: rows.filter((row) => row.estadoUi === 'abonado').length,
+    'No pagado': rows.filter((row) => row.estadoUi === 'no_pagado').length
+  };
+  const byMethod = {};
+  const byReceiver = {};
+  pagosArb.forEach((pago) => {
+    const method = normalizePaymentMethod(pago.metodoPago || pago.metodo);
+    const receiver = pago.recibidoPor || 'no_especificado';
+    byMethod[method] = (byMethod[method] || 0) + Number(pago.monto || 0);
+    byReceiver[receiver] = (byReceiver[receiver] || 0) + Number(pago.monto || 0);
+  });
+  el.innerHTML = [
+    adminDonutChart('Cobranza', metrics.pctCobranza, `${formatMoney(metrics.cobrado)} cobrado`, `${formatMoney(metrics.pendiente)} pendiente`),
+    adminCountChart('Estado de equipos', byStatus),
+    adminMiniChart('Metodo de pago', byMethod),
+    adminMiniChart('Recibido por', byReceiver)
+  ].join('');
+}
+
+function adminDonutChart(title, percent, lineA, lineB) {
+  return `<div class="admin-chart-card admin-donut-card">
+    <div class="admin-chart-title">${title}</div>
+    <div class="admin-donut" style="background:conic-gradient(#2ea83c ${percent}%, #e8eef8 0)"><span>${percent}%</span></div>
+    <div class="admin-donut-copy"><strong>${escapeHtml(lineA)}</strong><small>${escapeHtml(lineB)}</small></div>
+  </div>`;
+}
+
+function adminCountChart(title, data) {
+  const total = Object.values(data).reduce((sum, value) => sum + Number(value || 0), 0);
+  return `<div class="admin-chart-card"><div class="admin-chart-title">${title}</div>${Object.entries(data).map(([label, value]) => `<div class="admin-chart-row"><span>${escapeHtml(label)}</span><div><i style="width:${pct(value, total)}%"></i></div><b>${value}</b></div>`).join('')}</div>`;
+}
+
+function renderAdminArbitrajesPartidosTable(rows) {
+  const el = document.getElementById('adminArbPartidosTable');
+  if (!el) return;
+  if (!rows.length) {
+    el.innerHTML = '<tbody><tr><td>Sin partidos en este filtro</td></tr></tbody>';
+    return;
+  }
+  const sortedRows = [...rows].sort((a, b) => `${b.fecha}${b.hora}`.localeCompare(`${a.fecha}${a.hora}`));
+  el.innerHTML = `<thead><tr><th>Fecha</th><th>Partido</th><th>Equipo</th><th>Estado</th><th>Esperado</th><th>Dado</th><th>Pendiente</th><th>Metodo</th><th>Recibio</th><th>Nota</th></tr></thead><tbody>${sortedRows.map((row) => `<tr>
+    <td>${fmtDate(row.fecha) || 'Sin fecha'}<br><small>${escapeHtml(row.hora)}</small></td>
+    <td><strong>${escapeHtml(row.partidoTexto)}</strong><br><small>${escapeHtml(CAT_NAMES[row.cat] || row.cat)} · ${escapeHtml(row.status)}</small></td>
+    <td><strong>${escapeHtml(row.equipoNombre)}</strong><br><small>${row.role === 'local' ? 'Local' : 'Visitante'}</small></td>
+    <td>${arbStatusChip(row.estado)}</td>
+    <td>${formatMoney(row.esperado)}</td>
+    <td><strong>${formatMoney(row.pagado)}</strong></td>
+    <td>${formatMoney(row.pendiente)}</td>
+    <td>${escapeHtml(row.metodoPago)}</td>
+    <td>${escapeHtml(row.recibidoPor)}</td>
+    <td>${row.nota ? escapeHtml(row.nota) : '<small>Sin nota</small>'}</td>
+  </tr>`).join('')}</tbody>`;
+}
+
+function renderAdminPagosTable(id, pagos) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!pagos.length) {
+    el.innerHTML = '<tbody><tr><td>Sin pagos de arbitraje en este filtro</td></tr></tbody>';
+    return;
+  }
+  const rows = [...pagos].sort((a, b) => (getPaymentDate(b) || '').localeCompare(getPaymentDate(a) || ''));
+  el.innerHTML = `<thead><tr><th>Fecha</th><th>Equipo</th><th>Partido</th><th>Esperado</th><th>Monto</th><th>Pendiente despues</th><th>Metodo</th><th>Recibio</th><th>Nota</th><th>Origen</th><th>Usuario</th></tr></thead><tbody>${rows.map((pago) => `<tr>
+    <td>${fmtDate(getPaymentDate(pago)) || 'Sin fecha'}</td>
+    <td>${escapeHtml(pago.equipoNombre || pago.nombreEquipo || 'Equipo')}</td>
+    <td>${escapeHtml(pago.partidoTexto || pago.partidoId || '')}</td>
+    <td>${formatMoney(pago.montoEsperado || 0)}</td>
+    <td><strong>${formatMoney(pago.monto || 0)}</strong></td>
+    <td>${formatMoney(pago.montoPendienteDespues || 0)}</td>
+    <td>${escapeHtml(normalizePaymentMethod(pago.metodoPago || pago.metodo))}</td>
+    <td>${escapeHtml(pago.recibidoPor || 'no_especificado')}</td>
+    <td>${escapeHtml(pago.nota || '')}</td>
+    <td>${escapeHtml(pago.origen || 'web')}</td>
+    <td>${escapeHtml(pago.createdByPhone || pago.telefonoWhatsapp || pago.registradoPor || '')}</td>
+  </tr>`).join('')}</tbody>`;
+}
+
+function arbStatusChip(state) {
+  const labels = { pagado: 'Pagado', pendiente: 'No pagado', parcial: 'Abonado', no_pagado: 'No pagado', abonado: 'Abonado', cancelado: 'Cancelado' };
+  const cls = state === 'no_pagado' ? 'pendiente' : state === 'abonado' ? 'parcial' : state;
+  return `<span class="arb-chip arb-${cls}">${labels[state] || state}</span>`;
+}

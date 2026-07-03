@@ -848,6 +848,10 @@ function initPagoArb() {
   document.getElementById('pa_key').value = activePartidoKey;
   document.getElementById('pa_local_title').textContent = `🏠 ${p.localNombre || p.local}`;
   document.getElementById('pa_visita_title').textContent = `✈️ ${p.visitaNombre || p.visita}`;
+  const recibido = document.getElementById('pa_recibido');
+  const nota = document.getElementById('pa_nota');
+  if (recibido) recibido.value = '';
+  if (nota) nota.value = '';
   payMethods = { local: null, visita: null };
   ['local', 'visita'].forEach((s) => {
     ['ef', 'tr', 'pp', 'mx'].forEach((m) => (document.getElementById(`btn_${s[0]}_${m}`).className = 'pmo'));
@@ -899,6 +903,9 @@ async function guardarPagoArb() {
   const key = document.getElementById('pa_key').value;
   const partido = C.partidos[key] || {};
   const ga = (id) => parseInt(document.getElementById(id)?.value) || 0;
+  const recibidoPor = document.getElementById('pa_recibido')?.value.trim() || 'no_especificado';
+  const nota = document.getElementById('pa_nota')?.value.trim() || '';
+  const expected = 250;
   const build = (side) => {
     const m = side === 'local' ? payMethods.local : payMethods.visita;
     const s = side[0];
@@ -925,10 +932,44 @@ async function guardarPagoArb() {
     updates[`partidos/${key}/arbPago/visita`] = vp;
   }
   const fullyPaid = lp && vp && !lp.nd && !vp.nd;
+  const buildModernArb = (legacy, side) => {
+    const method = side === 'local' ? payMethods.local : payMethods.visita;
+    const paid = Number(legacy?.ef || 0) + Number(legacy?.tr || 0) + Number(legacy?.pp || 0);
+    const methodLabel = method === 'ef' ? 'efectivo' : method === 'tr' ? 'transferencia' : method === 'mx' ? 'mixto' : method === 'pp' ? 'prepago' : 'no_especificado';
+    return {
+      pagado: paid >= expected,
+      montoPagado: paid,
+      montoEsperado: expected,
+      montoPendiente: Math.max(expected - paid, 0),
+      metodoPago: methodLabel,
+      recibidoPor,
+      nota
+    };
+  };
+  const modernPatch = {};
+  if (lp) {
+    const node = buildModernArb(lp, 'local');
+    modernPatch['arbitrajes.equipoLocal'] = node;
+    modernPatch.arbitrajeLocalPagado = node.pagado;
+    modernPatch.arbitrajeLocalMontoPagado = node.montoPagado;
+    modernPatch.arbitrajeLocalMontoEsperado = node.montoEsperado;
+    modernPatch.arbitrajeLocalMontoPendiente = node.montoPendiente;
+  }
+  if (vp) {
+    const node = buildModernArb(vp, 'visita');
+    modernPatch['arbitrajes.equipoVisitante'] = node;
+    modernPatch.arbitrajeVisitantePagado = node.pagado;
+    modernPatch.arbitrajeVisitanteMontoPagado = node.montoPagado;
+    modernPatch.arbitrajeVisitanteMontoEsperado = node.montoEsperado;
+    modernPatch.arbitrajeVisitanteMontoPendiente = node.montoPendiente;
+  }
   try {
-    if (fs) await updateDoc('partidos', key, { arbPago, arbPagado: fullyPaid });
+    if (fs) await updateDoc('partidos', key, { arbPago, arbPagado: fullyPaid, ...modernPatch });
     else {
       updates[`partidos/${key}/arbPagado`] = fullyPaid;
+      Object.entries(modernPatch).forEach(([field, value]) => {
+        updates[`partidos/${key}/${field.replace(/\./g, '/')}`] = value;
+      });
       await db.ref().update(updates);
     }
     closeModal('modalPagoArb');
