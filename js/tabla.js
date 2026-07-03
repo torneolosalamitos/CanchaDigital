@@ -704,40 +704,233 @@ function renderTabla(){
 // ══════════════════════════════════════
 //  HISTORIAL DE TEMPORADAS
 // ══════════════════════════════════════
+const SEASON_STATES = ['draft', 'active', 'paused', 'finished', 'archived'];
+
+function withSeasonScope(torneo, cat, fn) {
+  const prevTorneo = currentTorneo;
+  const prevCat = currentCat;
+  currentTorneo = appTorneoId(torneo);
+  currentCat = appCatId(cat);
+  try {
+    return fn();
+  } finally {
+    currentTorneo = prevTorneo;
+    currentCat = prevCat;
+  }
+}
+
+function detectStreamPlatform(url) {
+  const value = String(url || '').toLowerCase();
+  if (value.includes('youtube.com') || value.includes('youtu.be')) return 'YouTube';
+  if (value.includes('facebook.com') || value.includes('fb.watch')) return 'Facebook';
+  if (value.includes('twitch.tv')) return 'Twitch';
+  if (value.includes('instagram.com')) return 'Instagram';
+  return value ? 'Otra plataforma' : '';
+}
+
+function sanitizeSeasonUrl(rawUrl, opts = {}) {
+  const value = String(rawUrl || '').trim();
+  if (!value) return '';
+  try {
+    const parsed = new URL(value);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    if (opts.image && !/\.(jpe?g|png|webp)(\?.*)?$/i.test(parsed.pathname + parsed.search)) return '';
+    return parsed.href;
+  } catch (_err) {
+    return '';
+  }
+}
+
+function getSeasonCategoryOptions(torneo = currentTorneo) {
+  return (TORNEO_CONFIG[appTorneoId(torneo)]?.categories || []).map((cat) => ({
+    key: cat.key,
+    label: cat.label || CAT_NAMES[cat.key] || cat.key
+  }));
+}
+
+function renderTempCategoryChecks() {
+  const wrap = document.getElementById('temp_cat_checks');
+  if (!wrap) return;
+  const torneo = appTorneoId(document.getElementById('temp_torneo')?.value || currentTorneo);
+  const options = getSeasonCategoryOptions(torneo);
+  wrap.innerHTML = options.map((cat) => `
+    <label class="resumen-cat-check">
+      <input type="checkbox" value="${cat.key}" ${cat.key === currentCat ? 'checked' : ''} onchange="renderSeasonCloseWarnings()"/>
+      <span>${escapeHtml(cat.label)}</span>
+    </label>`).join('');
+  renderSeasonCloseWarnings();
+}
+
+function getSelectedTempCats() {
+  const checked = Array.from(document.querySelectorAll('#temp_cat_checks input:checked')).map((input) => appCatId(input.value));
+  if (checked.length) return checked;
+  return [currentCat];
+}
+
+function buildSeasonWarningsForCategory(torneo, cat, tableData, scorers) {
+  const parts = getParts().filter((p) => p.torneo === torneo && p.cat === cat);
+  const inscs = getInsc().filter((i) => i.torneo === torneo && i.cat === cat);
+  const pendingMatches = parts.filter((p) => p.status !== 'terminado').length;
+  const incompleteResults = parts.filter((p) => p.status === 'terminado' && (p.gL === undefined || p.gV === undefined)).length;
+  const pendingInscriptions = inscs.filter((i) => Number(i.saldo || 0) > 0 || i.estado === 'pendiente').length;
+  const pendingArbs = parts.reduce((acc, p) => {
+    if (typeof getArbitrajeEstado !== 'function') return acc;
+    return acc + (getArbitrajeEstado(p, 'local') === 'pagado' ? 0 : 1) + (getArbitrajeEstado(p, 'visitante') === 'pagado' ? 0 : 1);
+  }, 0);
+  const warnings = [];
+  if (pendingMatches) warnings.push(`${pendingMatches} partido(s) pendientes`);
+  if (incompleteResults) warnings.push(`${incompleteResults} resultado(s) incompletos`);
+  if (pendingInscriptions) warnings.push(`${pendingInscriptions} inscripcion(es) con saldo/estado pendiente`);
+  if (pendingArbs) warnings.push(`${pendingArbs} arbitraje(s) pendientes`);
+  if (!tableData.length) warnings.push('Tabla general sin posiciones finales');
+  if (!scorers.length) warnings.push('Goleadores sin datos finales');
+  return warnings;
+}
+
+function buildSeasonCategorySnapshot(torneo, cat) {
+  return withSeasonScope(torneo, cat, () => {
+    const tableData = buildTablaData().map((t, index) => ({
+      posicion: index + 1,
+      equipo: t.nombre,
+      escudo: t.logo || '',
+      pj: Number(t.pj || 0),
+      g: Number(t.g || 0),
+      e: Number(t.e || 0),
+      p: Number(t.pe || 0),
+      gf: Number(t.gf || 0),
+      gc: Number(t.gc || 0),
+      dg: Number((t.gf || 0) - (t.gc || 0)),
+      pts: Number(t.pts || 0),
+      forma: Array.isArray(t.forma) ? t.forma.slice(-8) : [],
+      desempate: 'Puntos, diferencia de goles, goles a favor'
+    }));
+    const scorers = getTopScorersData(50).map((g, index) => ({
+      posicion: index + 1,
+      jugador: g.jugador || '',
+      equipo: g.equipo || '',
+      foto: g.foto || '',
+      goles: Number(g.goles || 0)
+    }));
+    const teams = getEqs()
+      .filter((e) => e.torneo === torneo && e.cat === cat)
+      .map((e) => ({
+        id: e._key || '',
+        nombre: e.nombre || '',
+        escudo: e.logo || '',
+        capitan: e.capitan || ''
+      }));
+    const parts = getParts().filter((p) => p.torneo === torneo && p.cat === cat);
+    return {
+      cat,
+      catNombre: CAT_NAMES[cat] || DEFAULT_TOURNAMENT_CATEGORY_LABELS[cat] || cat,
+      equiposCount: teams.length,
+      partidosCount: parts.length,
+      tablaFinal: tableData,
+      goleadoresFinal: scorers,
+      equiposParticipantes: teams,
+      warnings: buildSeasonWarningsForCategory(torneo, cat, tableData, scorers)
+    };
+  });
+}
+
+function buildSeasonCloseDraft() {
+  const torneo = appTorneoId(document.getElementById('temp_torneo')?.value || currentTorneo);
+  const cats = getSelectedTempCats();
+  const categoriasSnapshot = Object.fromEntries(cats.map((cat) => [cat, buildSeasonCategorySnapshot(torneo, cat)]));
+  const allWarnings = Object.values(categoriasSnapshot).flatMap((snap) => snap.warnings.map((warning) => `${snap.catNombre}: ${warning}`));
+  return { torneo, cats, categoriasSnapshot, warnings: allWarnings };
+}
+
+function renderSeasonCloseWarnings() {
+  const box = document.getElementById('temp_warnings');
+  if (!box) return;
+  const draft = buildSeasonCloseDraft();
+  if (!draft.warnings.length) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.style.display = '';
+  box.innerHTML = `<div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--amber);margin-bottom:7px">Advertencias antes de cerrar</div>
+    <ul style="margin:0;padding-left:18px;font-size:12px;font-weight:700;line-height:1.7;color:var(--text2)">
+      ${draft.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('')}
+    </ul>`;
+}
+
+function previewSeasonChampionImage() {
+  const wrap = document.getElementById('temp_champ_preview');
+  const url = sanitizeSeasonUrl(document.getElementById('temp_champ_img')?.value, { image: true });
+  if (!wrap) return;
+  if (!url) {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.style.display = '';
+  wrap.innerHTML = `<img src="${escapeHtml(url)}" alt="Vista previa campeones" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px;border:1px solid var(--border)"/>`;
+}
+
+function openFinalizarTemporada() {
+  if (!isAdmin) {
+    showToast('Solo administradores pueden finalizar temporadas', 'tr');
+    return;
+  }
+  const torneoInput = document.getElementById('temp_torneo');
+  const yearInput = document.getElementById('temp_anio');
+  const nameInput = document.getElementById('temp_nombre');
+  if (torneoInput) torneoInput.value = currentTorneo;
+  if (yearInput && !yearInput.value) yearInput.value = new Date().getFullYear();
+  if (nameInput && !nameInput.value) nameInput.value = `${TORNEO_NAMES[currentTorneo] || 'Torneo'} ${new Date().getFullYear()}`;
+  ['temp_confirm','temp_stream_url','temp_stream_label','temp_champ_img','temp_champ_caption','temp_champ_alt'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'temp_stream_label' ? 'Ver transmisión de la final' : '';
+  });
+  renderTempCategoryChecks();
+  renderSeasonCloseWarnings();
+  openModal('modalGuardarTemporada');
+}
+
+function getFinishedSeasonDocs() {
+  return Object.entries(C.temporadas || {})
+    .map(([k, v]) => ({ ...v, _key: k }))
+    .filter((t) => ['finished', undefined, null, ''].includes(t.estado))
+    .sort((a, b) => (b.finishedAtMs || b.ts || 0) - (a.finishedAtMs || a.ts || 0));
+}
+
 function renderHistorial(){
   // Show save button only for admins
   const saveBtn=document.getElementById('adminAddTemporada');
   if(saveBtn) saveBtn.style.display=isAdmin?'block':'none';
-  if(isAdmin){
-    // Pre-fill torneo/cat with current
-    const tt=document.getElementById('temp_torneo');
-    const tc=document.getElementById('temp_cat');
-    if(tt) tt.value=currentTorneo;
-    if(tc) tc.value=currentCat;
-    // Auto-fill goleador
-    const tabData=buildTablaData();
-    const byP={};
-    filteredParts().filter(p=>p.status==='terminado').forEach(p=>{
-      const goles=p.goles?Object.values(p.goles):[];
-      goles.forEach(g=>{
-        const team=g.equipo==='local'?(p.localNombre||p.local):(p.visitaNombre||p.visita);
-        const key=g.jugador+'|'+team;
-        if(!byP[key])byP[key]={jugador:g.jugador,equipo:team,goles:0};
-        byP[key].goles++;
-      });
-    });
-    const top=Object.values(byP).sort((a,b)=>b.goles-a.goles)[0];
-    const gField=document.getElementById('temp_goleador');
-    if(gField&&top&&!gField.value) gField.value=`${top.jugador} · ${top.equipo} · ${top.goles} goles`;
-    if(tabData.length>0){
-      const c1Field=document.getElementById('temp_campeon');
-      const c2Field=document.getElementById('temp_subcampeon');
-      if(c1Field&&!c1Field.value) c1Field.value=tabData[0]?.nombre||'';
-      if(c2Field&&!c2Field.value) c2Field.value=tabData[1]?.nombre||'';
-    }
-  }
 
   const el=document.getElementById('historialList'); if(!el)return;
+  const allTemps = getFinishedSeasonDocs();
+  const torneoSel = document.getElementById('hist_torneo');
+  const seasonSel = document.getElementById('hist_temporada');
+  const catSel = document.getElementById('hist_cat');
+  if (torneoSel) {
+    const prev = torneoSel.value || currentTorneo;
+    torneoSel.innerHTML = TOURNAMENT_OPTION_ORDER.map((key) => `<option value="${key}">${TORNEO_NAMES[key]}</option>`).join('');
+    torneoSel.value = TORNEO_NAMES[prev] ? prev : currentTorneo;
+  }
+  const selectedTorneo = appTorneoId(torneoSel?.value || currentTorneo);
+  const torneoTemps = allTemps.filter((t) => appTorneoId(t.torneo || t.torneoId) === selectedTorneo);
+  if (seasonSel) {
+    const prev = seasonSel.value;
+    seasonSel.innerHTML = `<option value="">Todas las temporadas</option>` + torneoTemps.map((t) => `<option value="${t._key}">${escapeHtml(t.nombre || t.seasonName || 'Temporada')}</option>`).join('');
+    seasonSel.value = prev && torneoTemps.some((t) => t._key === prev) ? prev : '';
+  }
+  const selectedSeason = seasonSel?.value || '';
+  const seasonForCats = selectedSeason ? torneoTemps.find((t) => t._key === selectedSeason) : torneoTemps[0];
+  if (catSel) {
+    const prev = catSel.value;
+    const cats = seasonForCats?.categoriasSnapshot
+      ? Object.values(seasonForCats.categoriasSnapshot).map((snap) => ({ key: snap.cat, label: snap.catNombre }))
+      : getSeasonCategoryOptions(selectedTorneo);
+    catSel.innerHTML = `<option value="">Todas las categorías</option>` + cats.map((cat) => `<option value="${cat.key}">${escapeHtml(cat.label)}</option>`).join('');
+    catSel.value = prev && cats.some((cat) => cat.key === prev) ? prev : '';
+  }
+  const selectedCat = catSel?.value || '';
+  const filteredTemps = torneoTemps.filter((t) => (!selectedSeason || t._key === selectedSeason));
   const renderTemps = (temps=[]) => {
     if(!temps.length){el.innerHTML='<div class="empty"><span class="empty-icon">🏆</span>Sin temporadas guardadas aún.<br/><span style="font-size:11px;color:var(--muted)">Guarda la temporada actual desde el botón de arriba.</span></div>';return;}
     el.innerHTML=temps.map(t=>`
@@ -746,82 +939,202 @@ function renderHistorial(){
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
           <div>
             <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--text)">${t.nombre||'Temporada'}</div>
-            <div style="font-size:10px;font-weight:700;color:var(--muted);margin-top:2px">${TORNEO_NAMES[t.torneo]||t.torneo} · ${CAT_NAMES[t.cat]||t.cat}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:1px">📅 ${fmtDate(t.fecha)||new Date(t.ts).toLocaleDateString('es-MX')}</div>
+            <div style="font-size:10px;font-weight:700;color:var(--muted);margin-top:2px">${TORNEO_NAMES[t.torneo]||t.torneo} · ${escapeHtml(t.estado || 'finished')}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:1px">📅 ${escapeHtml(t.fechaInicio || '—')} → ${escapeHtml(t.fechaFinalizacion || t.fecha || '—')}</div>
           </div>
-          ${isAdmin?`<button class="btn btn-r btn-sm" onclick="deleteTemporada('${t._key}')">🗑️</button>`:''}
+          ${isOwner && t.estado === 'finished' ? `<button class="btn btn-out btn-sm" onclick="reabrirTemporada('${t._key}')">Reabrir</button>` : ''}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-          <div style="background:linear-gradient(135deg,rgba(202,138,4,.12),rgba(202,138,4,.04));border:1px solid rgba(202,138,4,.3);border-radius:10px;padding:10px;text-align:center">
-            <div style="font-size:18px;margin-bottom:3px">🥇</div>
-            <div style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:1px;text-transform:uppercase">Campeón</div>
-            <div style="font-size:13px;font-weight:800;margin-top:3px;color:var(--text)">${t.campeon||'—'}</div>
-          </div>
-          <div style="background:rgba(148,163,184,.07);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
-            <div style="font-size:18px;margin-bottom:3px">🥈</div>
-            <div style="font-size:10px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Subcampeón</div>
-            <div style="font-size:13px;font-weight:800;margin-top:3px;color:var(--text)">${t.subcampeon||'—'}</div>
-          </div>
-        </div>
-        ${t.goleador?`<div style="background:var(--acc3);border:1px solid rgba(26,58,138,.25);border-radius:9px;padding:9px;text-align:center;margin-bottom:8px">
-          <span style="font-size:11px;font-weight:800;color:var(--acc)">⚽ Goleador: </span><span style="font-size:12px;font-weight:700">${t.goleador}</span>
-        </div>`:''}
-        ${t.tabla&&t.tabla.length?`<div>
-          <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">TABLA FINAL</div>
-          ${t.tabla.slice(0,5).map((eq,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:${i===0?'var(--gold)':i===1?'#94a3b8':i===2?'#b45309':'var(--muted)'};width:18px;text-align:center">${i+1}</span>
-            <span style="flex:1;font-weight:700">${eq.nombre}</span>
-            <span style="color:var(--muted)">${eq.pj}J</span>
-            <span style="font-weight:800;color:var(--acc)">${eq.pts}pts</span>
-          </div>`).join('')}
-        </div>`:''}
-        ${t.notas?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">📝 ${t.notas}</div>`:''}
+        ${renderSeasonPublicBody(t, selectedCat)}
       </div>`).join('');
   };
-  if(fs){
-    const temps=Object.entries(C.temporadas || {}).map(([k,v])=>({...v,_key:k})).sort((a,b)=>(b.ts||0)-(a.ts||0));
-    renderTemps(temps);
-    return;
-  }
-  db.ref('historial').once('value', s=>{
-    const temps=s.exists()?Object.entries(s.val()).map(([k,v])=>({...v,_key:k})).sort((a,b)=>b.ts-a.ts):[];
-    renderTemps(temps);
-  });
+  renderTemps(filteredTemps);
+}
+
+function renderSeasonPublicBody(t, selectedCat = '') {
+  const cats = t.categoriasSnapshot
+    ? Object.values(t.categoriasSnapshot).filter((snap) => !selectedCat || snap.cat === selectedCat)
+    : [{ cat: t.cat, catNombre: CAT_NAMES[t.cat] || t.cat, tablaFinal: t.tablaFinal || t.tabla || [], goleadoresFinal: [], equiposParticipantes: [] }];
+  const champImage = t.championImage?.url
+    ? `<figure style="margin:0 0 12px"><img src="${escapeHtml(t.championImage.url)}" alt="${escapeHtml(t.championImage.alt || 'Foto de campeones')}" style="width:100%;max-height:280px;object-fit:cover;border-radius:14px;border:1px solid var(--border)"/><figcaption style="font-size:10px;color:var(--muted);font-weight:700;margin-top:5px">${escapeHtml(t.championImage.caption || '')}</figcaption></figure>`
+    : '';
+  const streamBtn = t.final?.stream?.url
+    ? `<a class="btn btn-g btn-full" href="${escapeHtml(t.final.stream.url)}" target="_blank" rel="noopener" style="text-decoration:none;margin-bottom:10px">${escapeHtml(t.final.stream.buttonText || 'Ver transmisión de la final')}</a>`
+    : '';
+  const awards = t.awards || {};
+  const awardsHtml = `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px">
+    ${[
+      ['🥇','Campeón',awards.ligaCampeon || t.campeon],
+      ['🥈','Subcampeón',awards.ligaSubcampeon || t.subcampeon],
+      ['🏆','Campeón Copa',awards.copaCampeon],
+      ['⚽','Goleador',awards.maximoGoleador || t.goleador],
+      ['🧤','Mejor portero',awards.mejorPortero]
+    ].filter(([, , value]) => value).map(([icon, label, value]) => `<div style="background:rgba(202,138,4,.07);border:1px solid rgba(202,138,4,.22);border-radius:10px;padding:9px;text-align:center"><div>${icon}</div><div style="font-size:9px;font-weight:900;color:var(--muted);letter-spacing:1px;text-transform:uppercase">${label}</div><div style="font-size:12px;font-weight:900;color:var(--text)">${escapeHtml(value)}</div></div>`).join('')}
+  </div>`;
+  return `${champImage}${streamBtn}${awardsHtml}
+    ${t.final?.score || t.final?.rival ? `<div style="font-size:12px;font-weight:800;margin-bottom:10px;padding:9px;border:1px solid var(--border);border-radius:10px">Final: ${escapeHtml(t.final.rival || '')} ${t.final.score ? ' · ' + escapeHtml(t.final.score) : ''}</div>` : ''}
+    ${cats.map((snap) => `<section style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;color:var(--acc);text-transform:uppercase;margin-bottom:8px">${escapeHtml(snap.catNombre || snap.cat)}</div>
+      ${renderSeasonTableSnapshot(snap.tablaFinal || [])}
+      ${renderSeasonScorersSnapshot(snap.goleadoresFinal || [])}
+      ${snap.equiposParticipantes?.length ? `<div style="font-size:10px;color:var(--muted);font-weight:800;margin-top:8px">Equipos participantes: ${snap.equiposParticipantes.map((e) => escapeHtml(e.nombre)).join(', ')}</div>` : ''}
+    </section>`).join('')}
+    ${t.notas ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">📝 ${escapeHtml(t.notas)}</div>` : ''}`;
+}
+
+function renderSeasonTableSnapshot(tabla = []) {
+  if (!tabla.length) return '<div class="empty" style="min-height:80px">Sin tabla final capturada</div>';
+  return `<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Tabla final</div>
+    ${tabla.map((eq) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:${eq.posicion===1?'var(--gold)':eq.posicion===2?'#94a3b8':eq.posicion===3?'#b45309':'var(--muted)'};width:18px;text-align:center">${eq.posicion}</span>
+      <span style="flex:1;font-weight:700">${escapeHtml(eq.equipo || eq.nombre)}</span>
+      <span style="color:var(--muted)">${eq.pj}J</span>
+      <span style="font-weight:800;color:var(--acc)">${eq.pts}pts</span>
+    </div>`).join('')}`;
+}
+
+function renderSeasonScorersSnapshot(scorers = []) {
+  if (!scorers.length) return '';
+  return `<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin:10px 0 6px">Goleadores</div>
+    ${scorers.slice(0, 10).map((g) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--muted);width:18px;text-align:center">${g.posicion}</span>
+      <span style="flex:1;font-weight:700">${escapeHtml(g.jugador)} · ${escapeHtml(g.equipo)}</span>
+      <span style="font-weight:900;color:var(--acc)">${g.goles}</span>
+    </div>`).join('')}`;
 }
 
 async function guardarTemporada(){
   const nombre=document.getElementById('temp_nombre').value.trim();
   if(!nombre){showToast('Ingresa un nombre para la temporada','ta');return;}
-  const torneo=appTorneoId(document.getElementById('temp_torneo').value || currentTorneo || 'lombardo_toledano');
-  const cat=appCatId(document.getElementById('temp_cat').value || currentCat || 'cat_libre_varonil');
-  // Save current tabla snapshot
-  const tablaData=buildTablaData();
+  if (document.getElementById('temp_confirm')?.value.trim().toUpperCase() !== 'FINALIZAR') {
+    showToast('Escribe FINALIZAR para confirmar', 'ta');
+    return;
+  }
+  const draft = buildSeasonCloseDraft();
+  const torneo = draft.torneo;
+  if (!isOwner && (!canAccessTorneo(torneo) || draft.cats.some((cat) => !canAccessCat(cat, torneo)))) {
+    showToast('No tienes permiso para cerrar una o más categorías seleccionadas', 'tr');
+    return;
+  }
+  const anio = Number(document.getElementById('temp_anio')?.value || new Date().getFullYear());
+  const streamUrl = sanitizeSeasonUrl(document.getElementById('temp_stream_url')?.value);
+  const champImg = sanitizeSeasonUrl(document.getElementById('temp_champ_img')?.value, { image: true });
+  if (document.getElementById('temp_stream_url')?.value && !streamUrl) {
+    showToast('URL de transmisión inválida', 'tr');
+    return;
+  }
+  if (document.getElementById('temp_champ_img')?.value && !champImg) {
+    showToast('URL de imagen inválida. Usa JPG, PNG o WEBP', 'tr');
+    return;
+  }
+  const summary = [
+    `Torneo: ${TORNEO_NAMES[torneo] || torneo}`,
+    `Categorías: ${draft.cats.map((cat) => CAT_NAMES[cat] || cat).join(', ')}`,
+    `Advertencias: ${draft.warnings.length || 0}`,
+    '',
+    'Esto creará un snapshot histórico y marcará la temporada como finalizada. No se borrarán datos activos.'
+  ].join('\n');
+  if (!confirm(summary)) return;
+  const now = Date.now();
+  const mainCat = draft.cats[0] || currentCat;
   const data={
-    nombre, torneo, cat,
+    nombre,
+    seasonName:nombre,
+    anio,
+    estado:'finished',
+    immutable:true,
+    version:1,
+    seasonId:newDocId('season', `${torneo}_${anio}_${nombre}`),
+    torneo,
+    cat:mainCat,
     torneoId:firestoreTorneoId(torneo),
-    categoriaId:firestoreCatId(cat),
+    categoriaId:firestoreCatId(mainCat),
+    categorias:draft.cats,
+    categoriasSnapshot:draft.categoriasSnapshot,
+    fechaInicio:'',
+    fechaFinalizacion:new Date(now).toISOString(),
+    finishedAtMs:now,
+    closedBy:{
+      uid:currentUser?.uid || '',
+      email:currentUser?.email || '',
+      nombre:currentUser?.displayName || currentUser?.email || ''
+    },
+    warnings:draft.warnings,
+    awards:{
+      ligaCampeon:document.getElementById('temp_campeon').value.trim(),
+      ligaSubcampeon:document.getElementById('temp_subcampeon').value.trim(),
+      copaCampeon:document.getElementById('temp_campeon_copa').value.trim(),
+      copaSubcampeon:document.getElementById('temp_subcampeon_copa').value.trim(),
+      maximoGoleador:document.getElementById('temp_goleador').value.trim(),
+      mejorPortero:document.getElementById('temp_portero').value.trim(),
+      otros:[]
+    },
+    final:{
+      score:document.getElementById('temp_final_score').value.trim(),
+      rival:document.getElementById('temp_final_rival').value.trim(),
+      fecha:document.getElementById('temp_final_fecha').value,
+      stream:streamUrl ? {
+        url:streamUrl,
+        platform:detectStreamPlatform(streamUrl),
+        title:'',
+        buttonText:document.getElementById('temp_stream_label').value.trim() || 'Ver transmisión de la final'
+      } : null
+    },
+    championImage:champImg ? {
+      url:champImg,
+      caption:document.getElementById('temp_champ_caption').value.trim(),
+      alt:document.getElementById('temp_champ_alt').value.trim() || 'Foto de campeones'
+    } : null,
     campeon:document.getElementById('temp_campeon').value.trim(),
     subcampeon:document.getElementById('temp_subcampeon').value.trim(),
     goleador:document.getElementById('temp_goleador').value.trim(),
     notas:document.getElementById('temp_notas').value.trim(),
-    tabla:tablaData.slice(0,10).map(t=>({nombre:t.nombre,pj:t.pj,pts:t.pts,gf:t.gf,gc:t.gc})),
-    tablaFinal:tablaData.slice(0,10).map(t=>({nombre:t.nombre,pj:t.pj,pts:t.pts,gf:t.gf,gc:t.gc})),
-    fecha:new Date().toISOString().split('T')[0],
-    ts:Date.now()
+    audit:[{
+      action:'finish_season',
+      at:now,
+      uid:currentUser?.uid || '',
+      email:currentUser?.email || '',
+      warnings:draft.warnings
+    }],
+    fecha:new Date(now).toISOString().split('T')[0],
+    ts:now
   };
   if(fs) await saveDoc('temporadas', newDocId('temporada', `${nombre}_${Date.now()}`), data);
   else await db.ref('historial').push(data);
   closeModal('modalGuardarTemporada');
-  ['temp_nombre','temp_campeon','temp_subcampeon','temp_goleador','temp_notas'].forEach(id=>document.getElementById(id).value='');
-  showToast('✅ Temporada guardada en el historial','tg');
+  ['temp_campeon','temp_subcampeon','temp_goleador','temp_notas','temp_confirm'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  showToast('✅ Temporada finalizada y guardada','tg');
   renderHistorial();
 }
 
 async function deleteTemporada(key){
-  if(!confirm('¿Eliminar esta temporada del historial?'))return;
-  if(fs) await deleteDoc('temporadas', key);
-  else await db.ref(`historial/${key}`).remove();
-  showToast('Temporada eliminada','tr');
+  if(!isOwner){ showToast('Solo superadministrador','tr'); return; }
+  if(!confirm('¿Archivar esta temporada del historial? No se borrará, solo quedará archivada.'))return;
+  const t = C.temporadas[key] || {};
+  const patch = {
+    estado:'archived',
+    audit:[...(t.audit || []), { action:'archive_season', at:Date.now(), uid:currentUser?.uid||'', email:currentUser?.email||'' }]
+  };
+  if(fs) await updateDoc('temporadas', key, patch);
+  else await db.ref(`historial/${key}`).update(patch);
+  showToast('Temporada archivada','ta');
+  renderHistorial();
+}
+
+async function reabrirTemporada(key){
+  if(!isOwner){ showToast('Solo superadministrador','tr'); return; }
+  const motivo = prompt('Motivo obligatorio para reabrir la temporada:');
+  if(!motivo || !motivo.trim()){ showToast('Motivo requerido','ta'); return; }
+  const t = C.temporadas[key] || {};
+  const patch = {
+    estado:'active',
+    immutable:false,
+    needsSnapshotRegeneration:true,
+    reopenedAt:firestoreServerTimestamp(),
+    audit:[...(t.audit || []), { action:'reopen_season', reason:motivo.trim(), at:Date.now(), uid:currentUser?.uid||'', email:currentUser?.email||'' }]
+  };
+  if(fs) await updateDoc('temporadas', key, patch);
+  else await db.ref(`historial/${key}`).update(patch);
+  showToast('Temporada reabierta con auditoría','ta');
   renderHistorial();
 }
 

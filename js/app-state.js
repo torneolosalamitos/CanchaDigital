@@ -363,7 +363,7 @@ if (splashMainLogoOnLoad) splashMainLogoOnLoad.src = SPLASH_BIG_LOGO;
 const hdrBrandLogoOnLoad = document.querySelector('.hdr-shield img');
 if (hdrBrandLogoOnLoad) hdrBrandLogoOnLoad.src = CD_LOGO_SHIELD;
 normalizeStoredState();
-hydrateSplashTournamentCards();
+ensureSplashTournamentCardsReady();
 
 function selectTorneo(t) {
   t = appTorneoId(t);

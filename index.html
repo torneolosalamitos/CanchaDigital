@@ -284,12 +284,21 @@
 <div class="page" id="page-historial">
   <div style="background:linear-gradient(135deg,#ca8a04,#d97706);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
     <div style="font-size:28px;margin-bottom:6px">🏆</div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;color:#fff">Historial de Temporadas</div>
-    <div style="font-size:11px;color:rgba(255,255,255,.7);font-weight:600;margin-top:3px">Campeones · Goleadores · Tablas finales</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;color:#fff">Historial de temporadas</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.7);font-weight:600;margin-top:3px">Campeones · transmisiones · tablas finales</div>
   </div>
 
   <div id="adminAddTemporada" style="display:none;margin-bottom:14px">
-    <button class="btn btn-g btn-full" onclick="openModal('modalGuardarTemporada')">📸 GUARDAR TEMPORADA ACTUAL</button>
+    <button class="btn btn-g btn-full" onclick="openFinalizarTemporada()">🏁 FINALIZAR TEMPORADA</button>
+  </div>
+
+  <div class="card card-g" style="margin-bottom:14px">
+    <div class="sh"><span>🔎</span><div class="st">Filtros de historial</div></div>
+    <div class="form-3">
+      <div class="fg"><label class="fl">Torneo</label><select class="fi" id="hist_torneo" onchange="renderHistorial()"></select></div>
+      <div class="fg"><label class="fl">Temporada</label><select class="fi" id="hist_temporada" onchange="renderHistorial()"></select></div>
+      <div class="fg"><label class="fl">Categoría</label><select class="fi" id="hist_cat" onchange="renderHistorial()"></select></div>
+    </div>
   </div>
 
   <div id="historialList"><div class="empty"><span class="empty-icon">🏆</span>Sin temporadas guardadas aún</div></div>
@@ -1637,34 +1646,45 @@
   </div>
 </div>
 
-<!-- Modal Guardar Temporada -->
+<!-- Modal Finalizar Temporada -->
 <div class="modal-overlay" id="modalGuardarTemporada">
   <div class="modal" style="border-top-color:var(--gold)">
-    <div class="modal-head"><div class="modal-title" style="color:var(--gold)">🏆 Guardar Temporada</div><button class="modal-close" onclick="closeModal('modalGuardarTemporada')">✕</button></div>
-    <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:14px">Guarda una foto permanente de esta temporada.</div>
-    <div class="fg"><label class="fl">Nombre de la temporada</label><input class="fi" id="temp_nombre" placeholder="Ej: Torneo Lombardo Toledano 2026 — Libre Varonil"/></div>
+    <div class="modal-head"><div class="modal-title" style="color:var(--gold)">🏁 Finalizar temporada</div><button class="modal-close" onclick="closeModal('modalGuardarTemporada')">✕</button></div>
+    <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:14px">Crea un snapshot histórico. No borra partidos, equipos, pagos ni datos activos.</div>
+    <div class="fg"><label class="fl">Nombre de la temporada</label><input class="fi" id="temp_nombre" placeholder="Ej: Torneo Lombardo Toledano 2026 - Libre Varonil"/></div>
     <div class="form-2">
       <div class="fg"><label class="fl">Torneo</label>
-        <select class="fi" id="temp_torneo" onchange="if(typeof syncFixedSelectors==='function')syncFixedSelectors();">
+        <select class="fi" id="temp_torneo" onchange="if(typeof renderTempCategoryChecks==='function')renderTempCategoryChecks();">
           <option value="lombardo_toledano">TORNEO LOMBARDO TOLEDANO</option>
           <option value="nuevos_valores">TORNEO NUEVOS VALORES</option>
         </select>
       </div>
-      <div class="fg"><label class="fl">Categoría</label>
-        <select class="fi" id="temp_cat">
-          <option value="cat_libre_varonil">CATEGORÍA LIBRE VARONIL</option>
-          <option value="cat_libre_femenil">CATEGORÍA LIBRE FEMENIL</option>
-          <option value="cat_infantil">CATEGORÍA INFANTIL</option>
-          <option value="cat_osos">CATEGORÍA OSOS</option>
-          <option value="cat_juvenil">CATEGORÍA JUVENIL</option>
-        </select>
-      </div>
+      <div class="fg"><label class="fl">Año</label><input class="fi" id="temp_anio" type="number" min="2024" max="2100"/></div>
     </div>
+    <div class="fg"><label class="fl">Categorías a cerrar</label><div id="temp_cat_checks" class="resumen-cat-grid"></div></div>
+    <div id="temp_warnings" class="card" style="display:none;margin:10px 0;border-left:4px solid var(--amber)"></div>
     <div class="fg"><label class="fl">🥇 Campeón</label><input class="fi" id="temp_campeon" placeholder="Nombre del equipo campeón"/></div>
     <div class="fg"><label class="fl">🥈 Subcampeón</label><input class="fi" id="temp_subcampeon" placeholder="Nombre del subcampeón"/></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Campeón de copa</label><input class="fi" id="temp_campeon_copa" placeholder="Opcional"/></div>
+      <div class="fg"><label class="fl">Subcampeón de copa</label><input class="fi" id="temp_subcampeon_copa" placeholder="Opcional"/></div>
+    </div>
     <div class="fg"><label class="fl">⚽ Goleador del torneo</label><input class="fi" id="temp_goleador" placeholder="Jugador · Equipo · Goles"/></div>
-    <div class="fg"><label class="fl">Notas</label><input class="fi" id="temp_notas" placeholder="Ej: 7 equipos, 12 jornadas, 2 vueltas..."/></div>
-    <button class="btn btn-g btn-full" onclick="guardarTemporada()">💾 Guardar temporada</button>
+    <div class="fg"><label class="fl">Mejor portero</label><input class="fi" id="temp_portero" placeholder="Opcional"/></div>
+    <div class="form-2">
+      <div class="fg"><label class="fl">Marcador final</label><input class="fi" id="temp_final_score" placeholder="Ej: 3-2"/></div>
+      <div class="fg"><label class="fl">Fecha de final</label><input class="fi" id="temp_final_fecha" type="date"/></div>
+    </div>
+    <div class="fg"><label class="fl">Rival / final</label><input class="fi" id="temp_final_rival" placeholder="Ej: Campeón vs Subcampeón"/></div>
+    <div class="fg"><label class="fl">URL de transmisión</label><input class="fi" id="temp_stream_url" placeholder="https://youtube.com/..."/></div>
+    <div class="fg"><label class="fl">Texto del botón</label><input class="fi" id="temp_stream_label" placeholder="Ver transmisión de la final"/></div>
+    <div class="fg"><label class="fl">URL imagen campeones</label><input class="fi" id="temp_champ_img" placeholder="https://...jpg, .png o .webp" oninput="previewSeasonChampionImage()"/></div>
+    <div id="temp_champ_preview" style="display:none;margin-bottom:10px"></div>
+    <div class="fg"><label class="fl">Pie de foto</label><input class="fi" id="temp_champ_caption" placeholder="Campeones de la temporada"/></div>
+    <div class="fg"><label class="fl">Texto alternativo</label><input class="fi" id="temp_champ_alt" placeholder="Foto del equipo campeón"/></div>
+    <div class="fg"><label class="fl">Resumen / observaciones de cierre</label><textarea class="fi" id="temp_notas" placeholder="Resumen de la final, formato de competencia, notas documentales..."></textarea></div>
+    <div class="fg"><label class="fl">Confirmación</label><input class="fi" id="temp_confirm" placeholder="Escribe FINALIZAR"/></div>
+    <button class="btn btn-g btn-full" onclick="guardarTemporada()">💾 Finalizar y guardar snapshot</button>
   </div>
 </div>
 

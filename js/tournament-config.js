@@ -89,7 +89,7 @@ function applyTournamentCatalogToCategoryMap(catMap) {
 
 function hydrateSplashTournamentCards() {
   const container = document.querySelector('#splash [data-business-options]');
-  const visibleOrder = typeof getAllowedTorneos === 'function' ? getAllowedTorneos() : TOURNAMENT_OPTION_ORDER;
+  const visibleOrder = [...TOURNAMENT_OPTION_ORDER];
   if (container) {
     container.innerHTML = TOURNAMENT_OPTION_ORDER
       .filter((key) => visibleOrder.includes(key))
@@ -133,4 +133,12 @@ function hydrateSplashTournamentCards() {
   });
 
   cards.slice(TOURNAMENT_OPTION_ORDER.length).forEach(card => card.remove());
+}
+
+function ensureSplashTournamentCardsReady() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', hydrateSplashTournamentCards, { once: true });
+    return;
+  }
+  hydrateSplashTournamentCards();
 }
