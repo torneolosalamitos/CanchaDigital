@@ -54,42 +54,6 @@ service cloud.firestore {
       return isOwner() || adminScopeHas(scopedTorneo(data), scopedCat(data));
     }
 
-    function businessRole(businessId) {
-      return signedIn() &&
-        myUser().businessRoles is map &&
-        businessId in myUser().businessRoles &&
-        myUser().businessRoles[businessId] is map
-          ? myUser().businessRoles[businessId].role
-          : '';
-    }
-
-    function businessMember(businessId) {
-      return isOwner() || businessRole(businessId) in ['owner', 'box_admin', 'trainer', 'auditor'];
-    }
-
-    function businessWriter(businessId) {
-      return isOwner() || businessRole(businessId) in ['owner', 'box_admin', 'trainer'];
-    }
-
-    function businessMoneyManager(businessId) {
-      return isOwner() || businessRole(businessId) in ['owner', 'box_admin'];
-    }
-
-    function businessTrainer(businessId) {
-      return businessRole(businessId) == 'trainer';
-    }
-
-    function businessAuditor(businessId) {
-      return businessRole(businessId) == 'auditor';
-    }
-
-    function isBoxBusiness(businessId) {
-      return businessId == 'box-lombardo-toledano';
-    }
-
-    function boxDocHasBusiness(data, businessId) {
-      return data.businessId == businessId;
-    }
 
     match /{document=**} {
       allow read, write: if false;
@@ -103,7 +67,6 @@ service cloud.firestore {
         (
           request.auth.uid == uid &&
           request.resource.data.role == resource.data.role &&
-          request.resource.data.businessRoles == resource.data.businessRoles &&
           request.resource.data.adminScope == resource.data.adminScope
         ) ||
         false
@@ -220,138 +183,5 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
-    match /businesses/{businessId} {
-      allow read: if isBoxBusiness(businessId);
-      allow create, update: if isBoxBusiness(businessId) && businessMoneyManager(businessId);
-      allow delete: if false;
-
-      match /prospects/{id} {
-        allow read: if businessMoneyManager(businessId);
-        allow create: if isBoxBusiness(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId) &&
-          request.resource.data.contactConsent == true;
-        allow update: if businessWriter(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId);
-        allow delete: if false;
-      }
-
-      match /members/{id} {
-        allow read: if businessMember(businessId);
-        allow create: if businessWriter(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId);
-        allow update: if businessWriter(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId) &&
-          request.resource.data.createdAt == resource.data.createdAt;
-        allow delete: if false;
-      }
-
-      match /guardians/{id} {
-        allow read: if businessWriter(businessId) || businessAuditor(businessId);
-        allow create, update: if businessWriter(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId);
-        allow delete: if false;
-      }
-
-      match /groups/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update: if businessMoneyManager(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId);
-        allow delete: if false;
-      }
-
-      match /sessions/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update: if businessWriter(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId) &&
-          request.resource.data.status in ['open', 'closed', 'corrected'];
-        allow delete: if false;
-      }
-
-      match /attendance/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update: if businessWriter(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId) &&
-          request.resource.data.status in ['present', 'absent', 'justified_absence', 'trial_class', 'late', 'early_leave'];
-        allow delete: if false;
-      }
-
-      match /expenses/{id} {
-        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
-        allow create: if businessMoneyManager(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId) &&
-          request.resource.data.paymentMethod == 'cash';
-        allow update: if businessMoneyManager(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId);
-        allow delete: if false;
-      }
-
-      match /physicalAudits/{id} {
-        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
-        allow create, update: if businessMoneyManager(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId);
-        allow delete: if false;
-      }
-
-      match /inconsistencies/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update: if businessWriter(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId);
-        allow delete: if false;
-      }
-
-      match /notifications/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update, delete: if false;
-      }
-
-      match /billingPeriods/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update, delete: if false;
-      }
-
-      match /charges/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update, delete: if false;
-      }
-
-      match /payments/{id} {
-        allow read: if businessMoneyManager(businessId) ||
-          businessAuditor(businessId) ||
-          (businessTrainer(businessId) && resource.data.receivedByUserId == request.auth.uid);
-        allow create, update, delete: if false;
-      }
-
-      match /cashDeliveries/{id} {
-        allow read: if businessMoneyManager(businessId) ||
-          businessAuditor(businessId) ||
-          (businessTrainer(businessId) && resource.data.deliveredByUserId == request.auth.uid);
-        allow create, update, delete: if false;
-      }
-
-      match /cashCuts/{id} {
-        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
-        allow create: if businessMoneyManager(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId);
-        allow update, delete: if false;
-      }
-
-      match /cashClosings/{id} {
-        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
-        allow create, update, delete: if false;
-      }
-
-      match /auditLogs/{id} {
-        allow read: if businessMoneyManager(businessId) || businessAuditor(businessId);
-        allow create: if businessWriter(businessId) &&
-          boxDocHasBusiness(request.resource.data, businessId) &&
-          request.resource.data.actorUserId == request.auth.uid;
-        allow update, delete: if false;
-      }
-
-      match /settings/{id} {
-        allow read: if businessMember(businessId);
-        allow create, update, delete: if false;
-      }
-    }
   }
 }

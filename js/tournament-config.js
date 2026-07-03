@@ -3,7 +3,6 @@ const CD_LOGO_SHIELD = '/CanchaDigital/img/logo-cancha-shield.png';
 const SPLASH_BIG_LOGO = '/CanchaDigital/img/logo-cancha-splash.png';
 const LOMBARDO_TOLEDANO_LOGO = 'img/logo-lombardo-toledano.png';
 const NUEVOS_VALORES_LOGO = 'img/logo-nuevos-valores.png';
-const SHARK_BOXING_GYM_LOGO = 'img/logo-shark-boxing-gym.png';
 
 const TORNEO_CONFIG = {
   lombardo_toledano: {
@@ -89,13 +88,27 @@ function applyTournamentCatalogToCategoryMap(catMap) {
 }
 
 function hydrateSplashTournamentCards() {
-  if (typeof hydrateBusinessSplashCards === 'function') {
-    hydrateBusinessSplashCards();
+  const container = document.querySelector('#splash [data-business-options]');
+  const visibleOrder = typeof getAllowedTorneos === 'function' ? getAllowedTorneos() : TOURNAMENT_OPTION_ORDER;
+  if (container) {
+    container.innerHTML = TOURNAMENT_OPTION_ORDER
+      .filter((key) => visibleOrder.includes(key))
+      .map((key) => {
+        const cfg = getTournamentConfig(key);
+        return `<button type="button" onclick="selectTorneo('${key}')" class="cd-business-card cd-business-card--tournament" aria-label="Entrar a ${cfg.name}">
+          <span class="cd-business-card__logo"><img src="${cfg.logo}" alt="${cfg.name}"/></span>
+          <span class="cd-business-card__copy">
+            <span class="cd-business-card__title">${cfg.name}</span>
+            <span class="cd-business-card__sub">${cfg.splashSubtitle}</span>
+          </span>
+          <span class="cd-business-card__arrow" aria-hidden="true">&#8250;</span>
+        </button>`;
+      })
+      .join('');
     return;
   }
 
   const cards = Array.from(document.querySelectorAll('#splash [onclick^="selectTorneo"]'));
-  const visibleOrder = typeof getAllowedTorneos === 'function' ? getAllowedTorneos() : TOURNAMENT_OPTION_ORDER;
   TOURNAMENT_OPTION_ORDER.forEach((key, idx) => {
     const card = cards[idx];
     if (!card) return;

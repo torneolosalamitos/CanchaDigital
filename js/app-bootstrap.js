@@ -7,8 +7,7 @@ const ADMIN_ONLY_PAGES = new Set(['tienda','inscripciones','arbitros','calendari
 const OWNER_EMAILS = ['edanchra@gmail.com','admincanchadigital@gmail.com'];
 
 function canSeedProducts(){
-  const inBox = typeof isBoxBusiness === 'function' && isBoxBusiness(currentBusinessId);
-  return (isAdmin || isOwner) && !inBox;
+  return isAdmin || isOwner;
 }
 
 // Resize handler for mobile tabla
@@ -57,7 +56,6 @@ const DEFAULT_PRODUCTS = [
 ];
 
 function onAuthChange(user){
-  if (typeof resetBoxListenersForAuthChange === 'function') resetBoxListenersForAuthChange();
   currentUser = user;
   isOwner = !!(user && OWNER_EMAILS.includes((user.email||'').toLowerCase()));
 
@@ -93,9 +91,6 @@ function onAuthChange(user){
     const capFlag = (role === 'captain');
     const capKey  = userData.equipoKey || null;
     updateAdminUI(isAdmin, isOwner, capFlag, capKey);
-    if (typeof isBoxBusiness === 'function' && isBoxBusiness(currentBusinessId) && typeof enterBoxBusiness === 'function') {
-      setTimeout(() => enterBoxBusiness(), 0);
-    }
   };
   if(fs){
     const ref = fs.collection('usuarios').doc(uid);
@@ -818,7 +813,6 @@ function renderUsuariosPanel(filter=''){
     const roleLabel = isOwnerU?'👑 Owner':u.role==='admin'?'⚙️ Admin':u.role==='captain'?'⚽ Capitán':'👁️ Espectador';
     const equipoNombre = u.equipoKey && C.equipos[u.equipoKey] ? C.equipos[u.equipoKey].nombre : '';
     const scopeLabel = formatUserAdminScope(u.adminScope);
-    const boxRoleLabel = getBoxRoleLabel(u.businessRoles?.[BOX_LOMBARDO_BUSINESS_ID]?.role || '');
     const actionBtns = isOwnerU ? '' : `
       <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;margin-top:6px">
         ${isOwner ? `<button class="btn btn-g btn-sm" onclick="openSetAdmin('${u.uid}')">Permisos</button>` : ''}
@@ -832,7 +826,6 @@ function renderUsuariosPanel(filter=''){
         <div class="user-meta">${u.email||'—'}</div>
         <div class="user-meta" style="margin-top:2px">Registro: ${fecha}${lastLogin?' · Último acceso: '+lastLogin:''}${equipoNombre?' · Equipo: '+equipoNombre:''}</div>
         ${u.role==='admin' && scopeLabel ? `<div class="user-meta" style="margin-top:2px;color:var(--acc);font-weight:800">Permisos: ${scopeLabel}</div>` : ''}
-        ${boxRoleLabel ? `<div class="user-meta" style="margin-top:2px;color:#92400e;font-weight:800">Shark Boxing Gym: ${boxRoleLabel}</div>` : ''}
         <div style="margin-top:4px"><span class="role-badge ${roleBadgeClass}">${roleLabel}</span></div>
         ${actionBtns}
       </div>
@@ -853,7 +846,6 @@ async function setUserRole(uid, role){
   if(role === 'viewer'){
     updates.equipoKey = null;
     updates.adminScope = null;
-    updates.businessRoles = null;
   }
   try{
     if(fs) await updateDoc('usuarios', uid, updates);
@@ -875,32 +867,6 @@ function formatUserAdminScope(scopeRaw){
   return chunks.join(' | ');
 }
 
-function getBoxRoleLabel(role){
-  return ({
-    owner: 'Dueño del box',
-    box_admin: 'Admin del box',
-    trainer: 'Entrenador',
-    auditor: 'Auditor'
-  })[role] || '';
-}
-
-function ensureAdminPermissionsBoxRoleControl(){
-  const wrap = document.getElementById('sa_cat_list');
-  if(!wrap || document.getElementById('sa_box_role')) return;
-  const holder = document.createElement('div');
-  holder.className = 'fg';
-  holder.innerHTML = `
-    <label class="fl">Rol en Shark Boxing Gym</label>
-    <select class="fi" id="sa_box_role">
-      <option value="">Sin acceso al box</option>
-      <option value="owner">Dueño / encargado</option>
-      <option value="box_admin">Administrador del box</option>
-      <option value="trainer">Entrenador</option>
-      <option value="auditor">Auditor</option>
-    </select>`;
-  wrap.parentNode.insertBefore(holder, wrap);
-}
-
 function openSetAdmin(uid){
   if(!isOwner){
     showToast('Solo el propietario puede asignar administradores','tr');
@@ -911,11 +877,7 @@ function openSetAdmin(uid){
   const info = document.getElementById('sa_user_info');
   if(info) info.textContent = (u.nombre||u.email) + ' · ' + (u.email||'');
   const help = info?.nextElementSibling;
-  if(help) help.textContent = 'Solo el propietario puede asignar permisos. Marca todos los torneos, categorias y accesos del box que este usuario podra gestionar.';
-  ensureAdminPermissionsBoxRoleControl();
-  const boxRole = u.businessRoles?.[BOX_LOMBARDO_BUSINESS_ID]?.role || '';
-  const boxRoleSelect = document.getElementById('sa_box_role');
-  if(boxRoleSelect) boxRoleSelect.value = boxRole;
+  if(help) help.textContent = 'Solo el propietario puede asignar permisos. Marca los torneos y categorias que este usuario podra gestionar.';
   const sel = document.getElementById('sa_torneo');
   if(sel) sel.closest('.fg').style.display = 'none';
   renderAdminCatPermissions();
@@ -973,13 +935,12 @@ async function saveAdminRole(){
   }
   const uid = document.getElementById('sa_uid').value;
   const adminScopePatch = collectAdminScopeFromModal();
-  const boxRole = document.getElementById('sa_box_role')?.value || '';
   if(!uid){
     showToast('Selecciona usuario','ta');
     return;
   }
-  if(!Object.keys(adminScopePatch).length && !boxRole){
-    showToast('Selecciona al menos un permiso de torneo o rol de box','ta');
+  if(!Object.keys(adminScopePatch).length){
+    showToast('Selecciona al menos un permiso de torneo','ta');
     return;
   }
   try{
@@ -988,9 +949,6 @@ async function saveAdminRole(){
       equipoKey:null,
       adminScope: Object.keys(adminScopePatch).length ? adminScopePatch : firebase.firestore.FieldValue.delete()
     };
-    patch[`businessRoles.${BOX_LOMBARDO_BUSINESS_ID}`] = boxRole
-      ? { role: boxRole, assignedAt: firestoreServerTimestamp(), assignedBy: currentUser.uid }
-      : firebase.firestore.FieldValue.delete();
     if(fs) await updateDoc('usuarios', uid, patch);
     else await db.ref('usuarios/'+uid).update(patch);
     closeModal('modalSetAdmin');
