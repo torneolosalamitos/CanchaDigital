@@ -238,7 +238,13 @@ function renderInscripciones() {
   const inscripciones = getFilteredInsc();
   renderInscStats(inscripciones);
   if (!inscripciones.length) {
-    el.innerHTML = '<div class="empty"><span class="empty-icon">💰</span>Sin equipos registrados en esta vista</div>';
+    el.innerHTML = renderEmptyState({
+      icon: '💰',
+      title: 'Sin inscripciones en esta vista',
+      description: 'Registra un equipo o cambia el filtro de categorías para consultar otros movimientos.',
+      actionLabel: isAdmin ? 'Registrar inscripción' : '',
+      action: isAdmin ? "resetInscForm();openModal('modalInscEquipo')" : ''
+    });
     return;
   }
 

@@ -3,7 +3,7 @@
 // ══════════════════════════════════════
 let db = null, auth = null, currentUser = null, isAdmin = false;
 const LS_LAST_PAGE = 'ld_last_page';
-const ADMIN_ONLY_PAGES = new Set(['tienda','inscripciones','arbitros','calendario','resumen','admin-arbitrajes','mercadotecnia']);
+const ADMIN_ONLY_PAGES = new Set(['control-center','tienda','inscripciones','arbitros','calendario','resumen','admin-arbitrajes','mercadotecnia']);
 const OWNER_EMAILS = ['edanchra@gmail.com','admincanchadigital@gmail.com'];
 
 function canSeedProducts(){
@@ -65,6 +65,7 @@ function onAuthChange(user){
     adminScope = {};
     isCaptain = false;
     captainEquipoKey = null;
+    if (typeof stopFirestorePrivateListeners === 'function') stopFirestorePrivateListeners();
     // Hide viewer overlay if visible
     const vp = document.getElementById('viewerProfileOverlay');
     if(vp) vp.style.display = 'none';
@@ -167,6 +168,8 @@ function updateAdminUI(adminFlag, ownerFlag, captainFlag, capEquipoKey){
   if(capBadgeEl) capBadgeEl.style.display = (captainFlag&&!adminFlag)?'':'none';
   // Admin-only elements
   document.querySelectorAll('.admin-only').forEach(x=>{ adminFlag?x.classList.add('show'):x.classList.remove('show'); });
+  if ((adminFlag || captainFlag) && typeof setupFirestoreAllListeners === 'function') setupFirestoreAllListeners();
+  if (adminFlag && typeof refreshOperationsBadge === 'function') setTimeout(refreshOperationsBadge, 0);
   // Update porteros & copa visibility toggle buttons
   setTimeout(()=>{ updatePorterosPublicUI(); updateCuadroCopaUI(); updateGoleadoresPublicUI(); }, 0);
   const addPartido = document.getElementById('adminAddPartido');

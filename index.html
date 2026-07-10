@@ -5,38 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>CanchaDigital</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet"/>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="js/ui-core.js"></script>
-<script src="js/tournament-config.js"></script>
-<script src="js/firebase-boot.js"></script>
-<script src="js/app-state.js"></script>
-<script src="js/firebase-sync.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/navigation.js"></script>
-<script src="js/categories-rules.js"></script>
-<script src="js/equipos.js"></script>
-<script src="js/tienda.js"></script>
-<script src="js/inscripciones.js"></script>
-<script src="js/capital-humano.js"></script>
-<script src="js/resumen.js"></script>
-<script src="js/stats-leaders.js"></script>
-<script src="js/partidos.js"></script>
-<script src="js/tabla.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script defer src="js/ui-core.js"></script>
+<script defer src="js/tournament-config.js"></script>
+<script defer src="js/firebase-boot.js"></script>
+<script defer src="js/app-state.js"></script>
+<script defer src="js/firebase-sync.js"></script>
+<script defer src="js/auth.js"></script>
+<script defer src="js/navigation.js"></script>
+<script defer src="js/categories-rules.js"></script>
+<script defer src="js/equipos.js"></script>
+<script defer src="js/tienda.js"></script>
+<script defer src="js/inscripciones.js"></script>
+<script defer src="js/capital-humano.js"></script>
+<script defer src="js/resumen.js"></script>
+<script defer src="js/stats-leaders.js"></script>
+<script defer src="js/partidos.js"></script>
+<script defer src="js/tabla.js"></script>
 <link rel="stylesheet" href="css/styles.css?v=20260616-header-alumnos"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="css/ux-refresh.css?v=20260710-modern"/>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
 <!-- ═══ LOADING ═══ -->
 <div id="loadingScreen">
-  <div class="ld-ball">⚽</div>
+  <div class="ld-mark"><img src="img/logo-cancha-shield.png" alt=""/><span></span></div>
   <div class="ld-txt" id="ldTxt">CanchaDigital</div>
-  <div class="ld-sub">SaaS deportivo para torneos de fútbol</div>
+  <div class="ld-sub">Preparando la cancha</div>
+  <div class="ld-track"><i></i></div>
 </div>
 
 <!-- === SPLASH === -->
@@ -44,7 +46,7 @@
   <section class="cd-splash-shell">
     <div class="cd-splash-hero">
       <div class="cd-brand-mark">
-        <img src="/CanchaDigital/img/logo-cancha-splash.png" alt="CanchaDigital"/>
+        <img src="img/logo-cancha-splash.png" alt="CanchaDigital"/>
       </div>
       <div class="cd-hero-copy">
         <p>SOFTWARE PROFESIONAL PARA GESTIONAR TORNEOS DE FÚTBOL</p>
@@ -131,7 +133,7 @@
     <!-- Logos izquierda: CanchaDigital + Torneo activo -->
     <div class="hdr-logos">
       <div class="hdr-shield">
-        <img src="/CanchaDigital/img/logo-cancha-shield.png" style="height:36px;width:auto;object-fit:contain;display:block;"/>
+        <img src="img/logo-cancha-shield.png" style="height:36px;width:auto;object-fit:contain;display:block;"/>
       </div>
       <div class="hdr-torneo-logo" id="hdrTorneoWrap">
         <img id="hdrTorneoLogo" style="height:40px;width:auto;max-width:80px;object-fit:contain;display:block;" src="" alt=""/>
@@ -145,11 +147,11 @@
     <!-- Controles -->
     <div class="hdr-right">
       <span id="adminBadge" style="display:none;background:var(--acc);color:#fff;font-size:9px;font-weight:800;letter-spacing:1px;padding:3px 8px;border-radius:4px;">ADMIN</span>
-      <button id="homeBtn" class="ico-btn" onclick="cambiarTorneo()" title="Elegir torneo">&#127968;</button>
-      <button id="loginBtn" class="ico-btn" onclick="openLoginModal()" title="Admin">🔐</button>
-      <button id="usersBtn" class="ico-btn owner-only" onclick="openModal('modalUsuarios');renderUsuariosPanel()" style="display:none" title="Gestión usuarios">👥</button>
+      <button id="homeBtn" class="ico-btn" onclick="cambiarTorneo()" title="Elegir torneo" aria-label="Elegir otro torneo">&#127968;</button>
+      <button id="loginBtn" class="ico-btn" onclick="openLoginModal()" title="Admin" aria-label="Acceso administrativo">🔐</button>
+      <button id="usersBtn" class="ico-btn owner-only" onclick="openModal('modalUsuarios');renderUsuariosPanel()" style="display:none" title="Gestión usuarios" aria-label="Gestionar usuarios">👥</button>
       <span id="userChip" class="user-chip"><span class="user-dot"></span><span id="userChipName" class="user-name">Conectado</span></span>
-      <button id="logoutBtn" class="ico-btn" style="display:none" onclick="signOut()">🚪</button>
+      <button id="logoutBtn" class="ico-btn" style="display:none" onclick="signOut()" aria-label="Cerrar sesión">🚪</button>
       <div class="live-badge"><div class="ldot"></div>En Vivo</div>
     </div>
   </div>
@@ -169,13 +171,36 @@
 <button class="nav-tab" onclick="showPage('equipos',this)">🏆 Equipos</button>
 <button class="nav-tab" onclick="showPage('reglamento',this)">📋 Reglamento</button>
 <button class="nav-tab" onclick="showPage('historial',this)">🏅 Historial</button>
-<button class="nav-tab admin-only" id="navTienda" onclick="showPage('tienda',this)">🛒 Tienda</button>
-<button class="nav-tab admin-only" id="navInsc" onclick="showPage('inscripciones',this)">💰 Inscripciones</button>
-<button class="nav-tab admin-only" id="navArb" onclick="showPage('arbitros',this)">👥 Capital Humano</button>
-<button class="nav-tab admin-only" id="navRes" onclick="showPage('resumen',this)">📋 Resumen</button>
-<button class="nav-tab admin-only" id="navAdminArbitrajes" onclick="showPage('admin-arbitrajes',this)">🧾 Arbitrajes</button>
-<button class="nav-tab admin-only" id="navMerca" onclick="showPage('mercadotecnia',this)">📣 Mercadotecnia</button>
+<button class="nav-tab admin-only" id="navControlCenter" onclick="showPage('control-center',this)">🎛️ Centro <span class="nav-count" id="opsNavBadge" style="display:none">0</span></button>
+<button class="nav-tab admin-only nav-manage-btn" id="navManageBtn" onclick="toggleAdminNavMenu(event)" aria-expanded="false" aria-controls="adminNavMenu">⚙️ Gestión <span class="nav-manage-chevron">⌄</span></button>
 </div>
+<div class="admin-nav-menu admin-only" id="adminNavMenu" aria-hidden="true">
+  <section>
+    <span class="admin-nav-label">Finanzas</span>
+    <button class="nav-tab" id="navInsc" onclick="showPage('inscripciones',this)"><span>💰</span><strong>Inscripciones</strong><small>Cobranza de equipos</small></button>
+    <button class="nav-tab" id="navAdminArbitrajes" onclick="showPage('admin-arbitrajes',this)"><span>🧾</span><strong>Arbitrajes</strong><small>Pagos por partido</small></button>
+    <button class="nav-tab" id="navTienda" onclick="showPage('tienda',this)"><span>🛒</span><strong>Tienda</strong><small>Ventas e inventario</small></button>
+  </section>
+  <section>
+    <span class="admin-nav-label">Operación</span>
+    <button class="nav-tab" id="navArb" onclick="showPage('arbitros',this)"><span>👥</span><strong>Capital Humano</strong><small>Árbitros y colaboradores</small></button>
+    <button class="nav-tab" id="navMerca" onclick="showPage('mercadotecnia',this)"><span>📣</span><strong>Mercadotecnia</strong><small>Contenido del torneo</small></button>
+  </section>
+  <section>
+    <span class="admin-nav-label">Análisis</span>
+    <button class="nav-tab" id="navRes" onclick="showPage('resumen',this)"><span>📋</span><strong>Resumen</strong><small>Indicadores detallados</small></button>
+  </section>
+</div>
+<div class="context-bar" id="contextBar">
+  <div class="context-route" aria-label="Ubicación actual">
+    <span id="contextTorneo">Torneo</span><i>›</i><span id="contextCat">Categoría</span><i>›</i><strong id="contextPage">Tabla</strong>
+  </div>
+  <div class="context-meta">
+    <span class="context-season" id="contextSeason">Temporada activa</span>
+    <span class="context-status"><i></i><span id="contextStatusText">Sistema listo</span></span>
+  </div>
+</div>
+<div class="global-sync-bar" id="globalSyncBar" aria-hidden="true"><i></i></div>
 </div>
 
 <!-- ═══════ PRÓXIMOS PARTIDOS (público) ═══════ -->
@@ -1070,6 +1095,91 @@
 </div>
 
 <!-- ═══════ RESUMEN ═══════ -->
+<section class="page" id="page-control-center">
+  <div class="ops-hero">
+    <div class="ops-hero-copy">
+      <span class="ops-eyebrow">Centro de administracion</span>
+      <h1>Control operativo</h1>
+      <p>Decisiones, pendientes y salud del torneo en una sola vista.</p>
+      <div class="ops-identity">
+        <img class="logo-frame" id="opsTournamentLogo" src="" alt="Torneo"/>
+        <div><strong id="opsTournamentTitle">CanchaDigital</strong><span id="opsScopeLabel">Periodo y categoria</span></div>
+      </div>
+    </div>
+    <div class="ops-hero-actions">
+      <button class="btn btn-out" onclick="renderControlCenter()">↻ Actualizar</button>
+      <button class="btn btn-g" onclick="exportControlCenterCsv()">↓ Exportar reporte</button>
+    </div>
+  </div>
+
+  <div class="ops-toolbar">
+    <div class="ops-filter-group">
+      <span>Periodo</span>
+      <div class="ops-segmented">
+        <button data-ops-period onclick="setControlCenterPeriod('today',this)">Hoy</button>
+        <button data-ops-period onclick="setControlCenterPeriod('week',this)">Semana</button>
+        <button data-ops-period class="is-active" onclick="setControlCenterPeriod('month',this)">Mes</button>
+        <button data-ops-period onclick="setControlCenterPeriod('all',this)">Todo</button>
+      </div>
+    </div>
+    <div class="ops-filter-group">
+      <span>Alcance</span>
+      <div class="ops-segmented">
+        <button data-ops-scope class="is-active" onclick="setControlCenterScope('selected',this)">Categoria seleccionada</button>
+        <button data-ops-scope onclick="setControlCenterScope('all',this)">Todas</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ops-kpi-grid" id="opsKpis"></div>
+
+  <div class="ops-layout">
+    <section class="ops-panel ops-panel-wide">
+      <div class="ops-panel-head"><div><span>Flujo de ingresos</span><strong>Cobros del periodo</strong></div><small>Inscripciones + arbitrajes</small></div>
+      <div class="ops-chart ops-chart-wide"><canvas id="opsCashflowChart"></canvas></div>
+    </section>
+    <section class="ops-panel">
+      <div class="ops-panel-head"><div><span>Cobranza</span><strong>Cobrado vs pendiente</strong></div></div>
+      <div class="ops-chart"><canvas id="opsDebtChart"></canvas></div>
+    </section>
+  </div>
+
+  <div class="ops-layout">
+    <section class="ops-panel ops-panel-attention">
+      <div class="ops-panel-head ops-panel-head-search">
+        <div><span>Prioridades</span><strong>Centro de atencion <b id="opsAlertCount">0</b></strong></div>
+        <input class="fi ops-search" type="search" placeholder="Buscar pendiente..." oninput="setControlCenterSearch(this.value)"/>
+      </div>
+      <div class="ops-alert-list" id="opsAlerts"></div>
+    </section>
+    <section class="ops-panel">
+      <div class="ops-panel-head"><div><span>Calidad de informacion</span><strong>Salud de datos</strong></div></div>
+      <div class="ops-health" id="opsHealth"></div>
+      <div class="ops-quick-actions">
+        <button onclick="navigateControlAction('equipos')"><span>🏆</span>Equipos</button>
+        <button onclick="navigateControlAction('partidos')"><span>⚽</span>Partidos</button>
+        <button onclick="navigateControlAction('inscripciones')"><span>💰</span>Inscripciones</button>
+        <button onclick="navigateControlAction('admin-arbitrajes')"><span>🧾</span>Arbitrajes</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="ops-panel">
+    <div class="ops-panel-head"><div><span>Comparativo</span><strong>Vista por categoria</strong></div></div>
+    <div class="ops-category-grid" id="opsCategoryGrid"></div>
+  </section>
+
+  <section class="ops-panel ops-owner-panel" id="opsOwnerPanel" hidden>
+    <div class="ops-panel-head"><div><span>Superadministracion</span><strong>Usuarios y cobertura</strong></div><button class="btn btn-out btn-sm" onclick="openModal('modalUsuarios');renderUsuariosPanel()">Gestionar usuarios</button></div>
+    <div class="ops-owner-grid" id="opsOwnerGrid"></div>
+  </section>
+
+  <section class="ops-panel">
+    <div class="ops-panel-head"><div><span>Trazabilidad</span><strong>Actividad reciente</strong></div><small>Altas, cambios y eliminaciones</small></div>
+    <div class="ops-audit" id="opsAudit"></div>
+  </section>
+</section>
+
 <div class="page" id="page-resumen">
   <div class="resumen-dash-hero">
     <div>
@@ -1078,7 +1188,7 @@
       <div class="resumen-subtitle" id="resumenScopeLabel">Categorías del torneo seleccionado</div>
     </div>
     <div class="resumen-logo-stack">
-      <img src="/CanchaDigital/img/logo-cancha-shield.png" alt="CanchaDigital"/>
+      <img src="img/logo-cancha-shield.png" alt="CanchaDigital"/>
       <img id="resumenTorneoLogo" src="" alt="Torneo"/>
     </div>
   </div>
@@ -1969,7 +2079,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app-bootstrap.js?v=20260623-football-only"></script>
+<script defer src="js/audit.js?v=20260710-operations"></script>
+<script defer src="js/operations-center.js?v=20260710-operations"></script>
+<script defer src="js/app-bootstrap.js?v=20260710-operations"></script>
 </body>
 </html>
 

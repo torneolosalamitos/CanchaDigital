@@ -1102,7 +1102,7 @@ function renderReuseEquipoPreview() {
   const historicParts = getAllParts().filter((p) => p.local === key || p.visita === key || p.localNombre === normalized.nombre || p.visitaNombre === normalized.nombre);
   wrap.style.display = '';
   wrap.innerHTML = `<div style="display:flex;gap:12px;align-items:center">
-    ${normalized.logo ? `<img src="${escapeHtml(normalized.logo)}" style="width:58px;height:58px;object-fit:contain;border-radius:12px"/>` : '<div class="eq-ph">⚽</div>'}
+    ${normalized.logo ? `<img src="${escapeHtml(normalized.logo)}" class="logo-integrated" style="width:58px;height:58px;object-fit:contain"/>` : '<div class="eq-ph">⚽</div>'}
     <div>
       <div style="font-size:15px;font-weight:900;color:var(--text)">${escapeHtml(normalized.nombre)}</div>
       <div style="font-size:11px;font-weight:700;color:var(--muted)">${escapeHtml(TORNEO_NAMES[normalized.torneo] || normalized.torneo)} · ${escapeHtml(CAT_NAMES[normalized.cat] || normalized.cat)}</div>
@@ -1533,7 +1533,7 @@ function updateCuadroCopaUI(){
 // ── Helpers de slots con estilos inline para captura ──
 function _shareSlot(s, sz=44){
   const logo = s.team?.logo
-    ? `<img src="${escapeHtml(s.team.logo)}" crossorigin="anonymous" style="width:${sz}px;height:${sz}px;border-radius:${Math.round(sz*.27)}px;object-fit:cover;background:#fff;border:1.5px solid #e2e8f0;flex-shrink:0;"/>`
+    ? `<img src="${escapeHtml(s.team.logo)}" crossorigin="anonymous" style="width:${sz}px;height:${sz}px;object-fit:contain;background:transparent;border:0;box-shadow:none;flex-shrink:0;"/>`
     : `<div style="width:${sz}px;height:${sz}px;border-radius:${Math.round(sz*.27)}px;background:#f1f5f9;border:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*.45)}px;flex-shrink:0;">${s.isBye?'⬜':'⚽'}</div>`;
   const seedBg = s.seed===1 ? 'background:linear-gradient(135deg,#fbbf24,#ca8a04);border-color:#f5d487;color:#fff;' : 'background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;';
   const slotOp = s.isBye||s.isPlaceholder ? 'opacity:.5;' : '';
@@ -1582,7 +1582,7 @@ function buildShareBracketInline(cupData){
   const r1R = r1 ? r1.matches.slice(Math.ceil(r1.matches.length/2)) : [];
   const semiName = r1 ? escapeHtml(r1.name) : 'SEMIFINAL';
   const campLogoHtml = campeon?.logo
-    ? `<img src="${escapeHtml(campeon.logo)}" crossorigin="anonymous" style="width:54px;height:54px;border-radius:14px;object-fit:cover;background:#fff;border:2px solid #fcd34d;box-shadow:0 6px 14px rgba(202,138,4,.25);"/>`
+    ? `<img src="${escapeHtml(campeon.logo)}" crossorigin="anonymous" style="width:54px;height:54px;object-fit:contain;background:transparent;border:0;box-shadow:none;"/>`
     : `<div style="width:54px;height:54px;border-radius:14px;background:linear-gradient(135deg,#fbbf24,#ca8a04);display:flex;align-items:center;justify-content:center;font-size:26px;">🏆</div>`;
 
   // Helper: columna de ronda
@@ -1666,10 +1666,10 @@ function compartirCopa(){
   const torLogo = document.querySelector('.hdr-torneo-logo img');
   const shieldImg = document.querySelector('.hdr-shield img');
   const torLogoHtml = torLogo
-    ? `<img src="${torLogo.src}" crossorigin="anonymous" style="width:76px;height:76px;object-fit:contain;border-radius:20px;background:#fff;padding:8px;border:1.5px solid #d6dfeb;box-shadow:0 6px 20px rgba(15,23,42,.1);flex-shrink:0;"/>`
+    ? `<img src="${torLogo.src}" crossorigin="anonymous" style="width:76px;height:76px;object-fit:contain;background:transparent;border:0;box-shadow:none;flex-shrink:0;"/>`
     : `<div style="width:76px;height:76px;border-radius:20px;background:#eff6ff;border:1.5px solid #bfdbfe;display:flex;align-items:center;justify-content:center;font-size:40px;flex-shrink:0;">🏆</div>`;
   const shieldHtml = shieldImg
-    ? `<img src="${shieldImg.src}" crossorigin="anonymous" style="width:66px;height:66px;object-fit:contain;border-radius:16px;background:#fff;border:1.5px solid #d6dfeb;flex-shrink:0;"/>`
+    ? `<img src="${shieldImg.src}" crossorigin="anonymous" style="width:66px;height:66px;object-fit:contain;background:transparent;border:0;box-shadow:none;flex-shrink:0;"/>`
     : '';
 
   const bracketInlineHtml = buildShareBracketInline(cupData);
@@ -1935,10 +1935,10 @@ function getStatsSharePayloadBase(tipo, dataOverride=null){
 
     // — logos —
     const logoTop = top.logo
-      ? `<img src="${top.logo}" style="width:100px;height:100px;border-radius:22px;object-fit:cover;background:#fff;border:2px solid rgba(255,255,255,.4);box-shadow:0 12px 28px rgba(0,0,0,.25);display:block;"/>`
+      ? `<img src="${top.logo}" style="width:100px;height:100px;object-fit:contain;background:transparent;border:0;box-shadow:none;display:block;"/>`
       : `<div style="width:100px;height:100px;border-radius:22px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:44px;">⚽</div>`;
     const logoSeg = segundo?.logo
-      ? `<img src="${segundo.logo}" style="width:88px;height:88px;border-radius:20px;object-fit:cover;background:#fff;border:2px solid rgba(255,255,255,.3);box-shadow:0 10px 22px rgba(0,0,0,.2);display:block;"/>`
+      ? `<img src="${segundo.logo}" style="width:88px;height:88px;object-fit:contain;background:transparent;border:0;box-shadow:none;display:block;"/>`
       : `<div style="width:88px;height:88px;border-radius:20px;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:38px;">⚽</div>`;
 
     // Stats mini chips for top team
@@ -1965,7 +1965,7 @@ function getStatsSharePayloadBase(tipo, dataOverride=null){
         ? 'background:linear-gradient(135deg,#fed7aa,#b45309);color:#fff;'
         : 'background:#f1f5f9;color:#64748b;border:1px solid #dbe4ee;';
       const logoHtml = t.logo
-        ? `<img src="${t.logo}" style="width:36px;height:36px;border-radius:10px;object-fit:cover;background:#fff;border:1px solid #dbe4ee;flex-shrink:0;"/>`
+        ? `<img src="${t.logo}" style="width:36px;height:36px;object-fit:contain;background:transparent;border:0;box-shadow:none;flex-shrink:0;"/>`
         : `<div style="width:36px;height:36px;border-radius:10px;background:#f8fafc;border:1px solid #dbe4ee;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⚽</div>`;
       return `<div style="${rowBg}display:grid;grid-template-columns:60px minmax(0,1fr) 56px 52px 52px 52px 68px 80px;align-items:center;padding:13px 18px;border-bottom:1px solid #edf2f7;gap:6px;">
         <div style="${posBg}width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;font-weight:900;margin:0 auto;">${pos}</div>

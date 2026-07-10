@@ -183,5 +183,11 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
+    match /audit_logs/{id} {
+      allow read: if signedIn() && (isOwner() || adminCanAccess(resource.data));
+      allow create: if signedIn() && adminCanAccess(request.resource.data);
+      allow update, delete: if isOwner();
+    }
+
   }
 }

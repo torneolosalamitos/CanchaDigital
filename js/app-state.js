@@ -34,7 +34,8 @@ const C = {
   temporadas: {},
   categorias: {},
   usuarios_autorizados: {},
-  bot_sessions: {}
+  bot_sessions: {},
+  auditLogs: {}
 };
 const CAT_NAMES = { cat_libre_varonil: 'CATEGORIA LIBRE VARONIL', cat_libre_femenil: 'CATEGORIA LIBRE FEMENIL' };
 let catOrderKeys = applyTournamentCatalogToCategoryMap(CAT_NAMES);
@@ -207,6 +208,9 @@ async function saveDoc(collection, id, data) {
       ...payload,
       creadoEn: firestoreServerTimestamp()
     });
+    if (typeof recordAuditMutation === 'function') {
+      recordAuditMutation('create', collection, ref.id, data);
+    }
     return ref.id;
   }
   const ref = fs.collection(collection).doc(id);
@@ -215,12 +219,24 @@ async function saveDoc(collection, id, data) {
     ...payload,
     ...(snap.exists ? {} : { creadoEn: firestoreServerTimestamp() })
   }, { merge: true });
+  if (typeof recordAuditMutation === 'function') {
+    recordAuditMutation(snap.exists ? 'update' : 'create', collection, id, data);
+  }
   return id;
 }
 
 async function deleteDoc(collection, id) {
   if (!fs) throw new Error('Firestore no disponible');
-  await fs.collection(collection).doc(id).delete();
+  const ref = fs.collection(collection).doc(id);
+  let previous = {};
+  try {
+    const snap = await ref.get();
+    if (snap.exists) previous = snap.data() || {};
+  } catch (_err) {}
+  await ref.delete();
+  if (typeof recordAuditMutation === 'function') {
+    recordAuditMutation('delete', collection, id, previous);
+  }
 }
 
 async function updateDoc(collection, id, data) {
@@ -229,6 +245,9 @@ async function updateDoc(collection, id, data) {
     ...data,
     actualizadoEn: firestoreServerTimestamp()
   });
+  if (typeof recordAuditMutation === 'function') {
+    recordAuditMutation('update', collection, id, data);
+  }
 }
 
 function scopedPayload(data = {}) {
@@ -498,6 +517,7 @@ function launchApp() {
   document.getElementById('mp_cat').value = currentCat;
   setupListeners();
   applyTheme();
+  if (typeof updateContextBar === 'function') updateContextBar();
   const vpLogo = document.getElementById('vpLogo');
   const vpName = document.getElementById('vpTorneoName');
   if (vpLogo) vpLogo.src = TORNEO_LOGOS[currentTorneo] || '';
@@ -542,6 +562,9 @@ function selectCat(cat, btn) {
   renderPartidos();
   renderEquiposPage();
   if (isPageActive('admin-arbitrajes') && typeof renderAdminArbitrajes === 'function') renderAdminArbitrajes();
+  if (isPageActive('control-center') && typeof renderControlCenter === 'function') renderControlCenter({ keepAuditCache: true });
+  if (typeof refreshOperationsBadge === 'function') refreshOperationsBadge();
+  if (typeof updateContextBar === 'function') updateContextBar();
   updatePorterosPublicUI();
   updateCuadroCopaUI();
   updateGoleadoresPublicUI();

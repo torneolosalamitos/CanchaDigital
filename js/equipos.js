@@ -3,7 +3,13 @@ function renderEquiposPage() {
   if (!el) return;
   const eqs = getEqs().filter((e) => e.torneo === currentTorneo && e.cat === currentCat);
   if (!eqs.length) {
-    el.innerHTML = '<div class="empty"><span class="empty-icon">🏆</span>Sin equipos registrados en esta categoría</div>';
+    el.innerHTML = renderEmptyState({
+      icon: '🏆',
+      title: 'Aún no hay equipos',
+      description: 'Los equipos de esta categoría aparecerán aquí con su plantilla, contacto y estadísticas.',
+      actionLabel: isAdmin ? 'Registrar equipo' : '',
+      action: isAdmin ? "resetEquipoForm();openModal('modalEquipo')" : ''
+    });
     return;
   }
   el.innerHTML = `<div class="equipos-grid">${eqs

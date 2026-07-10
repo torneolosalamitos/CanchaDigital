@@ -56,6 +56,8 @@ function renderCoreDataConsumers() {
   if (typeof renderInscripciones === 'function' && typeof isPageActive === 'function' && isPageActive('inscripciones')) renderInscripciones();
   if (typeof renderResumen === 'function' && typeof isPageActive === 'function' && isPageActive('resumen')) renderResumen();
   if (typeof renderAdminArbitrajes === 'function' && typeof isPageActive === 'function' && isPageActive('admin-arbitrajes')) renderAdminArbitrajes();
+  if (typeof renderControlCenter === 'function' && typeof isPageActive === 'function' && isPageActive('control-center')) renderControlCenter({ keepAuditCache: true });
+  if (typeof refreshOperationsBadge === 'function') refreshOperationsBadge();
 }
 
 function rebuildEquiposFromCoreSources() {
@@ -217,6 +219,11 @@ function normalizeFirestoreDoc(collectionName, id, data = {}) {
 }
 
 function renderAfterFirestoreCollection(collectionName) {
+  if (typeof renderControlCenter === 'function' && typeof isPageActive === 'function' && isPageActive('control-center')) {
+    renderControlCenter({ keepAuditCache: true });
+  } else if (typeof refreshOperationsBadge === 'function' && (isAdmin || isOwner)) {
+    refreshOperationsBadge();
+  }
   if (collectionName === 'equipos') {
     rebuildEquiposFromCoreSources();
     renderCoreDataConsumers();
@@ -290,35 +297,62 @@ function renderAfterFirestoreCollection(collectionName) {
   }
   if (collectionName === 'temporadas') {
     if (typeof renderHistorial === 'function' && isPageActive('historial')) renderHistorial();
+    if (typeof updateContextBar === 'function') updateContextBar();
   }
 }
 
-let firestoreAllListenersReady = false;
+const PUBLIC_FIRESTORE_COLLECTIONS = new Set(['equipos', 'partidos', 'temporadas', 'categorias']);
+const firestoreListenerUnsubscribers = {};
+const pendingFirestoreCollections = new Set();
+
+function updateFirestoreLoadingUi() {
+  document.body.classList.toggle('data-loading', pendingFirestoreCollections.size > 0);
+  if (typeof updateContextBar === 'function') updateContextBar();
+}
+
+function stopFirestorePrivateListeners() {
+  Object.entries(firestoreListenerUnsubscribers).forEach(([collectionName, unsubscribe]) => {
+    if (PUBLIC_FIRESTORE_COLLECTIONS.has(collectionName)) return;
+    if (typeof unsubscribe === 'function') unsubscribe();
+    delete firestoreListenerUnsubscribers[collectionName];
+    pendingFirestoreCollections.delete(collectionName);
+    if (C[collectionName]) clearObj(C[collectionName]);
+  });
+  clearObj(firestoreCoreCache.inscripciones);
+  clearObj(firestoreCoreCache.pagos);
+  updateFirestoreLoadingUi();
+}
+
 function setupFirestoreAllListeners() {
-  if (!fs || firestoreAllListenersReady) return;
-  firestoreAllListenersReady = true;
+  if (!fs) return;
   const firestoreCollections = [
     'equipos',
-    'inscripciones',
-    'pagos',
     'partidos',
-    'productos',
-    'ventas',
-    'gastosTienda',
-    'turnos',
-    'arbitros',
-    'trabajadores',
-    'gastosTrab',
-    'mercadotecnia',
     'temporadas',
     'categorias',
-    ...((isAdmin || isOwner) ? ['usuarios', 'solicitudes', 'usuarios_autorizados', 'bot_sessions'] : [])
+    ...((currentUser && (isCaptain || isAdmin || isOwner)) ? ['inscripciones', 'pagos', 'solicitudes'] : []),
+    ...((isAdmin || isOwner) ? [
+      'productos',
+      'ventas',
+      'gastosTienda',
+      'turnos',
+      'arbitros',
+      'trabajadores',
+      'gastosTrab',
+      'mercadotecnia',
+      'usuarios',
+      'usuarios_autorizados',
+      'bot_sessions'
+    ] : [])
   ];
 
   firestoreCollections.forEach((collectionName) => {
+    if (firestoreListenerUnsubscribers[collectionName]) return;
     if (!C[collectionName]) C[collectionName] = {};
+    pendingFirestoreCollections.add(collectionName);
+    updateFirestoreLoadingUi();
 
-    fs.collection(collectionName).onSnapshot((snapshot) => {
+    firestoreListenerUnsubscribers[collectionName] = fs.collection(collectionName).onSnapshot((snapshot) => {
       if (collectionName === 'equipos') clearObj(firestoreCoreCache.equipos);
       else if (collectionName === 'inscripciones') clearObj(firestoreCoreCache.inscripciones);
       else if (collectionName === 'pagos') clearObj(firestoreCoreCache.pagos);
@@ -343,8 +377,12 @@ function setupFirestoreAllListeners() {
         clearObj(C.pagos);
         Object.assign(C.pagos, firestoreCoreCache.pagos);
       }
+      pendingFirestoreCollections.delete(collectionName);
+      updateFirestoreLoadingUi();
       renderAfterFirestoreCollection(collectionName);
     }, (error) => {
+      pendingFirestoreCollections.delete(collectionName);
+      updateFirestoreLoadingUi();
       console.warn(`Firestore ${collectionName} listener:`, error);
     });
   });

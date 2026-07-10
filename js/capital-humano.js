@@ -448,7 +448,13 @@ function renderTrabajadores() {
   const el = document.getElementById('trabajadoresList');
   if (!el) return;
   if (!trabs.length) {
-    el.innerHTML = '<div class="empty"><span class="empty-icon">👷</span>Sin trabajadores registrados</div>';
+    el.innerHTML = renderEmptyState({
+      icon: '👷',
+      title: 'Sin colaboradores registrados',
+      description: 'Agrega personal operativo para controlar funciones, pagos y pendientes.',
+      actionLabel: isAdmin ? 'Registrar colaborador' : '',
+      action: isAdmin ? "openModal('modalNuevoTrab')" : ''
+    });
   } else {
     el.innerHTML = trabs.map((trabajador) => {
       const gastos = getGastos().filter((gasto) => gasto.trabajadorKey === trabajador._key);

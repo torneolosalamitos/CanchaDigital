@@ -1,12 +1,23 @@
 function openLoginModal() {
-  document.getElementById('loginModal').style.display = 'flex';
+  const modal = document.getElementById('loginModal');
+  lastModalTrigger = document.activeElement;
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.style.display = 'flex';
+  document.body.classList.add('modal-open');
   const lastEmail = localStorage.getItem('ld_last_email') || '';
   const emailEl = document.getElementById('l_email');
   if (emailEl && !emailEl.value) emailEl.value = lastEmail;
+  requestAnimationFrame(() => emailEl?.focus({ preventScroll: true }));
 }
 
 function closeLoginModal() {
-  document.getElementById('loginModal').style.display = 'none';
+  const modal = document.getElementById('loginModal');
+  modal.style.display = 'none';
+  modal.removeAttribute('aria-modal');
+  document.body.classList.remove('modal-open');
+  if (lastModalTrigger?.focus) lastModalTrigger.focus({ preventScroll: true });
+  lastModalTrigger = null;
 }
 
 function loginGoogle() {

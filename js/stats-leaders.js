@@ -3,7 +3,11 @@
   if (!el) return;
   const sorted = getTopScorersData(10);
   if (!sorted.length) {
-    el.innerHTML = '<div class="empty"><span class="empty-icon">🥅</span>Sin goles registrados</div>';
+    el.innerHTML = renderEmptyState({
+      icon: '🥅',
+      title: 'Todavía no hay goleadores',
+      description: 'Las estadísticas aparecerán automáticamente al registrar goles en los partidos.'
+    });
     updateGoleadoresPublicUI();
     renderPorteros();
     return;
