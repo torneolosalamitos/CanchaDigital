@@ -12,8 +12,8 @@ const TORNEO_CONFIG = {
     footerTag: 'Lombardo Toledano',
     primaryHashtag: '#TorneoLombardoToledano',
     categories: [
-      { key: 'cat_libre_varonil', label: 'CATEGORIA LIBRE VARONIL' },
-      { key: 'cat_libre_femenil', label: 'CATEGORIA LIBRE FEMENIL' }
+      { key: 'cat_libre_varonil', label: 'CATEGORIA LIBRE VARONIL', cupFormat: 'top4_semifinals', qualifiedTeams: 4 },
+      { key: 'cat_libre_femenil', label: 'CATEGORIA LIBRE FEMENIL', cupFormat: 'top4_semifinals', qualifiedTeams: 4 }
     ]
   },
   nuevos_valores: {
@@ -133,6 +133,18 @@ function hydrateSplashTournamentCards() {
   });
 
   cards.slice(TOURNAMENT_OPTION_ORDER.length).forEach(card => card.remove());
+}
+
+function getTournamentCategoryConfig(cat = currentCat, torneo = currentTorneo) {
+  return getTournamentConfig(torneo).categories.find((category) => category.key === cat) || null;
+}
+
+function getCompetitionFormat(cat = currentCat, torneo = currentTorneo) {
+  const category = getTournamentCategoryConfig(cat, torneo);
+  return {
+    cupFormat: category?.cupFormat || 'automatic_elimination',
+    qualifiedTeams: Number(category?.qualifiedTeams || 0)
+  };
 }
 
 function ensureSplashTournamentCardsReady() {

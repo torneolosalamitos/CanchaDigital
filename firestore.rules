@@ -3,6 +3,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // =========================================================
+    // FUNCIONES GENERALES
+    // =========================================================
+
     function signedIn() {
       return request.auth != null;
     }
@@ -11,35 +15,49 @@ service cloud.firestore {
       return /databases/$(database)/documents/usuarios/$(uid);
     }
 
+    function userExists() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+
     function myUser() {
-      return signedIn() && exists(userPath(request.auth.uid))
+      return userExists()
         ? get(userPath(request.auth.uid)).data
         : {};
     }
 
+    // Propietario principal de CanchaDigital.
     function isOwner() {
       return signedIn() &&
+        request.auth.uid == '1nQa6mHbDfXYAhrBZc0gD8YLVQy1';
+    }
+
+    function isActiveUser() {
+      return userExists() &&
         (
-          request.auth.token.email == 'edanchra@gmail.com' ||
-          request.auth.token.email == 'Edanchra@gmail.com' ||
-          request.auth.token.email == 'admincanchadigital@gmail.com'
+          !('activo' in myUser()) ||
+          myUser().activo == true
         );
     }
 
     function isAdmin() {
-      return signedIn() && myUser().role == 'admin';
+      return isActiveUser() &&
+        myUser().role == 'admin';
     }
 
     function isCaptain() {
-      return signedIn() && myUser().role == 'captain';
+      return isActiveUser() &&
+        myUser().role == 'captain';
     }
 
-    function scopedTorneo(data) {
-      return data.torneo;
+    function ownerOrAdmin() {
+      return isOwner() || isAdmin();
     }
 
-    function scopedCat(data) {
-      return data.cat;
+    function hasScope(data) {
+      return data.torneo is string &&
+        data.cat is string &&
+        data.torneo.size() > 0 &&
+        data.cat.size() > 0;
     }
 
     function adminScopeHas(torneo, cat) {
@@ -47,147 +65,461 @@ service cloud.firestore {
         myUser().adminScope is map &&
         torneo in myUser().adminScope &&
         myUser().adminScope[torneo] is map &&
+        cat in myUser().adminScope[torneo] &&
         myUser().adminScope[torneo][cat] == true;
     }
 
     function adminCanAccess(data) {
-      return isOwner() || adminScopeHas(scopedTorneo(data), scopedCat(data));
+      return isOwner() ||
+        (
+          hasScope(data) &&
+          adminScopeHas(data.torneo, data.cat)
+        );
     }
 
+    function sameScope(before, after) {
+      return hasScope(before) &&
+        hasScope(after) &&
+        before.torneo == after.torneo &&
+        before.cat == after.cat;
+    }
+
+    function captainOwnsTeam(teamId) {
+      return isCaptain() &&
+        myUser().equipoKey is string &&
+        myUser().equipoKey == teamId;
+    }
+
+    function captainOwnsRecord(data) {
+      return isCaptain() &&
+        myUser().equipoKey is string &&
+        (
+          data.equipoKey == myUser().equipoKey ||
+          data.equipoId == myUser().equipoKey
+        );
+    }
+
+    function captainOwnsRequest(data) {
+      return isCaptain() &&
+        myUser().equipoKey is string &&
+        data.equipoKey == myUser().equipoKey;
+    }
+
+    function validSelfUserCreation(uid) {
+      return signedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.uid == uid &&
+        request.resource.data.role == 'viewer' &&
+        !('equipoKey' in request.resource.data) &&
+        (
+          !('adminScope' in request.resource.data) ||
+          request.resource.data.adminScope == {}
+        );
+    }
+
+    function validSelfUserUpdate(uid) {
+      return signedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'nombre',
+            'displayName',
+            'photoURL',
+            'telefono',
+            'email',
+            'lastLogin',
+            'actualizadoEn'
+          ]);
+    }
+
+    // =========================================================
+    // USUARIOS
+    // =========================================================
+
+    match /usuarios/{uid} {
+
+      // Cada usuario puede leer su propio perfil.
+      // Owner y administradores pueden leer perfiles.
+      allow get: if isOwner() ||
+        isAdmin() ||
+        (
+          signedIn() &&
+          request.auth.uid == uid
+        );
+
+      // El sistema administrativo actualmente consulta usuarios completos.
+      allow list: if isOwner() || isAdmin();
+
+      // El propietario puede crear cualquier perfil.
+      // Una cuenta normal solamente puede crearse como viewer.
+      allow create: if isOwner() ||
+        validSelfUserCreation(uid);
+
+      // Solo el propietario puede cambiar roles, scopes o equipo.
+      // Un usuario normal únicamente puede actualizar su perfil básico.
+      allow update: if isOwner() ||
+        validSelfUserUpdate(uid);
+
+      allow delete: if isOwner();
+    }
+
+    // =========================================================
+    // EQUIPOS
+    // =========================================================
+
+    match /equipos/{teamId} {
+
+      // Información deportiva pública.
+      allow read: if true;
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        (
+          (
+            adminCanAccess(request.resource.data) &&
+            sameScope(resource.data, request.resource.data)
+          ) ||
+          (
+            captainOwnsTeam(teamId) &&
+            sameScope(resource.data, request.resource.data)
+          )
+        );
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // PARTIDOS
+    // =========================================================
+
+    match /partidos/{matchId} {
+
+      // Calendario, resultados y estadísticas públicas.
+      allow read: if true;
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // INSCRIPCIONES
+    // =========================================================
+
+    match /inscripciones/{registrationId} {
+
+      // Ya no son públicas.
+      // Temporalmente los capitanes autenticados pueden leerlas porque
+      // el frontend todavía descarga la colección completa.
+      allow read: if isOwner() ||
+        isAdmin() ||
+        isCaptain();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // PAGOS
+    // =========================================================
+
+    match /pagos/{paymentId} {
+
+      // Ya no son visibles para visitantes.
+      // Acceso temporal para capitanes por compatibilidad.
+      allow read: if isOwner() ||
+        isAdmin() ||
+        isCaptain();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if isOwner();
+    }
+
+    // =========================================================
+    // PRODUCTOS
+    // =========================================================
+
+    match /productos/{productId} {
+
+      allow read: if ownerOrAdmin();
+
+      allow create, update, delete: if ownerOrAdmin();
+    }
+
+    // =========================================================
+    // VENTAS
+    // =========================================================
+
+    match /ventas/{saleId} {
+
+      allow read: if ownerOrAdmin();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // GASTOS DE TIENDA
+    // =========================================================
+
+    match /gastosTienda/{expenseId} {
+
+      allow read: if ownerOrAdmin();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // TURNOS
+    // =========================================================
+
+    match /turnos/{shiftId} {
+
+      allow read: if ownerOrAdmin();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // ÁRBITROS
+    // =========================================================
+
+    match /arbitros/{refereeId} {
+
+      allow read: if ownerOrAdmin();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // TRABAJADORES
+    // =========================================================
+
+    match /trabajadores/{workerId} {
+
+      allow read: if ownerOrAdmin();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // GASTOS DE TRABAJADORES
+    // =========================================================
+
+    match /gastosTrab/{expenseId} {
+
+      allow read: if ownerOrAdmin();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // SOLICITUDES DE USUARIOS
+    // =========================================================
+
+    match /solicitudes/{requestId} {
+
+      // Un usuario solo puede crear solicitudes a su nombre.
+      allow create: if signedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.equipoKey is string &&
+        hasScope(request.resource.data);
+
+      // Owner y administradores leen todas.
+      // Los capitanes requieren lectura completa temporalmente porque
+      // el frontend todavía utiliza un listener sin filtros.
+      // Un usuario puede leer directamente su propia solicitud.
+      allow read: if isOwner() ||
+        isAdmin() ||
+        isCaptain() ||
+        (
+          signedIn() &&
+          resource.data.uid == request.auth.uid
+        );
+
+      allow update: if signedIn() &&
+        sameScope(resource.data, request.resource.data) &&
+        (
+          isOwner() ||
+          adminCanAccess(resource.data) ||
+          captainOwnsRequest(resource.data) ||
+          (
+            resource.data.uid == request.auth.uid &&
+            resource.data.status == 'pending' &&
+            request.resource.data.status == 'cancelled'
+          )
+        );
+
+      allow delete: if isOwner() ||
+        (
+          signedIn() &&
+          adminCanAccess(resource.data)
+        );
+    }
+
+    // =========================================================
+    // MERCADOTECNIA
+    // =========================================================
+
+    match /mercadotecnia/{marketingId} {
+
+      allow read: if ownerOrAdmin();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // TEMPORADAS
+    // =========================================================
+
+    match /temporadas/{seasonId} {
+
+      // Historial deportivo público.
+      allow read: if true;
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      allow update: if signedIn() &&
+        adminCanAccess(request.resource.data) &&
+        sameScope(resource.data, request.resource.data);
+
+      allow delete: if signedIn() &&
+        adminCanAccess(resource.data);
+    }
+
+    // =========================================================
+    // CATEGORÍAS
+    // =========================================================
+
+    match /categorias/{categoryId} {
+
+      allow read: if true;
+
+      allow create, update, delete: if isOwner();
+    }
+
+    // =========================================================
+    // USUARIOS AUTORIZADOS
+    // =========================================================
+
+    match /usuarios_autorizados/{authorizedId} {
+
+      allow read, write: if isOwner();
+    }
+
+    // =========================================================
+    // SESIONES DEL BOT
+    // =========================================================
+
+    match /bot_sessions/{sessionId} {
+
+      allow read, write: if isOwner();
+    }
+
+    // =========================================================
+    // AUDITORÍA
+    // =========================================================
+
+    match /audit_logs/{logId} {
+
+      // Compatibilidad con la consulta completa actual.
+      allow read: if ownerOrAdmin();
+
+      allow create: if signedIn() &&
+        adminCanAccess(request.resource.data);
+
+      // Solo el propietario puede modificar o borrar auditorías.
+      allow update, delete: if isOwner();
+    }
+
+    // =========================================================
+    // CUALQUIER COLECCIÓN NO DECLARADA
+    // =========================================================
 
     match /{document=**} {
       allow read, write: if false;
     }
-
-    match /usuarios/{uid} {
-      allow read: if signedIn() && (isOwner() || isAdmin() || request.auth.uid == uid);
-      allow create: if signedIn() && (isOwner() || request.auth.uid == uid);
-      allow update: if signedIn() && (
-        isOwner() ||
-        (
-          request.auth.uid == uid &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.adminScope == resource.data.adminScope
-        ) ||
-        false
-      );
-      allow delete: if isOwner();
-    }
-
-    match /equipos/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && (
-        adminCanAccess(request.resource.data) ||
-        (isCaptain() && myUser().equipoKey == id)
-      );
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /partidos/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /inscripciones/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /pagos/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /productos/{id} {
-      allow read: if true;
-      allow create, update, delete: if signedIn() && (isOwner() || isAdmin());
-    }
-
-    match /ventas/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /gastosTienda/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /turnos/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /arbitros/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /trabajadores/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /gastosTrab/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /solicitudes/{id} {
-      allow read: if signedIn();
-      allow create: if signedIn();
-      allow update: if signedIn() && (
-        isOwner() ||
-        adminCanAccess(resource.data) ||
-        adminCanAccess(request.resource.data) ||
-        isCaptain()
-      );
-      allow delete: if signedIn() && (
-        isOwner() ||
-        adminCanAccess(resource.data) ||
-        isCaptain()
-      );
-    }
-
-    match /mercadotecnia/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /temporadas/{id} {
-      allow read: if true;
-      allow create, update: if signedIn() && adminCanAccess(request.resource.data);
-      allow delete: if signedIn() && adminCanAccess(resource.data);
-    }
-
-    match /categorias/{id} {
-      allow read: if true;
-      allow create, update, delete: if isOwner();
-    }
-
-    match /usuarios_autorizados/{id} {
-      allow read, write: if isOwner();
-    }
-
-    match /bot_sessions/{id} {
-      allow read, write: if isOwner();
-    }
-
-    match /audit_logs/{id} {
-      allow read: if signedIn() && (isOwner() || adminCanAccess(resource.data));
-      allow create: if signedIn() && adminCanAccess(request.resource.data);
-      allow update, delete: if isOwner();
-    }
-
   }
 }

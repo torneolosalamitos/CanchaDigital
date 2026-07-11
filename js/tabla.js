@@ -32,14 +32,30 @@ function buildTablaDataFromParts(partsArray){
 }
 
 function buildTablaData(){ // general — todas las jornadas
-  const parts = filteredParts().filter(p=>p.status==='terminado');
+  const activeSeason = getActiveSeason(currentTorneo, currentCat);
+  const frozen = activeSeason?.leagueSnapshots?.[currentCat] || activeSeason?.leagueSnapshot;
+  if (activeSeason?.estado === 'cup_active' && Array.isArray(frozen?.tablaFinal)) {
+    return frozen.tablaFinal.map((team) => ({
+      nombre: team.equipo || team.nombre || '',
+      logo: team.escudo || team.logo || null,
+      pj: Number(team.pj || 0),
+      g: Number(team.g || 0),
+      e: Number(team.e || 0),
+      pe: Number(team.p ?? team.pe ?? 0),
+      gf: Number(team.gf || 0),
+      gc: Number(team.gc || 0),
+      pts: Number(team.pts || 0),
+      forma: Array.isArray(team.forma) ? team.forma.slice() : []
+    }));
+  }
+  const parts = filteredParts().filter(p=>p.status==='terminado' && !(typeof isCupMatch === 'function' && isCupMatch(p)));
   return buildTablaDataFromParts(parts);
 }
 
 function buildTablaVuelta(vuelta){ // vuelta: 1 o 2
   // Una "vuelta" = JORNADAS_POR_VUELTA jornadas seguidas
   // Detectamos la jornada de cada partido por su campo jornada o posición cronológica
-  const allParts = filteredParts().filter(p=>p.status==='terminado');
+  const allParts = filteredParts().filter(p=>p.status==='terminado' && !(typeof isCupMatch === 'function' && isCupMatch(p)));
   // Ordenar por fecha, luego hora si hay
   const sorted = allParts.slice().sort((a,b)=>{
     const da=a.fecha||'', db=b.fecha||''; return da<db?-1:da>db?1:0;
@@ -104,39 +120,46 @@ function createCupSlot(team, seed=null, fallbackLabel='Por definirse', opts={}){
   };
 }
 
-function buildCupProjectionDataFemenil(dataOverride=null){
-  // FORMATO CATEGORÍA LIBRE FEMENIL:
-  // 4 equipos · todos vs todos · 2 vueltas · 6 jornadas
-  // Semis: 1° vs 4° / 2° vs 3°
-  // Final: ganadoras de semifinal
+function buildCupProjectionDataTop4(dataOverride=null){
+  // Formato Lombardo Toledano: clasifican cuatro equipos.
+  // Semifinales 1° vs 4° y 2° vs 3°; los ganadores avanzan a la final.
   const tabla = Array.isArray(dataOverride) && dataOverride.length ? dataOverride.slice() : buildTablaData();
   if(tabla.length < 2) return null;
   const seededTeams = tabla.slice(0, Math.min(tabla.length, 4)).map((t,i)=>({...t, seed:i+1}));
   const s = (n) => seededTeams.find(t=>t.seed===n) || null;
+  const activeSeason = getActiveSeason(currentTorneo, currentCat);
+  const activePlan = typeof getSeasonCupPlan === 'function' ? getSeasonCupPlan(activeSeason, currentCat) : null;
+  const winnerFromPlan = (matchId) => {
+    if (!activePlan || typeof findCupPlanMatch !== 'function' || typeof getCupMatchWinnerId !== 'function') return null;
+    const planMatch = findCupPlanMatch(activePlan, matchId);
+    const winnerId = getCupMatchWinnerId(planMatch);
+    const planTeam = activePlan.seeds?.find((team) => team.equipoId === winnerId);
+    return planTeam ? { ...planTeam, seed: planTeam.seed, pts: s(planTeam.seed)?.pts || 0 } : null;
+  };
 
   const sf1 = {
     id:'sf1',
     slotA: createCupSlot(s(1),1,s(1)?s(1).nombre:'1°',{subtitle:'Llega como líder'}),
     slotB: createCupSlot(s(4),4,s(4)?s(4).nombre:'4°',{subtitle:s(4)?'Va por la sorpresa':'4° Lugar'}),
-    winner: null,
-    winnerLabel: 'Ganadora SF1',
+    winner: winnerFromPlan('semifinal_1'),
+    winnerLabel: 'Ganador SF1',
     note: `${s(1)?.nombre||'1°'} vs ${s(4)?.nombre||'4°'}`
   };
   const sf2 = {
     id:'sf2',
     slotA: createCupSlot(s(2),2,s(2)?s(2).nombre:'2°',{subtitle:'Quiere la gran final'}),
     slotB: createCupSlot(s(3),3,s(3)?s(3).nombre:'3°',{subtitle:s(3)?'Busca dar el golpe':'3° Lugar'}),
-    winner: null,
-    winnerLabel: 'Ganadora SF2',
+    winner: winnerFromPlan('semifinal_2'),
+    winnerLabel: 'Ganador SF2',
     note: `${s(2)?.nombre||'2°'} vs ${s(3)?.nombre||'3°'}`
   };
   const rSemi = { name:'Semifinales', short:'SF', matches:[sf1, sf2] };
 
   const fin = {
     id:'final',
-    slotA: createCupSlot(sf1.winner,sf1.winner?.seed||null,sf1.winnerLabel,{subtitle:'Ganadora de Semifinal 1'}),
-    slotB: createCupSlot(sf2.winner,sf2.winner?.seed||null,sf2.winnerLabel,{subtitle:'Ganadora de Semifinal 2'}),
-    winner: null,
+    slotA: createCupSlot(sf1.winner,sf1.winner?.seed||null,sf1.winnerLabel,{subtitle:'Ganador de Semifinal 1'}),
+    slotB: createCupSlot(sf2.winner,sf2.winner?.seed||null,sf2.winnerLabel,{subtitle:'Ganador de Semifinal 2'}),
+    winner: winnerFromPlan('final_1'),
     winnerLabel: 'Campeón',
     note: 'Gran Final'
   };
@@ -151,90 +174,60 @@ function buildCupProjectionDataFemenil(dataOverride=null){
     rounds: [rSemi, rFinal],
     seeds: seededTeams,
     eliminated: tabla.slice(4).map((t,i)=>({...t, seed:4+i+1})),
-    isFemenilFormat: true
+    isTop4Format: true,
+    isFemenilFormat: currentCat === 'cat_libre_femenil'
+  };
+}
+
+function buildAutomaticCupProjectionData(dataOverride=null) {
+  const tabla = Array.isArray(dataOverride) && dataOverride.length ? dataOverride.slice() : buildTablaData();
+  if (tabla.length < 2) return null;
+  const format = getCupFormatForCategory(currentCat, tabla.length, currentTorneo);
+  const seededTeams = tabla.slice(0, format.seeds).map((team, index) => ({ ...team, seed: index + 1 }));
+  const roundSizes = [];
+  let size = format.bracketSize || (seededTeams.length > 8 ? 16 : seededTeams.length > 4 ? 8 : seededTeams.length > 2 ? 4 : 2);
+  while (size >= 2) {
+    roundSizes.push(size);
+    size /= 2;
+  }
+  const roundName = (roundSize) => roundSize === 16 ? 'Octavos de final' : roundSize === 8 ? 'Cuartos de final' : roundSize === 4 ? 'Semifinales' : 'Gran final';
+  const rounds = roundSizes.map((roundSize, roundIndex) => ({
+    name: roundName(roundSize),
+    short: roundSize === 16 ? 'OF' : roundSize === 8 ? 'CF' : roundSize === 4 ? 'SF' : 'GF',
+    matches: Array.from({ length: roundSize / 2 }, (_, matchIndex) => {
+      const seedA = matchIndex + 1;
+      const seedB = roundSize - matchIndex;
+      const teamA = roundIndex === 0 ? seededTeams.find((team) => team.seed === seedA) : null;
+      const teamB = roundIndex === 0 ? seededTeams.find((team) => team.seed === seedB) : null;
+      return {
+        id: `${roundIndex}_${matchIndex}`,
+        slotA: createCupSlot(teamA, roundIndex === 0 ? seedA : null, roundIndex === 0 ? `${seedA}°` : 'Ganador ronda anterior'),
+        slotB: createCupSlot(teamB, roundIndex === 0 ? seedB : null, roundIndex === 0 ? `${seedB}°` : 'Ganador ronda anterior'),
+        winner: null,
+        winnerLabel: 'Por definirse',
+        note: roundName(roundSize)
+      };
+    })
+  }));
+  return {
+    formatKey: format.key,
+    bracketSize: roundSizes[0],
+    qualifiedTeams: seededTeams.length,
+    hasByes: seededTeams.length < roundSizes[0],
+    stageLabel: rounds[0]?.name || 'Copa',
+    leader: seededTeams[0] || null,
+    rounds,
+    seeds: seededTeams,
+    eliminated: tabla.slice(format.seeds)
   };
 }
 
 function buildCupProjectionData(dataOverride=null){
-  // FORMATO CATEGORÍA LIBRE VARONIL:
-  // TOP 6 clasifican
-  // Ronda de Repechaje:
-  //   Rep-A: 4° vs 5°  → ganador a SF contra 1° (Bracket Izquierdo)
-  //   Rep-B: 3° vs 6°  → ganador a SF contra 2° (Bracket Derecho)
-  // Semifinales:
-  //   SF1 (Izq): 1° vs Gan(Rep-A)
-  //   SF2 (Der): 2° vs Gan(Rep-B)
-  // Final: Gan SF1 vs Gan SF2
-  if(currentCat === 'cat_libre_femenil') return buildCupProjectionDataFemenil(dataOverride);
-  const tabla = Array.isArray(dataOverride) && dataOverride.length ? dataOverride.slice() : buildTablaData();
-  if(tabla.length < 2) return null;
-  const CUP_QUALIFY = 6;
-  const seededTeams = tabla.slice(0, Math.min(tabla.length, CUP_QUALIFY)).map((t,i)=>({...t, seed:i+1}));
-  const s = (n) => seededTeams.find(t=>t.seed===n) || null;
-
-  // ── REPECHAJE ──
-  const repA = {
-    id:'repA',
-    slotA: createCupSlot(s(4),4,s(4)?s(4).nombre:'4°',{}),
-    slotB: createCupSlot(s(5),5,s(5)?s(5).nombre:'5°',{}),
-    winner: null,
-    winnerLabel: 'Gan. Rep-A',
-    note: `${s(4)?.nombre||'4°'} vs ${s(5)?.nombre||'5°'}`
-  };
-  const repB = {
-    id:'repB',
-    slotA: createCupSlot(s(3),3,s(3)?s(3).nombre:'3°',{}),
-    slotB: createCupSlot(s(6),6,s(6)?s(6).nombre:'6°',{}),
-    winner: null,
-    winnerLabel: 'Gan. Rep-B',
-    note: `${s(3)?.nombre||'3°'} vs ${s(6)?.nombre||'6°'}`
-  };
-  const r0 = { name:'Repechaje', short:'REP', matches:[repA, repB] };
-
-  // ── SEMIFINALES ──
-  // SF1 (bracket izquierdo): 1° (bye directo) vs Ganador Rep-A
-  const sf1 = {
-    id:'sf1',
-    slotA: createCupSlot(s(1),1,s(1)?s(1).nombre:'1°',{subtitle:s(1)?`${s(1).pts||0}pts · Clasificó directo`:'Clasificó directo'}),
-    slotB: createCupSlot(repA.winner,repA.winner?.seed||null,repA.winnerLabel,{subtitle:repA.winner?`Seed ${repA.winner.seed}`:'Ganador Rep-A'}),
-    winner: null,
-    winnerLabel: 'Ganador SF1',
-    note: `${s(1)?.nombre||'1°'} vs ${repA.winnerLabel}`
-  };
-  // SF2 (bracket derecho): 2° (bye directo) vs Ganador Rep-B
-  const sf2 = {
-    id:'sf2',
-    slotA: createCupSlot(s(2),2,s(2)?s(2).nombre:'2°',{subtitle:s(2)?`${s(2).pts||0}pts · Clasificó directo`:'Clasificó directo'}),
-    slotB: createCupSlot(repB.winner,repB.winner?.seed||null,repB.winnerLabel,{subtitle:repB.winner?`Seed ${repB.winner.seed}`:'Ganador Rep-B'}),
-    winner: null,
-    winnerLabel: 'Ganador SF2',
-    note: `${s(2)?.nombre||'2°'} vs ${repB.winnerLabel}`
-  };
-  const r1 = { name:'Semifinales', short:'SF', matches:[sf1, sf2] };
-
-  // ── FINAL ──
-  const fin = {
-    id:'final',
-    slotA: createCupSlot(sf1.winner,sf1.winner?.seed||null,sf1.winnerLabel,{subtitle:sf1.winner?`Seed ${sf1.winner.seed}`:'Ganador SF1'}),
-    slotB: createCupSlot(sf2.winner,sf2.winner?.seed||null,sf2.winnerLabel,{subtitle:sf2.winner?`Seed ${sf2.winner.seed}`:'Ganador SF2'}),
-    winner: null,
-    winnerLabel: 'Campeón',
-    note: 'Gran Final'
-  };
-  const r2 = { name:'Final', short:'F', matches:[fin] };
-
-  const rounds = [r0, r1, r2];
-  const eliminated = tabla.slice(CUP_QUALIFY).map((t,i)=>({...t, seed:CUP_QUALIFY+i+1}));
-  return {
-    bracketSize: 6,
-    qualifiedTeams: seededTeams.length,
-    hasByes: true, // 1° y 2° tienen bye a semis
-    stageLabel: 'Repechaje',
-    leader: seededTeams[0]||null,
-    rounds, seeds: seededTeams, eliminated
-  };
+  if(getCompetitionFormat(currentCat, currentTorneo).cupFormat === 'top4_semifinals') {
+    return buildCupProjectionDataTop4(dataOverride);
+  }
+  return buildAutomaticCupProjectionData(dataOverride);
 }
-
 function renderBracketSlot(slot, adminMode=false){
   const logo = slot.team?.logo
     ? `<img class="bracket-logo" src="${escapeHtml(slot.team.logo)}" alt="${escapeHtml(slot.displayName)}"/>`
@@ -255,7 +248,10 @@ function renderBracketSlot(slot, adminMode=false){
   </div>`;
 }
 
-function buildGranFinalFemenilHtml(cupData, adminMode=false){
+function buildTop4FinalsHtml(cupData, adminMode=false){
+  const feminine = !!cupData.isFemenilFormat;
+  const championLabel = feminine ? 'CAMPEONAS' : 'CAMPEONES';
+  const finalistLabel = feminine ? 'Ganadoras de semifinales' : 'Ganadores de semifinales';
   const semifinales = cupData.rounds[0]?.matches || [];
   const sf1 = semifinales[0] || null;
   const sf2 = semifinales[1] || null;
@@ -304,7 +300,7 @@ function buildGranFinalFemenilHtml(cupData, adminMode=false){
         <div class="gff-camp-wrap">
           ${campLogoHtml}
           <div class="gff-camp-name">${escapeHtml(campeon.nombre)}</div>
-          <div class="gff-camp-tag">CAMPEONAS</div>
+          <div class="gff-camp-tag">${championLabel}</div>
         </div>
       </div>` : ''}
       <div class="gff-semifinals">
@@ -315,7 +311,7 @@ function buildGranFinalFemenilHtml(cupData, adminMode=false){
         <div class="gff-grand-copy">
           <div class="gff-grand-kicker">Partido único</div>
           <div class="gff-grand-title">GRAN FINAL</div>
-          <div class="gff-grand-sub">Ganadoras de semifinales</div>
+          <div class="gff-grand-sub">${finalistLabel}</div>
         </div>
         <div class="gff-grand-duel">
           ${slotCard(f1, 1)}
@@ -338,21 +334,14 @@ function buildCupBracketHtml(cupData, opts={}){
   const adminMode = !!opts.adminMode;
   const shareMode = !!opts.shareMode;
 
-  // Formato Femenil: Gran Final directa 1° vs 2°
-  if(cupData.isFemenilFormat){
-    return buildGranFinalFemenilHtml(cupData, adminMode);
+  // Formato Top 4: semifinales 1° vs 4° y 2° vs 3°, seguido de gran final.
+  if(cupData.isTop4Format){
+    return buildTop4FinalsHtml(cupData, adminMode);
   }
 
   // Copa visual: si hay exactamente 3 rondas (8 equipos), usar layout estilo torneo
   // Izquierda: ronda 0 (mitad A) + ronda 1 mitad A, Centro: Final, Derecha: ronda 0 (mitad B) + ronda 1 mitad B
   const rounds = cupData.rounds;
-  const totalRounds = rounds.length;
-
-  // Layout tipo bracket de copa: izquierda → centro ← derecha
-  if(totalRounds >= 2 && !shareMode){
-    return buildCopaBracketVisual(cupData, adminMode);
-  }
-
   // Fallback: layout lineal (share mode o pocas rondas)
   const wrapClass = `bracket-board${shareMode?' bracket-board-share':''}`;
   return `<div class="${wrapClass}" style="${shareMode?`--cup-rounds:${cupData.rounds.length};`:''}">
@@ -376,193 +365,8 @@ function buildCupBracketHtml(cupData, opts={}){
   </div>`;
 }
 
-function buildCopaBracketVisual(cupData, adminMode=false){
-  // FORMATO CATEGORÍA LIBRE VARONIL
-  // Rondas: [Repechaje, Semifinales, Final]
-  // Bracket Izquierdo: Rep-A (4°vs5°) → SF1 contra 1°
-  // Bracket Derecho:  Rep-B (3°vs6°) → SF2 contra 2°
-  const rounds = cupData.rounds;
-  const rRep   = rounds[0];  // Repechaje (2 partidos)
-  const rSemi  = rounds.length > 1 ? rounds[1] : null; // Semifinales
-  const rFinal = rounds[rounds.length - 1]; // Final
-  const finalMatch = rFinal?.matches[0] || null;
-  const campeon = finalMatch?.winner || null;
 
-  // Rep-A (4vs5) → izquierda  /  Rep-B (3vs6) → derecha
-  const repA = rRep?.matches[0] || null;
-  const repB = rRep?.matches[1] || null;
-  const sf1  = rSemi?.matches[0] || null; // izquierda (1° + ganRepA)
-  const sf2  = rSemi?.matches[1] || null; // derecha (2° + ganRepB)
-
-  // — render un slot individual —
-  function slotHtml(s, isByeSlot=false){
-    if(!s) return `<div class="cb-vs-slot cb-tbd-slot"><span class="cb-seed">?</span><span class="cb-logo-ph">⚽</span><span class="cb-name">Por definirse</span></div>`;
-    const logo = s.team?.logo
-      ? `<img class="cb-logo" src="${escapeHtml(s.team.logo)}" />`
-      : `<span class="cb-logo-ph">${s.isBye?'⬜':'⚽'}</span>`;
-    const seedCls = s.seed===1 ? 'cb-seed cb-seed-gold' : s.seed===2 ? 'cb-seed cb-seed-silver' : 'cb-seed';
-    const slotCls = `cb-vs-slot${s.isBye?' cb-bye':''}${s.isPlaceholder?' cb-tbd-slot':''}${isByeSlot?' cb-direct-slot':''}`;
-    const pts = adminMode && s.team ? `<span class="cb-pts">${s.team.pts||0}p</span>` : '';
-    const directBadge = isByeSlot ? `<span class="cb-direct-badge">Directo</span>` : '';
-    return `<div class="${slotCls}">
-      <span class="${seedCls}">${s.seed?`#${s.seed}`:'?'}</span>
-      ${logo}
-      <span class="cb-name">${escapeHtml(s.displayName||'Por definirse')}</span>
-      ${directBadge}${pts}
-    </div>`;
-  }
-
-  // — tarjeta de partido —
-  function matchCard(match, extraClass='', byeSlotIndex=-1){
-    if(!match) return `<div class="cb-match cb-tbd ${extraClass}">
-      <div class="cb-vs-slot cb-tbd-slot"><span class="cb-seed">?</span><span class="cb-logo-ph">⚽</span><span class="cb-name">Por definirse</span></div>
-      <div class="cb-divider"><span>VS</span></div>
-      <div class="cb-vs-slot cb-tbd-slot"><span class="cb-seed">?</span><span class="cb-logo-ph">⚽</span><span class="cb-name">Por definirse</span></div>
-    </div>`;
-    const winnerBadge = match.winner
-      ? `<span class="cb-winner-badge">✓ ${escapeHtml(match.winner.nombre)}</span>`
-      : '';
-    return `<div class="cb-match ${extraClass}">
-      ${slotHtml(match.slotA, byeSlotIndex===0)}
-      <div class="cb-divider"><span>VS</span>${winnerBadge}</div>
-      ${slotHtml(match.slotB, byeSlotIndex===1)}
-    </div>`;
-  }
-
-  const campLogoHtml = campeon?.logo
-    ? `<img src="${escapeHtml(campeon.logo)}" class="cb-camp-logo"/>`
-    : `<div class="cb-camp-logo-ph">🏆</div>`;
-
-  const repName  = escapeHtml(rRep?.name || 'Repechaje');
-  const semiName = escapeHtml(rSemi?.name || 'Semifinales');
-  const finalName = escapeHtml(rFinal?.name || 'Final');
-
-  return `
-  <div class="cb-bracket">
-
-    <!-- ════ NOTA FORMATO ════ -->
-    <div style="text-align:center;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
-      <span style="background:linear-gradient(135deg,#fbbf24,#ca8a04);color:#fff;font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;border-radius:999px;">🥇 1° y 2° → Directo a Semis</span>
-      <span style="background:rgba(37,84,212,.1);color:var(--acc);border:1px solid rgba(37,84,212,.25);font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;border-radius:999px;">🔥 3°-6° → Repechaje</span>
-    </div>
-
-    <!-- ════ LAYOUT DESKTOP ════
-         REP-A | conn | SF1(1°+ganA) | conn | FINAL | conn | SF2(2°+ganB) | conn | REP-B
-    -->
-    <div class="cb-full-grid">
-
-      <!-- COL 1: Repechaje A (4° vs 5°) -->
-      <div class="cb-col">
-        <div class="cb-col-label" style="background:linear-gradient(135deg,#dc2626,#991b1b)">${repName} A</div>
-        <div class="cb-col-matches" style="justify-content:center">
-          <div class="cb-col-sublabel" style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:6px;text-transform:uppercase;">4° vs 5°</div>
-          ${matchCard(repA)}
-        </div>
-      </div>
-
-      <!-- COL 2: Conector Rep→SF izquierda -->
-      <div class="cb-col cb-col-conn">
-        <div class="cb-conn-tree cb-conn-tree-right">
-          <div class="cb-tree-branch"></div>
-          <div class="cb-tree-trunk"></div>
-        </div>
-      </div>
-
-      <!-- COL 3: Semifinal 1 (1° directo + Gan.Rep-A) -->
-      <div class="cb-col">
-        <div class="cb-col-label">${semiName} 1</div>
-        <div class="cb-col-matches cb-col-matches-centered">
-          <div class="cb-col-sublabel" style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:6px;text-transform:uppercase;">1° vs Gan. Rep-A</div>
-          ${matchCard(sf1,'',0)}
-        </div>
-      </div>
-
-      <!-- COL 4: Conector SF→Final izquierda -->
-      <div class="cb-col cb-col-conn cb-col-conn-sm">
-        <div class="cb-conn-arrow cb-conn-arrow-right"></div>
-      </div>
-
-      <!-- COL 5: Centro — Trofeo + Final -->
-      <div class="cb-col cb-col-center">
-        <div class="cb-trophy-box">
-          <div class="cb-trophy-icon">🏆</div>
-          <div class="cb-trophy-label">GRAN FINAL</div>
-          ${campeon ? `
-          <div class="cb-camp-wrap">
-            ${campLogoHtml}
-            <div class="cb-camp-name">${escapeHtml(campeon.nombre)}</div>
-            <div class="cb-camp-tag">CAMPEÓN</div>
-          </div>` : `<div class="cb-camp-tbd">Por definirse</div>`}
-        </div>
-        <div class="cb-final-label">${finalName}</div>
-        ${matchCard(finalMatch, 'cb-match-final')}
-      </div>
-
-      <!-- COL 6: Conector Final→SF derecha -->
-      <div class="cb-col cb-col-conn cb-col-conn-sm">
-        <div class="cb-conn-arrow cb-conn-arrow-left"></div>
-      </div>
-
-      <!-- COL 7: Semifinal 2 (2° directo + Gan.Rep-B) -->
-      <div class="cb-col">
-        <div class="cb-col-label">${semiName} 2</div>
-        <div class="cb-col-matches cb-col-matches-centered">
-          <div class="cb-col-sublabel" style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:6px;text-transform:uppercase;">2° vs Gan. Rep-B</div>
-          ${matchCard(sf2,'',0)}
-        </div>
-      </div>
-
-      <!-- COL 8: Conector SF→Rep derecha -->
-      <div class="cb-col cb-col-conn">
-        <div class="cb-conn-tree cb-conn-tree-left">
-          <div class="cb-tree-branch"></div>
-          <div class="cb-tree-trunk"></div>
-        </div>
-      </div>
-
-      <!-- COL 9: Repechaje B (3° vs 6°) -->
-      <div class="cb-col">
-        <div class="cb-col-label" style="background:linear-gradient(135deg,#dc2626,#991b1b)">${repName} B</div>
-        <div class="cb-col-matches" style="justify-content:center">
-          <div class="cb-col-sublabel" style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:6px;text-transform:uppercase;">3° vs 6°</div>
-          ${matchCard(repB)}
-        </div>
-      </div>
-
-    </div><!-- /cb-full-grid -->
-
-    <!-- ════ LAYOUT MÓVIL: stack vertical ════ -->
-    <div class="cb-mobile-stack">
-      <div class="cb-mob-label" style="background:linear-gradient(135deg,#dc2626,#991b1b)">🔥 ${repName} A — 4° vs 5°</div>
-      ${matchCard(repA)}
-      <div class="cb-mob-connector"></div>
-      <div class="cb-mob-label">${semiName} 1 — 1° vs Gan.Rep-A</div>
-      ${matchCard(sf1,'',0)}
-
-      <div class="cb-mob-connector"></div>
-      <div class="cb-mob-center">
-        <div class="cb-trophy-box">
-          <div class="cb-trophy-icon">🏆</div>
-          <div class="cb-trophy-label">GRAN FINAL</div>
-          ${campeon ? `<div class="cb-camp-wrap">${campLogoHtml}<div class="cb-camp-name">${escapeHtml(campeon.nombre)}</div><div class="cb-camp-tag">CAMPEÓN</div></div>` : `<div class="cb-camp-tbd">Por definirse</div>`}
-        </div>
-        <div class="cb-final-label" style="margin-top:8px;">${finalName}</div>
-        ${matchCard(finalMatch, 'cb-match-final')}
-      </div>
-
-      <div class="cb-mob-connector"></div>
-      <div class="cb-mob-label">${semiName} 2 — 2° vs Gan.Rep-B</div>
-      ${matchCard(sf2,'',0)}
-      <div class="cb-mob-connector"></div>
-      <div class="cb-mob-label" style="background:linear-gradient(135deg,#dc2626,#991b1b)">🔥 ${repName} B — 3° vs 6°</div>
-      ${matchCard(repB)}
-    </div><!-- /cb-mobile-stack -->
-
-  </div><!-- /cb-bracket -->`;
-}
-
-// ── VUELTA STATE ──────────────────────────────────────────
-let currentVuelta = 'general'; // 'general' | 'v1' | 'v2'
+let currentVuelta = 'general';
 
 function getTablaForVuelta(){
   if(currentVuelta === 'v1') return buildTablaVuelta(1);
@@ -614,14 +418,21 @@ function renderTabla(){
         <span class="bracket-chip">${cupData.qualifiedTeams} equipos</span>
         <span class="bracket-chip">${escapeHtml(cupData.stageLabel)}</span>
       </div>`;
-    const isFemenil = !!cupData.isFemenilFormat;
-    const copaHeaderHtml = isFemenil ? '' : `
+    const isTop4 = !!cupData.isTop4Format;
+    const copaHeaderHtml = isTop4 ? `
+        <div class="bracket-header bracket-header-top4">
+          <div>
+            <div class="bracket-title">CAMINO AL CAMPEONATO</div>
+            <div class="bracket-subtitle">Top 4 · Semifinales 1° vs 4° y 2° vs 3° · Gran final</div>
+          </div>
+          ${adminChipsHtml}
+        </div>` : `
         <div class="bracket-header">
           <div style="display:flex;align-items:center;gap:10px;">
             <span style="font-size:24px;">🏆</span>
             <div>
               <div class="bracket-title">CUADRO DE COPA</div>
-              <div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:1px;margin-top:2px;">Top 6 · Repechaje → SF → Final</div>
+              <div class="bracket-subtitle">${escapeHtml(cupData.stageLabel)} · Eliminación directa</div>
             </div>
           </div>
           ${adminChipsHtml}
@@ -899,6 +710,10 @@ function previewSeasonChampionImage() {
 }
 
 function openFinalizarTemporada() {
+  if (typeof openSeasonLifecycle === 'function') {
+    openSeasonLifecycle();
+    return;
+  }
   if (!isAdmin) {
     showToast('Solo administradores pueden finalizar temporadas', 'tr');
     return;
@@ -1010,6 +825,10 @@ async function crearNuevaTemporada() {
     costos: {
       inscripcion: Number(document.getElementById('new_temp_insc')?.value || 0),
       arbitrajeEquipo: Number(document.getElementById('new_temp_arb')?.value || 250)
+    },
+    competition: {
+      cupEnabled: document.getElementById('new_temp_copa')?.checked !== false,
+      categoryFormats: Object.fromEntries(cats.map((cat) => [cat, getCompetitionFormat(cat, torneo)]))
     },
     equiposIniciales: 0,
     audit: [{
@@ -1276,18 +1095,17 @@ function renderHistorial(){
   const renderTemps = (temps=[]) => {
     if(!temps.length){el.innerHTML=adminStatePanel + '<div class="empty"><span class="empty-icon">🏆</span>Sin temporadas finalizadas aún.<br/><span style="font-size:11px;color:var(--muted)">Finaliza una temporada para guardar su historial público.</span></div>';return;}
     el.innerHTML=adminStatePanel + temps.map(t=>`
-      <div style="background:var(--card);border:2px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden">
-        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--gold),var(--amber))"></div>
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+      <article class="history-season-card">
+        <div class="history-season-head">
           <div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--text)">${t.nombre||'Temporada'}</div>
-            <div style="font-size:10px;font-weight:700;color:var(--muted);margin-top:2px">${TORNEO_NAMES[t.torneo]||t.torneo} · ${escapeHtml(t.estado || 'finished')}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:1px">📅 ${escapeHtml(t.fechaInicio || '—')} → ${escapeHtml(t.fechaFinalizacion || t.fecha || '—')}</div>
+            <span class="history-season-kicker">Memoria del torneo</span>
+            <h2>${escapeHtml(t.nombre||'Temporada')}</h2>
+            <p>${escapeHtml(TORNEO_NAMES[t.torneo]||t.torneo)} · ${escapeHtml(t.fechaInicio || 'Inicio')} — ${escapeHtml(t.fechaFinalizacion || t.fecha || 'Cierre')}</p>
           </div>
           ${isOwner && t.estado === 'finished' ? `<button class="btn btn-out btn-sm" onclick="reabrirTemporada('${t._key}')">Reabrir</button>` : ''}
         </div>
         ${renderSeasonPublicBody(t, selectedCat)}
-      </div>`).join('');
+      </article>`).join('');
   };
   renderTemps(filteredTemps);
 }
@@ -1297,7 +1115,7 @@ function renderSeasonPublicBody(t, selectedCat = '') {
     ? Object.values(t.categoriasSnapshot).filter((snap) => !selectedCat || snap.cat === selectedCat)
     : [{ cat: t.cat, catNombre: CAT_NAMES[t.cat] || t.cat, tablaFinal: t.tablaFinal || t.tabla || [], goleadoresFinal: [], equiposParticipantes: [] }];
   const champImage = t.championImage?.url
-    ? `<figure style="margin:0 0 12px"><img src="${escapeHtml(t.championImage.url)}" alt="${escapeHtml(t.championImage.alt || 'Foto de campeones')}" style="width:100%;max-height:280px;object-fit:cover;border-radius:14px;border:1px solid var(--border)"/><figcaption style="font-size:10px;color:var(--muted);font-weight:700;margin-top:5px">${escapeHtml(t.championImage.caption || '')}</figcaption></figure>`
+    ? `<figure class="history-champion-photo"><img src="${escapeHtml(t.championImage.url)}" alt="${escapeHtml(t.championImage.alt || 'Foto de campeones')}"/><figcaption>${escapeHtml(t.championImage.caption || 'El equipo que dejó su nombre en la historia')}</figcaption></figure>`
     : '';
   const streamBtn = t.final?.stream?.url
     ? `<a class="btn btn-g btn-full" href="${escapeHtml(t.final.stream.url)}" target="_blank" rel="noopener" style="text-decoration:none;margin-bottom:10px">${escapeHtml(t.final.stream.buttonText || 'Ver transmisión de la final')}</a>`
@@ -1317,6 +1135,7 @@ function renderSeasonPublicBody(t, selectedCat = '') {
     ${cats.map((snap) => `<section style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
       <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;color:var(--acc);text-transform:uppercase;margin-bottom:8px">${escapeHtml(snap.catNombre || snap.cat)}</div>
       ${renderSeasonTableSnapshot(snap.tablaFinal || [])}
+      ${typeof renderHistoricCup === 'function' ? renderHistoricCup(snap.copaFinal) : ''}
       ${renderSeasonScorersSnapshot(snap.goleadoresFinal || [])}
       ${snap.equiposParticipantes?.length ? `<div style="font-size:10px;color:var(--muted);font-weight:800;margin-top:8px">Equipos participantes: ${snap.equiposParticipantes.map((e) => escapeHtml(e.nombre)).join(', ')}</div>` : ''}
     </section>`).join('')}
@@ -1359,12 +1178,13 @@ async function guardarTemporada(){
   }
   const anio = Number(document.getElementById('temp_anio')?.value || new Date().getFullYear());
   const streamUrl = sanitizeSeasonUrl(document.getElementById('temp_stream_url')?.value);
-  const champImg = sanitizeSeasonUrl(document.getElementById('temp_champ_img')?.value, { image: true });
+  const uploadedChampImg = document.getElementById('temp_champ_data')?.value || '';
+  const champImg = uploadedChampImg || sanitizeSeasonUrl(document.getElementById('temp_champ_img')?.value, { image: true });
   if (document.getElementById('temp_stream_url')?.value && !streamUrl) {
     showToast('URL de transmisión inválida', 'tr');
     return;
   }
-  if (document.getElementById('temp_champ_img')?.value && !champImg) {
+  if (!uploadedChampImg && document.getElementById('temp_champ_img')?.value && !champImg) {
     showToast('URL de imagen inválida. Usa JPG, PNG o WEBP', 'tr');
     return;
   }
@@ -1393,7 +1213,10 @@ async function guardarTemporada(){
     torneoId:firestoreTorneoId(torneo),
     categoriaId:firestoreCatId(mainCat),
     categorias:draft.cats,
-    categoriasSnapshot:draft.categoriasSnapshot,
+    categoriasSnapshot:Object.fromEntries(Object.entries(draft.categoriasSnapshot).map(([cat, snapshot]) => [cat, {
+      ...snapshot,
+      copaFinal: typeof getCupHistorySnapshot === 'function' ? getCupHistorySnapshot(getActiveSeason(torneo, cat), cat) : null
+    }])),
     fechaInicio:'',
     fechaFinalizacion:new Date(now).toISOString(),
     finishedAtMs:now,
@@ -1442,10 +1265,37 @@ async function guardarTemporada(){
     fecha:new Date(now).toISOString().split('T')[0],
     ts:now
   };
-  const temporadaKey = activeSeason?._key || finalSeasonId || newDocId('temporada', `${nombre}_${Date.now()}`);
-  if(fs) await saveDoc('temporadas', temporadaKey, data);
-  else await db.ref('historial').push(data);
-  C.temporadas[temporadaKey] = data;
+  const parentCategories = Array.isArray(activeSeason?.categorias) ? activeSeason.categorias.map(appCatId) : [activeSeason?.cat].filter(Boolean);
+  const closesPartOfSharedSeason = !!activeSeason?._key && parentCategories.length > 1 && draft.cats.length === 1;
+  let temporadaKey = activeSeason?._key || finalSeasonId || newDocId('temporada', `${nombre}_${Date.now()}`);
+  if (closesPartOfSharedSeason) {
+    temporadaKey = newDocId('historial', `${activeSeason.seasonId || activeSeason._key}_${mainCat}_${now}`);
+    data.seasonId = temporadaKey;
+    data.sourceSeasonId = activeSeason.seasonId || activeSeason._key;
+    data.nombre = `${nombre} · ${CAT_NAMES[mainCat] || mainCat}`;
+    data.seasonName = data.nombre;
+    const categoryStates = { ...(activeSeason.categoryStates || {}), [mainCat]: 'finished' };
+    const allCategoriesFinished = parentCategories.every((cat) => categoryStates[cat] === 'finished');
+    const parentPatch = {
+      categoryStates,
+      estado: allCategoriesFinished ? 'archived' : 'cup_active',
+      updatedAtMs: now,
+      audit: [...(activeSeason.audit || []), { action: 'archive_category', cat: mainCat, historyId: temporadaKey, at: now, uid: currentUser?.uid || '', email: currentUser?.email || '' }]
+    };
+    if (fs) {
+      await saveDoc('temporadas', temporadaKey, data);
+      await updateDoc('temporadas', activeSeason._key, parentPatch);
+    } else {
+      await db.ref(`temporadas/${temporadaKey}`).set(data);
+      await db.ref(`temporadas/${activeSeason._key}`).update(parentPatch);
+    }
+    C.temporadas[temporadaKey] = data;
+    Object.assign(C.temporadas[activeSeason._key], parentPatch);
+  } else {
+    if(fs) await saveDoc('temporadas', temporadaKey, data);
+    else await db.ref(`temporadas/${temporadaKey}`).set(data);
+    C.temporadas[temporadaKey] = data;
+  }
   closeModal('modalGuardarTemporada');
   ['temp_campeon','temp_subcampeon','temp_goleador','temp_notas','temp_confirm'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   showToast('✅ Temporada finalizada y guardada','tg');
@@ -1566,7 +1416,7 @@ function _shareMatchCard(match, isFinal=false){
   </div>`;
 }
 function buildShareBracketInline(cupData){
-  if(cupData?.isFemenilFormat){
+  if(cupData?.isTop4Format){
     return buildCupBracketHtml(cupData, {adminMode:false, shareMode:true});
   }
   const rounds = cupData.rounds;
@@ -1673,9 +1523,9 @@ function compartirCopa(){
     : '';
 
   const bracketInlineHtml = buildShareBracketInline(cupData);
-  const copaHeroLine = cupData?.isFemenilFormat
+  const copaHeroLine = cupData?.isTop4Format
     ? `${escapeHtml(cat)} &nbsp;&middot;&nbsp; 4 equipos &nbsp;&middot;&nbsp; Semis 1° vs 4° y 2° vs 3° &nbsp;&middot;&nbsp; Gran Final`
-    : `${escapeHtml(cat)} &nbsp;&middot;&nbsp; Top 6 &nbsp;&middot;&nbsp; Cuartos &nbsp;&middot;&nbsp; SF &nbsp;&middot;&nbsp; Final`;
+    : `${escapeHtml(cat)} &nbsp;&middot;&nbsp; ${cupData.qualifiedTeams} equipos &nbsp;&middot;&nbsp; ${escapeHtml(cupData.stageLabel)} &nbsp;&middot;&nbsp; Final`;
 
   captureDiv.innerHTML = `
     <div style="background:radial-gradient(ellipse 70% 45% at 85% 5%,rgba(37,84,212,.08),transparent),radial-gradient(ellipse 50% 40% at 10% 92%,rgba(46,168,60,.07),transparent),linear-gradient(180deg,#ffffff 0%,#f7fbff 45%,#f0f6fc 100%);padding:58px 64px 52px;position:relative;overflow:hidden;">
@@ -1918,6 +1768,53 @@ function buildShareListRows(items){
   `).join('');
 }
 
+function buildCleanTableSharePayload(data, torneo, categoria, fecha, organizerLine, baseFile) {
+  const rows = data.map((team, index) => {
+    const goalDifference = Number(team.gf || 0) - Number(team.gc || 0);
+    const logo = team.logo
+      ? `<img src="${escapeHtml(team.logo)}" alt="${escapeHtml(team.nombre)}" crossorigin="anonymous"/>`
+      : '<span class="share-table-logo-placeholder">⚽</span>';
+    return `<div class="share-table-row${index < 3 ? ` is-top is-top-${index + 1}` : ''}">
+      <strong class="share-table-position">${index + 1}</strong>
+      <div class="share-table-team">${logo}<span>${escapeHtml(team.nombre)}</span></div>
+      <span>${Number(team.pj || 0)}</span>
+      <span>${Number(team.g || 0)}</span>
+      <span>${Number(team.e || 0)}</span>
+      <span>${Number(team.pe || 0)}</span>
+      <span>${Number(team.gf || 0)}</span>
+      <span>${Number(team.gc || 0)}</span>
+      <span class="${goalDifference > 0 ? 'is-positive' : goalDifference < 0 ? 'is-negative' : ''}">${goalDifference > 0 ? '+' : ''}${goalDifference}</span>
+      <strong class="share-table-points">${Number(team.pts || 0)}</strong>
+    </div>`;
+  }).join('');
+  const caption = `${torneo} | ${categoria}\nTabla general actualizada al ${fecha}.\n${organizerLine}`;
+  return {
+    kind: 'tabla',
+    title: 'Tabla general',
+    caption,
+    filename: baseFile,
+    html: `<div class="share-card share-table-only">
+      <header class="share-table-header">
+        <div class="share-table-identity">${buildShareLogosHtml()}</div>
+        <div class="share-table-heading">
+          <span>Tabla general</span>
+          <h1>${escapeHtml(torneo)}</h1>
+          <p>${escapeHtml(categoria)}</p>
+        </div>
+        <div class="share-table-details">
+          <strong>${escapeHtml(ORGANIZER_NAME)}</strong>
+          <span>${escapeHtml(ORGANIZER_PHONE)}</span>
+          <time>${escapeHtml(fecha)}</time>
+        </div>
+      </header>
+      <div class="share-table-board">
+        <div class="share-table-columns"><span>#</span><span>Equipo</span><span>PJ</span><span>G</span><span>E</span><span>P</span><span>GF</span><span>GC</span><span>DG</span><span>PTS</span></div>
+        ${rows}
+      </div>
+    </div>`
+  };
+}
+
 function getStatsSharePayloadBase(tipo, dataOverride=null){
   const torneo = TORNEO_NAMES[currentTorneo] || 'TORNEO LOMBARDO TOLEDANO';
   const categoria = getShareCategoryLabel();
@@ -1928,216 +1825,8 @@ function getStatsSharePayloadBase(tipo, dataOverride=null){
   if(tipo === 'tabla'){
     const data = Array.isArray(dataOverride) && dataOverride.length ? dataOverride : buildTablaData();
     if(!data.length) return null;
-    const partidos = filteredParts().filter(p=>p.status==='terminado');
-    const totalGoles = partidos.reduce((sum,p)=>sum+(p.gL||0)+(p.gV||0),0);
-    const top = data[0];
-    const segundo = data[1] || null;
-
-    // — logos —
-    const logoTop = top.logo
-      ? `<img src="${top.logo}" style="width:100px;height:100px;object-fit:contain;background:transparent;border:0;box-shadow:none;display:block;"/>`
-      : `<div style="width:100px;height:100px;border-radius:22px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:44px;">⚽</div>`;
-    const logoSeg = segundo?.logo
-      ? `<img src="${segundo.logo}" style="width:88px;height:88px;object-fit:contain;background:transparent;border:0;box-shadow:none;display:block;"/>`
-      : `<div style="width:88px;height:88px;border-radius:20px;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:38px;">⚽</div>`;
-
-    // Stats mini chips for top team
-    const dgTop = (top.gf||0)-(top.gc||0);
-    const pctTop = top.pj>0?Math.round(top.g/top.pj*100):0;
-
-    // Rows for tabla (top 10)
-    const rows = data.slice(0,10).map((t,i)=>{
-      const pos = i + 1;
-      const dg = (t.gf||0) - (t.gc||0);
-      const isTop = pos===1, isSeg = pos===2, isTop3 = pos===3;
-      const rowBg = isTop
-        ? 'background:linear-gradient(90deg,rgba(251,191,36,.12),rgba(255,255,255,.7) 70%);border-left:4px solid #f59e0b;'
-        : isSeg
-        ? 'background:linear-gradient(90deg,rgba(37,99,235,.09),rgba(255,255,255,.7) 70%);border-left:4px solid #3b82f6;'
-        : isTop3
-        ? 'background:linear-gradient(90deg,rgba(180,83,9,.07),rgba(255,255,255,.7) 70%);border-left:4px solid #b45309;'
-        : '';
-      const posBg = isTop
-        ? 'background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;box-shadow:0 4px 10px rgba(245,158,11,.4);'
-        : isSeg
-        ? 'background:linear-gradient(135deg,#e2e8f0,#94a3b8);color:#fff;'
-        : isTop3
-        ? 'background:linear-gradient(135deg,#fed7aa,#b45309);color:#fff;'
-        : 'background:#f1f5f9;color:#64748b;border:1px solid #dbe4ee;';
-      const logoHtml = t.logo
-        ? `<img src="${t.logo}" style="width:36px;height:36px;object-fit:contain;background:transparent;border:0;box-shadow:none;flex-shrink:0;"/>`
-        : `<div style="width:36px;height:36px;border-radius:10px;background:#f8fafc;border:1px solid #dbe4ee;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⚽</div>`;
-      return `<div style="${rowBg}display:grid;grid-template-columns:60px minmax(0,1fr) 56px 52px 52px 52px 68px 80px;align-items:center;padding:13px 18px;border-bottom:1px solid #edf2f7;gap:6px;">
-        <div style="${posBg}width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;font-weight:900;margin:0 auto;">${pos}</div>
-        <div style="display:flex;align-items:center;gap:10px;min-width:0;">${logoHtml}<div style="min-width:0;"><div style="font-size:17px;font-weight:900;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.nombre)}</div>${isTop?`<div style="font-size:10px;font-weight:800;color:#ca8a04;letter-spacing:.5px;margin-top:1px;">Líder del torneo</div>`:isSeg?`<div style="font-size:10px;font-weight:800;color:#2563eb;letter-spacing:.5px;margin-top:1px;">Gran Final</div>`:''}</div></div>
-        <div style="text-align:center;font-size:16px;font-weight:700;color:#475569;">${t.pj||0}</div>
-        <div style="text-align:center;font-size:16px;font-weight:800;color:#16a34a;">${t.g||0}</div>
-        <div style="text-align:center;font-size:16px;font-weight:700;color:#64748b;">${t.e||0}</div>
-        <div style="text-align:center;font-size:16px;font-weight:700;color:#dc2626;">${t.pe||0}</div>
-        <div style="text-align:center;font-size:16px;font-weight:700;color:${dg>0?'#16a34a':dg<0?'#dc2626':'#64748b'};">${dg>0?'+':''}${dg}</div>
-        <div style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:28px;color:#1d4ed8;line-height:1;">${t.pts||0}</div>
-      </div>`;
-    }).join('');
-
-    const bodyHtml = `
-      <!-- ══ BLOQUE 1: LÍDER ══ -->
-      <div style="position:relative;overflow:hidden;border-radius:28px;margin-bottom:18px;z-index:1;">
-        <!-- Fondo degradado vibrante -->
-        <div style="position:absolute;inset:0;background:linear-gradient(135deg,#1a3a8a 0%,#1d4ed8 40%,#0ea5e9 75%,#2ea83c 100%);"></div>
-        <!-- Textura / partículas decorativas -->
-        <div style="position:absolute;inset:0;background:radial-gradient(circle at 85% 20%,rgba(255,255,255,.12) 0%,transparent 40%),radial-gradient(circle at 15% 80%,rgba(255,255,255,.08) 0%,transparent 35%);pointer-events:none;"></div>
-        <!-- Barra brillante superior -->
-        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.7),rgba(255,255,255,0));"></div>
-        <!-- Contenido -->
-        <div style="position:relative;z-index:1;padding:28px 30px 26px;display:flex;align-items:center;gap:22px;">
-          <!-- Corona + logo -->
-          <div style="position:relative;flex-shrink:0;">
-            <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:22px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));">👑</div>
-            ${logoTop}
-            <!-- Badge #1 -->
-            <div style="position:absolute;bottom:-8px;right:-8px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#f59e0b);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:16px;color:#7c2d12;box-shadow:0 4px 10px rgba(245,158,11,.5);">1</div>
-          </div>
-          <!-- Info equipo -->
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:10px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.65);margin-bottom:4px;">Líder del Torneo · ${escapeHtml(categoria)}</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:54px;letter-spacing:1.5px;line-height:.9;color:#fff;word-break:break-word;text-shadow:0 4px 18px rgba(0,0,0,.25);">${escapeHtml(top.nombre)}</div>
-            <!-- Stats inline -->
-            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-              <div style="background:rgba(255,255,255,.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:7px 14px;text-align:center;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#fff;line-height:1;">${top.pts||0}</div>
-                <div style="font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:2px;">Puntos</div>
-              </div>
-              <div style="background:rgba(255,255,255,.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:7px 14px;text-align:center;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#fff;line-height:1;">${top.g||0}</div>
-                <div style="font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:2px;">Ganados</div>
-              </div>
-              <div style="background:rgba(255,255,255,.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:7px 14px;text-align:center;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:${dgTop>=0?'#86efac':'#fca5a5'};line-height:1;">${dgTop>0?'+':''}${dgTop}</div>
-                <div style="font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:2px;">DG</div>
-              </div>
-              <div style="background:rgba(255,255,255,.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:7px 14px;text-align:center;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#fff;line-height:1;">${pctTop}%</div>
-                <div style="font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:2px;">Win Rate</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ BLOQUE 2: GRAN FINAL ══ -->
-      ${segundo ? `
-      <div style="position:relative;overflow:hidden;border-radius:28px;margin-bottom:18px;z-index:1;background:linear-gradient(160deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);box-shadow:0 14px 34px rgba(15,23,42,.18);">
-        <!-- Barra dorada superior -->
-        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#d97706,#f59e0b,#fbbf24,#f59e0b,#d97706);"></div>
-        <!-- Orbs decorativos -->
-        <div style="position:absolute;top:0;right:0;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(251,191,36,.18),transparent 65%);pointer-events:none;"></div>
-        <div style="position:absolute;bottom:0;left:0;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.2),transparent 65%);pointer-events:none;"></div>
-        <!-- Contenido -->
-        <div style="position:relative;z-index:1;padding:24px 28px 26px;">
-          <!-- Label -->
-          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;">
-            <div style="height:1px;flex:1;background:linear-gradient(90deg,transparent,rgba(251,191,36,.4));"></div>
-            <div style="font-size:11px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#fbbf24;display:flex;align-items:center;gap:6px;white-space:nowrap;">⚡ GRAN FINAL ⚡</div>
-            <div style="height:1px;flex:1;background:linear-gradient(90deg,rgba(251,191,36,.4),transparent);"></div>
-          </div>
-          <!-- Duelo -->
-          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;">
-            <!-- Equipo 1 -->
-            <div style="display:flex;flex-direction:column;align-items:center;gap:10px;background:rgba(255,255,255,.06);border:1px solid rgba(251,191,36,.25);border-radius:22px;padding:20px 14px;box-shadow:0 8px 20px rgba(0,0,0,.15);">
-              <div style="position:relative;">
-                ${logoTop}
-                <div style="position:absolute;top:-10px;left:-10px;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#f59e0b);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:16px;color:#7c2d12;box-shadow:0 3px 8px rgba(245,158,11,.5);">1</div>
-              </div>
-              <div style="font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:rgba(251,191,36,.8);">1er Lugar</div>
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:#fff;text-align:center;line-height:1;word-break:break-word;">${escapeHtml(top.nombre)}</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
-                <span style="background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:800;color:#fde68a;">${top.pts||0} PTS</span>
-                <span style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:rgba(255,255,255,.65);">${pctTop}% win</span>
-              </div>
-            </div>
-            <!-- VS central -->
-            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 6px;">
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:72px;color:rgba(255,255,255,.12);line-height:1;letter-spacing:2px;">VS</div>
-              <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#d97706,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 18px rgba(217,119,6,.45);">⚽</div>
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:72px;color:rgba(255,255,255,.12);line-height:1;letter-spacing:2px;">VS</div>
-            </div>
-            <!-- Equipo 2 -->
-            <div style="display:flex;flex-direction:column;align-items:center;gap:10px;background:rgba(255,255,255,.06);border:1px solid rgba(99,102,241,.3);border-radius:22px;padding:20px 14px;box-shadow:0 8px 20px rgba(0,0,0,.15);">
-              <div style="position:relative;">
-                ${logoSeg}
-                <div style="position:absolute;top:-10px;right:-10px;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#6366f1);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:14px;color:#fff;box-shadow:0 3px 8px rgba(99,102,241,.4);">2</div>
-              </div>
-              <div style="font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:rgba(129,140,248,.9);">2do Lugar</div>
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:#fff;text-align:center;line-height:1;word-break:break-word;">${escapeHtml(segundo.nombre)}</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
-                <span style="background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.35);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:800;color:#c7d2fe;">${segundo.pts||0} PTS</span>
-                <span style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:rgba(255,255,255,.65);">${segundo.pj>0?Math.round(segundo.g/segundo.pj*100):0}% win</span>
-              </div>
-            </div>
-          </div>
-          <!-- Sub label -->
-          <div style="text-align:center;margin-top:16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:1px;">El duelo que definirá al campeón al finalizar el torneo</div>
-        </div>
-      </div>` : ''}
-
-      <!-- ══ BLOQUE 3: TABLA GENERAL ══ -->
-      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:24px;overflow:hidden;box-shadow:0 10px 28px rgba(15,23,42,.07);position:relative;z-index:1;">
-        <!-- Header tabla -->
-        <div style="background:linear-gradient(180deg,#f8fafc,#f1f5f9);padding:14px 18px;display:grid;grid-template-columns:60px minmax(0,1fr) 56px 52px 52px 52px 68px 80px;gap:6px;align-items:center;border-bottom:2px solid #e2e8f0;">
-          <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;text-align:center;">#</div>
-          <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;">Equipo</div>
-          <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;text-align:center;">PJ</div>
-          <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#16a34a;text-align:center;">G</div>
-          <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;text-align:center;">E</div>
-          <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#dc2626;text-align:center;">P</div>
-          <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;text-align:center;">DG</div>
-          <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#1d4ed8;text-align:center;">PTS</div>
-        </div>
-        ${rows}
-      </div>
-
-      ${visualShareOptions.showTablaStats?`
-      <!-- Stats footer -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px;position:relative;z-index:1;">
-        <div style="background:#fff;border:1.5px solid #dbe4ee;border-radius:20px;padding:16px;text-align:center;box-shadow:0 6px 16px rgba(15,23,42,.05);">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;color:#0f172a;">${data.length}</div>
-          <div style="font-size:10px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-top:6px;">Equipos</div>
-        </div>
-        <div style="background:#fff;border:1.5px solid #dbe4ee;border-radius:20px;padding:16px;text-align:center;box-shadow:0 6px 16px rgba(15,23,42,.05);">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;color:#0f172a;">${partidos.length}</div>
-          <div style="font-size:10px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-top:6px;">Partidos</div>
-        </div>
-        <div style="background:#fff;border:1.5px solid #dbe4ee;border-radius:20px;padding:16px;text-align:center;box-shadow:0 6px 16px rgba(15,23,42,.05);">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;color:#0f172a;">${totalGoles}</div>
-          <div style="font-size:10px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-top:6px;">Goles</div>
-        </div>
-      </div>`:''}
-    `;
-    const caption = [
-      `${torneo} | ${categoria}`,
-      `Tabla general actualizada al ${fecha}.`,
-      `1. ${top.nombre} - ${top.pts||0} pts`,
-      segundo ? `2. ${segundo.nombre} - ${segundo.pts||0} pts | Finalissima` : '',
-      `Partidos cerrados: ${partidos.length}`,
-      getTournamentHashtagLine(['#Finalissima','#TablaGeneral'])
-    ].filter(Boolean).join('\n');
-    return {
-      kind:'tabla',
-      title: 'Tabla de Posiciones',
-      caption,
-      filename: baseFile,
-      html: buildVisualShareCard({
-        kicker: torneo,
-        title: 'TABLA DE POSICIONES',
-        subtitle: `${categoria} · ${organizerLine}`,
-        dateLabel: `Actualizado · ${fecha}`,
-        bodyHtml,
-        footerNote: 'Visual oficial de la tabla general listo para compartir sin pasar por imprimir.',
-        footerTag: getTournamentFooterTag()
-      })
-    };
+    return buildCleanTableSharePayload(data, torneo, categoria, fecha, organizerLine, baseFile);
   }
-
   if(tipo === 'finalissima'){
     const data = Array.isArray(dataOverride) && dataOverride.length ? dataOverride : buildTablaData();
     if(data.length < 2) return null;
@@ -2234,13 +1923,13 @@ function getStatsSharePayloadBase(tipo, dataOverride=null){
         </div>
       </div>
     `;
-    const isFemenilCup = !!cup.isFemenilFormat;
-    const cupCaptionLine = isFemenilCup
-      ? `Cuadro de copa femenil proyectado al ${fecha}: 4 equipos, semifinales y gran final.`
-      : `Cuadro de copa (Top 8) proyectado al ${fecha}.`;
-    const cupSubtitleLine = isFemenilCup
+    const isTop4Cup = !!cup.isTop4Format;
+    const cupCaptionLine = isTop4Cup
+      ? `Cuadro de copa proyectado al ${fecha}: clasifican cuatro equipos, semifinales y gran final.`
+      : `Cuadro de copa proyectado al ${fecha}: ${cup.qualifiedTeams} equipos.`;
+    const cupSubtitleLine = isTop4Cup
       ? `${categoria} · ${organizerLine} · 4 equipos · SF · Final`
-      : `${categoria} · ${organizerLine} · Top 6 equipos · CF · SF · Final`;
+      : `${categoria} · ${organizerLine} · ${cup.qualifiedTeams} equipos · ${cup.stageLabel} · Final`;
     const caption = [
       `${torneo} | ${categoria}`,
       `${ORGANIZER_NAME} · ${ORGANIZER_PHONE}`,
@@ -2435,7 +2124,8 @@ function setVisualShareBusy(busy){
   const btnShare = document.getElementById('visualShareBtnShare');
   const btnCopy = document.getElementById('visualShareBtnCopy');
   [btnPng,btnPdf,btnShare,btnCopy].forEach(btn=>{ if(btn) btn.disabled = visualShareBusy; });
-  if(btnPng) btnPng.textContent = visualShareBusy ? 'Generando...' : '🖼️ Guardar / compartir imagen';
+  if(btnPng) btnPng.textContent = visualShareBusy ? 'Generando imagen...' : '💾 Guardar imagen PNG';
+  if(btnShare) btnShare.textContent = visualShareBusy ? 'Preparando...' : '📲 Compartir imagen';
 }
 
 function renderVisualShareModal(){
@@ -2455,13 +2145,14 @@ function renderVisualShareModal(){
   if(titleEl) titleEl.textContent = isAdmin ? `📤 ${payload.title || 'Compartir Visual'}` : '🖼️ Guardar imagen';
   if(previewEl) previewEl.innerHTML = payload.html;
   if(captionEl) captionEl.value = payload.caption || '';
-  if(captionWrap) captionWrap.style.display = isAdmin ? '' : 'none';
-  if(adminControls) adminControls.style.display = isAdmin && payload.kind==='tabla' ? '' : 'none';
+  const isCleanTable = payload.kind === 'tabla';
+  if(captionWrap) captionWrap.style.display = isAdmin && !isCleanTable ? '' : 'none';
+  if(adminControls) adminControls.style.display = 'none';
   if(statsToggle) statsToggle.checked = getVisualShareStatsEnabled();
-  if(btnPdf) btnPdf.style.display = isAdmin ? '' : 'none';
+  if(btnPdf) btnPdf.style.display = isAdmin && !isCleanTable ? '' : 'none';
   if(btnShare) btnShare.style.display = '';
-  if(btnCopy) btnCopy.style.display = isAdmin ? '' : 'none';
-  if(actionsWrap) actionsWrap.style.gridTemplateColumns = isAdmin ? '1fr 1fr' : '1fr 1fr';
+  if(btnCopy) btnCopy.style.display = isAdmin && !isCleanTable ? '' : 'none';
+  if(actionsWrap) actionsWrap.style.gridTemplateColumns = '1fr 1fr';
   setVisualShareBusy(false);
   // Scale preview to fit container width
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
@@ -2581,18 +2272,8 @@ async function downloadVisualShare(mode='png'){
         return;
       }
       const blob = await canvasToBlob(canvas);
-      const file = new File([blob], `${filename}.png`, { type:'image/png' });
-      if(navigator.share && (!navigator.canShare || navigator.canShare({ files:[file] }))){
-        await navigator.share({
-          title: visualShareState.title || (TORNEO_NAMES[currentTorneo] || 'Torneo'),
-          text: visualShareState.caption || '',
-          files:[file]
-        });
-        showToast('📲 Imagen lista para guardar o compartir','tg');
-        return;
-      }
       downloadBlob(blob, `${filename}.png`);
-      showToast('🖼️ Imagen descargada correctamente','tg');
+      showToast('💾 Imagen guardada correctamente','tg');
     }catch(err){
       if(err?.name === 'AbortError') return;
       console.error(err);
@@ -2619,8 +2300,7 @@ async function shareVisualAsset(){
         return;
       }
       downloadBlob(blob, filename);
-      await copyPlainText(visualShareState.caption || '', '📋 Texto listo para pegar');
-      showToast('Tu navegador descargó la imagen para compartirla manualmente','ta');
+      showToast('Tu dispositivo no admite compartir archivos; guardamos la imagen para que puedas enviarla','ta');
     }catch(err){
       if(err?.name === 'AbortError') return;
       console.error(err);

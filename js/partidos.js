@@ -99,11 +99,14 @@ function renderPartidos() {
         : p.status === 'jugando'
         ? '🟢 En Juego'
         : '⏳ Pendiente';
+      const cupLabel = typeof isCupMatch === 'function' && isCupMatch(p)
+        ? `<span class="match-stage-badge">🏆 ${escapeHtml(p.cupStageLabel || 'Copa')}</span>`
+        : '';
       const mcCls = p.status !== 'terminado' ? 'mc-pending' : wL ? 'mc-win' : wV ? 'mc-win' : 'mc-draw';
       const arbitrajeHtml = buildArbitrajeMatchHtml(p);
       return `<div class="match-card ${mcCls}" onclick="openPartidoDetail('${p._key}')">
       <div class="mc-top">
-        <span>📅 ${fmtDate(p.fecha)} · ⏰ ${p.horaIni || '--:--'} ${p.horaFin ? '→' + p.horaFin : ''} · 🏟️ ${
+        <span>${cupLabel} 📅 ${p.fecha ? fmtDate(p.fecha) : 'Fecha por definir'} · ⏰ ${p.horaIni || '--:--'} ${p.horaFin ? '→' + p.horaFin : ''} · 🏟️ ${
         p.cancha || '—'
       }</span>
         <span class="mc-status ${statusClass}">${statusTxt}</span>
@@ -171,6 +174,10 @@ function buildScorersHtml(goles, local, visita) {
 }
 
 async function deletePartido(key) {
+  if (typeof isLeagueMatchLocked === 'function' && isLeagueMatchLocked(C.partidos?.[key])) {
+    showToast('La fase regular está cerrada y ya no puede modificarse', 'ta');
+    return;
+  }
   if (!confirm('¿Eliminar este partido?')) return;
   try {
     if (fs) await deleteDoc('partidos', key);
@@ -185,6 +192,7 @@ async function deletePartido(key) {
 async function guardarMarcadorEdit() {
   const p = C.partidos[activePartidoKey];
   if (!p) return;
+  if (typeof canModifyCupResult === 'function' && !canModifyCupResult({ ...p, _key: activePartidoKey })) return;
   const gL = parseInt(document.getElementById('edit_gL')?.value) || 0;
   const gV = parseInt(document.getElementById('edit_gV')?.value) || 0;
   const updatedAt = Date.now();
@@ -192,6 +200,9 @@ async function guardarMarcadorEdit() {
     if (fs) await updateDoc('partidos', activePartidoKey, { gL, gV, updatedAt });
     else await db.ref(`partidos/${activePartidoKey}`).update({ gL, gV, updatedAt });
     await intentarSincronizarResultado(activePartidoKey, { ...p, gL, gV, updatedAt });
+    if (typeof syncCupProgressionForMatch === 'function') {
+      await syncCupProgressionForMatch(activePartidoKey, { ...p, gL, gV, updatedAt });
+    }
     showToast('Marcador actualizado', 'tg');
   } catch (error) {
     console.log('[Make] Error al guardar marcador editado', error);
@@ -202,6 +213,7 @@ async function guardarMarcadorEdit() {
 async function eliminarGolEspecifico(partKey, golKey, equipo) {
   const p = C.partidos[partKey];
   if (!p) return;
+  if (typeof canModifyCupResult === 'function' && !canModifyCupResult({ ...p, _key: partKey })) return;
   const campo = equipo === 'local' ? 'gL' : 'gV';
   const nextScore = Math.max(0, (p[campo] || 1) - 1);
   const updatedAt = Date.now();
@@ -226,6 +238,23 @@ async function eliminarGolEspecifico(partKey, golKey, equipo) {
 }
 
 async function reabrirPartido(key) {
+  const partido = C.partidos?.[key];
+  if (typeof isLeagueMatchLocked === 'function' && isLeagueMatchLocked(partido)) {
+    showToast('La fase regular está cerrada y ya no puede reabrirse', 'ta');
+    return;
+  }
+  if (typeof isCupMatch === 'function' && isCupMatch(partido)) {
+    const season = Object.values(C.temporadas || {}).find((item) => (item.seasonId || '') === partido.seasonId);
+    const plan = typeof getSeasonCupPlan === 'function' ? getSeasonCupPlan(season) : null;
+    const planMatch = plan?.rounds?.flatMap((round) => round.matches || []).find((match) => match.partidoId === key);
+    const hasDependentMatch = plan?.rounds?.flatMap((round) => round.matches || []).some((match) =>
+      [match.sourceA, match.sourceB].some((source) => source?.type === 'winner' && source.matchId === planMatch?.id) && match.partidoId
+    );
+    if (hasDependentMatch) {
+      showToast('No se puede reabrir: la siguiente ronda ya fue creada', 'ta');
+      return;
+    }
+  }
   if (!confirm('¿Reabrir este partido? Volverá a estado "jugando"')) return;
   try {
     if (fs) await updateDoc('partidos', key, { status: 'jugando' });
@@ -420,6 +449,7 @@ function openGolModal(side) {
 async function confirmGol() {
   const p = C.partidos[activePartidoKey];
   if (!p) return;
+  if (typeof canModifyCupResult === 'function' && !canModifyCupResult({ ...p, _key: activePartidoKey })) return;
   const side = document.getElementById('gol_equipo').value;
   const manual = document.getElementById('gol_manual').value.trim();
   const fromList = document.getElementById('gol_jugador').value;
@@ -457,6 +487,7 @@ async function confirmGol() {
 async function quitarGol(side) {
   const p = C.partidos[activePartidoKey];
   if (!p) return;
+  if (typeof canModifyCupResult === 'function' && !canModifyCupResult({ ...p, _key: activePartidoKey })) return;
   const field = side === 'local' ? 'gL' : 'gV';
   const cur = p[field] || 0;
   if (cur <= 0) return;
@@ -513,6 +544,10 @@ function startTimerUI(key) {
 async function terminarPartido() {
   const p = C.partidos[activePartidoKey];
   if (!p) return;
+  if (typeof isCupMatch === 'function' && isCupMatch(p) && Number(p.gL || 0) === Number(p.gV || 0)) {
+    showToast('Define al ganador después de penales antes de terminar el partido', 'ta');
+    return;
+  }
   const elapsed = p.timerRunning
     ? (p.elapsed || 0) + (Date.now() - (p.timerStart || Date.now())) / 1000
     : p.elapsed || 0;
@@ -522,13 +557,17 @@ async function terminarPartido() {
     const patch = { status: 'terminado', timerRunning: false, elapsed, updatedAt };
     if (fs) await updateDoc('partidos', activePartidoKey, patch);
     else await db.ref(`partidos/${activePartidoKey}`).update(patch);
-    await intentarSincronizarResultado(activePartidoKey, {
+    const completedPartido = {
       ...p,
       status: 'terminado',
       timerRunning: false,
       elapsed,
       updatedAt,
-    });
+    };
+    await intentarSincronizarResultado(activePartidoKey, completedPartido);
+    if (typeof syncCupProgressionForMatch === 'function') {
+      await syncCupProgressionForMatch(activePartidoKey, completedPartido);
+    }
     closeModal('modalPartidoDetail');
     showToast('🏁 Partido terminado', 'tg');
   } catch (error) {
@@ -667,6 +706,10 @@ function toggleRosterPlayer(side, name, chip) {
 function openEditPartido(key) {
   const p = C.partidos[key];
   if (!p) return;
+  if (typeof isLeagueMatchLocked === 'function' && isLeagueMatchLocked(p)) {
+    showToast('La fase regular está cerrada. Solo puedes editar los partidos de copa', 'ta');
+    return;
+  }
   resetPartidoForm();
   document.getElementById('mp_key').value = key;
   document.getElementById('mpModalTitle').textContent = 'Editar Partido';
@@ -757,6 +800,10 @@ async function savePartido() {
   const arbId = document.getElementById('mp_arbitro').value || null;
   const arb = arbId ? C.arbitros[arbId] : null;
   const key = document.getElementById('mp_key').value;
+  if (key && typeof isLeagueMatchLocked === 'function' && isLeagueMatchLocked(C.partidos?.[key])) {
+    showToast('La fase regular está cerrada y no admite cambios', 'ta');
+    return;
+  }
   const porteroLocal = document.getElementById('mp_portero_local').value.trim();
   const porteroVisita = document.getElementById('mp_portero_visita').value.trim();
   const updatedAt = Date.now();
@@ -776,6 +823,10 @@ async function savePartido() {
     gL = parseInt(document.getElementById('mp_gL').value) || 0;
     gV = parseInt(document.getElementById('mp_gV').value) || 0;
     status = document.getElementById('mp_status').value;
+  }
+  if (status === 'terminado' && gL === gV && typeof isCupMatch === 'function' && isCupMatch(C.partidos?.[key])) {
+    showToast('Un partido de copa necesita ganador. Captura el resultado después de penales', 'ta');
+    return;
   }
   const data = {
     torneo,
@@ -834,6 +885,9 @@ async function savePartido() {
       await partidoRef.set(partidoData);
     }
     await intentarSincronizarResultado(partidoKey, partidoData);
+    if (typeof syncCupProgressionForMatch === 'function') {
+      await syncCupProgressionForMatch(partidoKey, partidoData);
+    }
     closeModal('modalPartido');
     showToast(key ? 'Partido actualizado' : defaultFlag ? '⚠️ Default registrado' : 'Partido registrado', 'tg');
   } catch (error) {

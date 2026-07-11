@@ -270,8 +270,9 @@ function getActiveSeason(torneo = currentTorneo, cat = currentCat) {
   return Object.entries(C.temporadas || {})
     .map(([key, value]) => normalizeScopedRecord({ ...value, _key: key }))
     .filter((season) => {
-      if (season.estado !== 'active') return false;
+      if (!['active', 'cup_active'].includes(season.estado)) return false;
       if (season.torneo !== normalizedTorneo) return false;
+      if (season.categoryStates?.[normalizedCat] === 'finished') return false;
       const cats = Array.isArray(season.categorias) ? season.categorias.map(appCatId) : [season.cat].filter(Boolean);
       return !cats.length || cats.includes(normalizedCat);
     })
